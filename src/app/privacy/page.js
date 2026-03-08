@@ -1,8 +1,8 @@
 import LegalPageLayout from '@/components/LegalPageLayout';
 
 export const metadata = {
-  title: 'Privacy Policy | BandBooster',
-  description: 'BandBooster privacy policy: how we collect, use, and protect your data.',
+  title: 'Privacy Policy | STRATUM.ai',
+  description: 'STRATUM.ai privacy policy: how we collect, use, and protect your data.',
 };
 
 const LAST_UPDATED = 'February 19, 2026';
@@ -52,8 +52,8 @@ export default function PrivacyPage() {
         <h2>Contact</h2>
         <p>
           If you have questions about this Privacy Policy or your data, contact us at{' '}
-          <a href="mailto:privacy@bandbooster.com" className="text-red-600 dark:text-red-400 hover:underline">
-            privacy@bandbooster.com
+          <a href="mailto:privacy@stratum.ai" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            privacy@stratum.ai
           </a>.
         </p>
       </section>

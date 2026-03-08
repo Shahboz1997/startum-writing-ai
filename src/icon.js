@@ -10,7 +10,7 @@ export const contentType = 'image/png'
 export default function Icon() {
   return new ImageResponse(
     (
-      // Твой логотип: Синий квадрат с буквой "B" (BandBooster)
+      // STRATUM.ai logo
       <div
         style={{
           fontSize: 24,

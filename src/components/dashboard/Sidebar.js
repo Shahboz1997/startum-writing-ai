@@ -1,101 +1,223 @@
-// src/components/dashboard/Sidebar.js
 'use client';
-import React, { useState } from 'react';
+
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, History, PenLine, Settings, LogOut, Menu, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  LayoutDashboard,
+  History,
+  PenLine,
+  Settings,
+  LogOut,
+  User,
+} from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
-const menuItems = [
+const mainNavItems = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { name: 'My Checks', href: '/history', icon: History },
   { name: 'Writer', href: '/', icon: PenLine },
+];
+
+const bottomNavItems = [
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
-export default function Sidebar({ user }) {
-  const pathname = usePathname();
-  const [mobileOpen, setMobileOpen] = useState(false);
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.04, delayChildren: 0.05 },
+  },
+};
 
-  const linkClass = (isActive) =>
-    `flex items-center gap-3 min-h-[44px] px-3 py-3 rounded-xl font-semibold tracking-tight transition-all ${
-      isActive
-        ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400'
-        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600'
-    }`;
+const itemVariants = {
+  hidden: { opacity: 0, x: -8 },
+  visible: { opacity: 1, x: 0 },
+};
+
+export default function Sidebar({ user, credits }) {
+  const pathname = usePathname();
+
+  const NavLink = ({ item, isActive, isMobile = false }) => {
+    const Icon = item.icon;
+    const content = (
+      <motion.div
+        className={`
+          relative flex items-center justify-center sm:justify-start gap-3 min-h-[44px] sm:min-h-[48px]
+          px-3 py-3 rounded-xl font-semibold tracking-tight
+          transition-colors duration-200
+          ${isActive
+            ? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400'
+            : 'text-slate-500 dark:text-slate-400'
+          }
+          hover:text-indigo-600 dark:hover:text-indigo-400
+          hover:shadow-[0_0_20px_rgba(79,70,229,0.15)]
+        `}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        {isActive && (
+          <span
+            className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-6 rounded-full bg-indigo-600 dark:bg-indigo-400"
+            aria-hidden
+          />
+        )}
+        <Icon className="w-5 h-5 shrink-0 flex items-center justify-center" />
+        {!isMobile && <span className="hidden sm:inline">{item.name}</span>}
+      </motion.div>
+    );
+    return (
+      <Link href={item.href} className="block">
+        {content}
+      </Link>
+    );
+  };
 
   return (
     <>
-      <div className="shrink-0 w-0 md:w-64 relative">
-        {/* Кнопка гамбургера — только на экранах < 768px */}
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          className="fixed left-4 top-4 z-40 flex items-center justify-center min-h-[44px] min-w-[44px] md:hidden rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-lg"
-          aria-label="Open menu"
+      {/* Desktop / Tablet: vertical sidebar */}
+      <motion.aside
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        className="
+          hidden sm:flex sm:flex-col sm:fixed sm:inset-y-0 sm:left-0 sm:z-30
+          w-64 h-screen
+          bg-white/80 dark:bg-[#050505]/90 backdrop-blur-md
+          border-r border-white/5 dark:border-white/5
+          p-4
+        "
+      >
+        {/* Logo: STRATUM.ai — bold, wide-tracked, accent on dot */}
+        <motion.div
+          className="flex items-center gap-2 mb-8 px-2"
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
         >
-          <Menu className="w-6 h-6" />
-        </button>
+          <motion.span
+            className="font-black tracking-[0.2em] text-lg text-slate-900 dark:text-slate-100 select-none block uppercase"
+            style={{ textShadow: '0 0 20px rgba(99,102,241,0.2)' }}
+            animate={{ opacity: [1, 0.9, 1] }}
+            transition={{ opacity: { repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}}
+          >
+            STRATUM<span className="text-indigo-500 dark:text-indigo-400">.</span>ai
+          </motion.span>
+        </motion.div>
 
-        {/* Overlay при открытом мобильном меню */}
-        {mobileOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden"
-            aria-hidden="true"
-            onClick={() => setMobileOpen(false)}
-          />
-        )}
-
-        {/* Боковая панель: на мобильных — drawer, на md+ — в потоке */}
-        <aside
-          className={`fixed md:relative inset-y-0 left-0 z-50 w-64 border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 flex flex-col transition-transform duration-300 ease-out ${
-            mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-          }`}
+        {/* Main nav */}
+        <motion.nav
+          className="flex-1 space-y-0.5"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
         >
-          <div className="flex items-center justify-between mb-10">
-            <span className="font-semibold tracking-tight text-xl text-slate-900 dark:text-slate-100">
-              BANDBOOSTER
-            </span>
-            <button
-              type="button"
-              onClick={() => setMobileOpen(false)}
-              className="flex items-center justify-center min-h-[44px] min-w-[44px] md:hidden rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-              aria-label="Close menu"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+          {mainNavItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <motion.div key={item.href} variants={itemVariants}>
+                <NavLink item={item} isActive={isActive} />
+              </motion.div>
+            );
+          })}
+        </motion.nav>
 
-          <nav className="flex-1 space-y-1">
-            {menuItems.map((item) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={linkClass(isActive)}
-                >
-                  <Icon className="w-5 h-5 shrink-0" />
-                  {item.name}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+        {/* Bottom: User profile + Settings + Sign out */}
+        <motion.div
+          className="mt-auto pt-4 border-t border-white/5 dark:border-white/5 space-y-0.5"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          {user && (
+            <div className="flex items-center gap-3 min-h-[44px] px-3 py-2 rounded-xl text-slate-500 dark:text-slate-400">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-200/80 dark:bg-slate-700/80">
+                <User className="w-4 h-4 shrink-0" />
+              </div>
+              <div className="hidden sm:block min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
+                  {user.name || user.email || 'User'}
+                </p>
+                {credits != null && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {credits} credits
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          {bottomNavItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <motion.div key={item.href} variants={itemVariants}>
+                <NavLink item={item} isActive={isActive} />
+              </motion.div>
+            );
+          })}
+          <motion.div variants={itemVariants}>
             <button
               type="button"
               onClick={() => signOut()}
-              className="flex items-center gap-3 w-full min-h-[44px] px-3 py-3 rounded-xl font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 transition-colors"
+              className="relative flex items-center justify-start gap-3 w-full min-h-[48px] px-3 py-3 rounded-xl font-semibold tracking-tight text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:shadow-[0_0_20px_rgba(79,70,229,0.12)] transition-colors"
             >
-              <LogOut className="w-5 h-5 shrink-0" />
-              Sign Out
+              <LogOut className="w-5 h-5 shrink-0 flex items-center justify-center" />
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
-          </div>
-        </aside>
-      </div>
+          </motion.div>
+        </motion.div>
+      </motion.aside>
+
+      {/* Mobile: bottom tab bar */}
+      <motion.nav
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="
+          sm:hidden fixed bottom-0 left-0 right-0 z-50
+          h-16 w-full
+          bg-white/80 dark:bg-[#050505]/90 backdrop-blur-md
+          border-t border-white/5 dark:border-white/5
+          flex items-center justify-center gap-0
+        "
+      >
+        <div className="flex items-center justify-center gap-2 w-full max-w-md px-2">
+          {mainNavItems.map((item) => {
+            const isActive = pathname === item.href;
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex-1 flex flex-col items-center justify-center min-h-[56px] rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+              >
+                <motion.span
+                  whileTap={{ scale: 0.92 }}
+                  className={`flex items-center justify-center w-10 h-10 rounded-xl ${isActive ? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400' : ''}`}
+                >
+                  <Icon className="w-5 h-5" />
+                </motion.span>
+                <span className="text-[10px] font-medium mt-0.5 truncate max-w-[72px]">
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
+          <Link
+            href="/settings"
+            className="flex-1 flex flex-col items-center justify-center min-h-[56px] rounded-xl text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+          >
+            <motion.span
+              whileTap={{ scale: 0.92 }}
+              className={`flex items-center justify-center w-10 h-10 rounded-xl ${pathname === '/settings' ? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400' : ''}`}
+            >
+              <Settings className="w-5 h-5" />
+            </motion.span>
+            <span className="text-[10px] font-medium mt-0.5">Settings</span>
+          </Link>
+        </div>
+      </motion.nav>
     </>
   );
 }

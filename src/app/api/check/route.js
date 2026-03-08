@@ -1,12 +1,54 @@
-
+export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import nodemailer from 'nodemailer';
 
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
+const API_KEY_ERROR_MSG = 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.';
+
+/** baseURL ends with /v1. Use OPENAI_BASE_URL in .env for Cloudflare proxy. */
+function getOpenAIBaseURL() {
+  const raw = process.env.OPENAI_BASE_URL;
+  const base = typeof raw === 'string' ? raw.trim() : 'https://api.openai.com/v1';
+  const url = base.length > 0 ? base : 'https://api.openai.com/v1';
+  return url.endsWith('/v1') ? url : url.replace(/\/?$/, '') + '/v1';
+}
+
+/** Uses process.env.OPENAI_API_KEY and OPENAI_PROJECT_ID (server-side). Key is trimmed to remove hidden \\r/spaces. */
+let _openaiKeyLogged = false;
+function getOpenAIClient() {
+  const apiKey = (process.env.OPENAI_API_KEY || '').trim();
+  const hasKey = apiKey.length > 0;
+
+  if (!hasKey) {
+    console.error('OPENAI_API_KEY is missing or empty. Set it in .env.local and restart the dev server.');
+    return { error: NextResponse.json({ error: 'Server Configuration Error: Missing API Key' }, { status: 401 }) };
+  }
+
+  const baseURL = getOpenAIBaseURL();
+  const project = typeof process.env.OPENAI_PROJECT_ID === 'string' ? process.env.OPENAI_PROJECT_ID.trim() : undefined;
+  const organization = typeof process.env.OPENAI_ORG_ID === 'string' ? process.env.OPENAI_ORG_ID.trim() : undefined;
+  if (!_openaiKeyLogged) {
+    _openaiKeyLogged = true;
+    console.log('[OpenAI] API key loaded at first use; baseURL:', baseURL, 'project:', project || '(none)');
+  }
+
+  const client = new OpenAI({
+    apiKey,
+    baseURL,
+    organization: organization || undefined,
+    project: project || undefined,
+  });
+  return { openai: client };
+}
+
+function isOpenAIAuthError(err) {
+  if (!err) return false;
+  const status = err.status ?? err.statusCode ?? err.response?.status;
+  const code = err.code ?? err.error?.code;
+  const msg = (err.message || err.error?.message || '').toLowerCase();
+  return status === 401 || code === 'invalid_api_key' || code === 'authentication_error' || msg.includes('api key') || msg.includes('incorrect api key');
+}
 
 const TASK1_FOCUS = `TASK 1 (Academic) FOCUS:
 - Task Achievement: Accurate reporting of main trends, key features, and data; clear overview; no irrelevant detail.
@@ -98,6 +140,17 @@ export async function DELETE(req) {
 }
 export async function POST(req) {
   try {
+    // Single trimmed key so we never use raw env (avoids hidden \r or spaces). If you still see wrong key, it's from another source.
+    const apiKey = (process.env.OPENAI_API_KEY || '').trim();
+    console.log("DEBUG: Request received. API Key Length:", apiKey.length);
+    console.log("DEBUG: Key Ends With (trimmed):", apiKey.slice(-4));
+    if (!apiKey) {
+      return NextResponse.json({ error: "Environment variable NOT LOADED" }, { status: 401 });
+    }
+    if (apiKey.slice(-4) === 'nTkA') {
+      console.warn("OPENAI_API_KEY still ends with nTkA (old key). Next.js does NOT override existing env: if OPENAI_API_KEY is set in your shell or system, that wins over .env.local. Unset it before starting: PowerShell: $env:OPENAI_API_KEY=''; npm run dev. Or check .env .env.development .env.development.local in project root.");
+    }
+    console.log("Attempting OpenAI request with Project:", process.env.OPENAI_PROJECT_ID, "Key ends with:", apiKey.slice(-4));
     const body = await req.json();
      // --- НОВЫЙ РЕЖИМ: Отправка Email (Feedback/Improvement Hub) ---
     // Проверяем наличие полей, которые приходят из вашей формы
@@ -116,7 +169,7 @@ await transporter.sendMail({
   // ИСПРАВЬТЕ ЭТУ СТРОКУ:
   to: 'Sashabilov25@gmail.com', // Или любая другая ВАША рабочая почта
   
-  subject: `🚀 BandBooster Feedback: ${body.name}`,
+  subject: `🚀 STRATUM.ai Feedback: ${body.name}`,
   html: `
     <div style="font-family: sans-serif; border: 1px solid #e2e8f0; padding: 20px; border-radius: 15px;">
       <h2 style="color: #ef4444; text-transform: uppercase;">New Improvement Suggestion</h2>
@@ -136,11 +189,12 @@ await transporter.sendMail({
         return NextResponse.json({ error: "Mail system error" }, { status: 500 });
       }
     }
-    // --- 1. РЕЖИМ: Глубокий анализ изображения (Vision) ---
+    // --- 1. РЕЖИМ: Глубокий анализ изображения (Vision / OCR) ---
+    // Frontend sends POST with { describeImage: true, image: base64OrUrl }. API key is read at request time via getOpenAIClient().
     if (body.describeImage && body.image) {
-      if (!openai) {
-        return NextResponse.json({ error: 'OpenAI API key is not configured.' }, { status: 503 });
-      }
+      const clientResult = getOpenAIClient();
+      if (clientResult.error) return clientResult.error;
+      const openai = clientResult.openai;
       try {
         let finalImage;
         if (body.image.startsWith('http')) {
@@ -149,6 +203,7 @@ await transporter.sendMail({
           finalImage = body.image;
         }
 
+        // gpt-4o supports vision (image inputs). Do not use gpt-4o-mini or older models for image processing.
         const response = await openai.chat.completions.create({
           model: "gpt-4o",
           messages: [
@@ -165,38 +220,48 @@ await transporter.sendMail({
 
         return NextResponse.json({ question: response.choices[0].message.content });
       } catch (error) {
+        console.error("OpenAI error (describeImage):", error?.response ?? error?.error ?? error?.message, "response?.data:", error?.response?.data ?? error?.error);
+        if (isOpenAIAuthError(error)) {
+          return NextResponse.json({ error: "INVALID_API_KEY" }, { status: 401 });
+        }
         return NextResponse.json({ 
-          question: "The selected image source is protected or invalid. Please upload a file manually or try another topic." 
-        });
+          error: "The selected image source is protected or invalid. Please upload a file manually or try another topic.",
+          question: null
+        }, { status: 500 });
       }
     }
 
     // --- 2. РЕЖИМ: Генерация случайного Task 1 (Текст) ---
     if (body.generateTask1) {
-      if (!openai) {
-        return NextResponse.json({ error: 'OpenAI API key is not configured.' }, { status: 503 });
+      const clientResult = getOpenAIClient();
+      if (clientResult.error) return clientResult.error;
+      const openai = clientResult.openai;
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { 
+              role: "system", 
+              content: "You are an IELTS Examiner. Generate a professional Academic Task 1 prompt. START with the chart type." 
+            },
+            { role: "user", content: "Generate a new Academic Task 1 topic." }
+          ]
+        });
+        return NextResponse.json({ question: response.choices[0].message.content });
+      } catch (err) {
+        console.error('Generate Task 1 error:', err, 'response?.data:', err?.response?.data ?? err?.error);
+        if (isOpenAIAuthError(err)) {
+          return NextResponse.json({ error: "INVALID_API_KEY" }, { status: 401 });
+        }
+        return NextResponse.json({ error: err?.message || 'Topic generation failed.' }, { status: 500 });
       }
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { 
-            role: "system", 
-            content: "You are an IELTS Examiner. Generate a professional Academic Task 1 prompt. START with the chart type." 
-          },
-          { role: "user", content: "Generate a new Academic Task 1 topic." }
-        ]
-      });
-      return NextResponse.json({ question: response.choices[0].message.content });
     }
 
     // --- 3. РЕЖИМ: Генерация темы Task 2 ---
     if (body.generateTopic) {
-      if (!openai) {
-        return NextResponse.json(
-          { error: 'OpenAI API key is not configured. Add OPENAI_API_KEY to .env.local.' },
-          { status: 503 }
-        );
-      }
+      const clientResult = getOpenAIClient();
+      if (clientResult.error) return clientResult.error;
+      const openai = clientResult.openai;
       const keyword = typeof body.keyword === 'string' ? body.keyword.trim() : '';
       try {
         const response = await openai.chat.completions.create({
@@ -216,12 +281,13 @@ await transporter.sendMail({
         }
         return NextResponse.json({ question: text });
       } catch (err) {
-        console.error('Generate topic error:', err);
-        const message = err?.message || err?.error?.message || 'Topic generation failed.';
-        const status = err?.status === 401 ? 401 : 500;
+        console.error('Generate topic error:', err, 'response?.data:', err?.response?.data ?? err?.error);
+        if (isOpenAIAuthError(err)) {
+          return NextResponse.json({ error: "INVALID_API_KEY" }, { status: 401 });
+        }
         return NextResponse.json(
-          { error: message },
-          { status }
+          { error: err?.message || err?.error?.message || 'Topic generation failed.' },
+          { status: 500 }
         );
       }
     }
@@ -247,25 +313,34 @@ await transporter.sendMail({
     if (!user || (user.credits != null && user.credits < 1)) {
       return NextResponse.json({ error: "You have run out of credits. Please refill to continue." }, { status: 403 });
     }
-    if (!openai) {
-      return NextResponse.json({ error: 'OpenAI API key is not configured.' }, { status: 503 });
-    }
+    const clientResult = getOpenAIClient();
+    if (clientResult.error) return clientResult.error;
+    const openai = clientResult.openai;
 
     const examinerPrompt = buildExaminerPrompt(taskCriteriaName, isT1);
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        { role: "system", content: examinerPrompt },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: `TASK: ${analysisMode.toUpperCase()}\nPROMPT: ${promptText}\nSTUDENT ESSAY:\n${userText}` },
-            ...(isT1 && image ? [{ type: "image_url", image_url: { url: image } }] : [])
-          ]
-        }
-      ],
-      response_format: { type: "json_object" }
-    });
+    let response;
+    try {
+      response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: examinerPrompt },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `TASK: ${analysisMode.toUpperCase()}\nPROMPT: ${promptText}\nSTUDENT ESSAY:\n${userText}` },
+              ...(isT1 && image ? [{ type: "image_url", image_url: { url: image } }] : [])
+            ]
+          }
+        ],
+        response_format: { type: "json_object" }
+      });
+    } catch (err) {
+      console.error('OpenAI error (essay check):', err?.response ?? err?.error ?? err?.message, 'response?.data:', err?.response?.data ?? err?.error);
+      if (isOpenAIAuthError(err)) {
+        return NextResponse.json({ error: "INVALID_API_KEY" }, { status: 401 });
+      }
+      throw err;
+    }
 
     const result = JSON.parse(response.choices[0].message.content);
     result.word_count = result.word_count ?? userText.trim().split(/\s+/).filter(Boolean).length;
@@ -286,27 +361,30 @@ await transporter.sendMail({
     const typeValue = isT1 ? 'TASK_1' : 'TASK_2';
     const userId = session.user.id;
 
-    const [savedCheck] = await prisma.$transaction([
-      prisma.check.create({
-        data: {
-          type: typeValue,
-          content: userText,
-          promptText: promptText || null,
-          score: result.overall_band,
-          feedback: JSON.stringify(result),
-          userId,
-        },
-      }),
-      prisma.user.update({
-        where: { id: userId },
-        data: { credits: { decrement: 1 } },
-      }),
-    ]);
+    // Run create and update separately to avoid transaction timeout (e.g. "Unable to start a transaction in the given time").
+    // Ensure DATABASE_URL / DIRECT_URL in .env.local is correct and reachable (VPN/network).
+    const savedCheck = await prisma.check.create({
+      data: {
+        type: typeValue,
+        content: userText,
+        promptText: promptText || null,
+        score: result.overall_band,
+        feedback: JSON.stringify(result),
+        userId,
+      },
+    });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { credits: { decrement: 1 } },
+    });
 
     return NextResponse.json({ ...result, savedId: savedCheck.id });
   } catch (error) {
     console.error("API ERROR:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (isOpenAIAuthError(error)) {
+      return NextResponse.json({ error: "INVALID_API_KEY" }, { status: 401 });
+    }
+    return NextResponse.json({ error: error?.message || 'Server error.' }, { status: 500 });
   }
 }
 

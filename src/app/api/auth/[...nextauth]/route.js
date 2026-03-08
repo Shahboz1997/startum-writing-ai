@@ -6,18 +6,27 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-// AUTH_URL в .env: для продакшена https://xn----8sbe2ac0axdh.com (без /api/auth — путь по умолчанию)
+// Force dynamic so env vars are read at request time (avoids stale/empty secret)
+export const dynamic = "force-dynamic";
+
+// Required in .env.local: NEXTAUTH_SECRET (or AUTH_SECRET), NEXTAUTH_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 const isDev = process.env.NODE_ENV === "development";
 
-// Секрет строго из process.env.AUTH_SECRET (без запасного и без захардкоженных строк)
-const authSecret = process.env.AUTH_SECRET;
-if (!authSecret && process.env.NODE_ENV !== "development") {
-  console.warn("[auth] AUTH_SECRET is not set; session encryption may fail.");
+// Secret must be a non-empty string; undefined causes "Configuration" error
+function getSecret() {
+  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
+  if (secret && typeof secret === "string" && secret.length > 0) return secret;
+  if (isDev) {
+    const fallback = "dev-secret-min-32-chars-required-for-auth";
+    console.warn("[auth] NEXTAUTH_SECRET / AUTH_SECRET missing; using dev fallback. Set in .env.local for production.");
+    return fallback;
+  }
+  throw new Error("NEXTAUTH_SECRET or AUTH_SECRET must be set in production.");
 }
 
 export const authOptions = {
   trustHost: true,
-  secret: authSecret,
+  secret: getSecret(),
   adapter: PrismaAdapter(getPrisma()),
   providers: [
     GoogleProvider({
@@ -125,12 +134,13 @@ export const authOptions = {
       }
       return token;
     },
-    // Передаем данные из токена в объект сессии (доступен через useSession)
+    // Must return a session object; never return false or undefined (causes Configuration error)
     async session({ session, token }) {
-      if (session?.user) {
+      if (!session) return { user: {}, expires: "" };
+      if (session.user) {
         session.user.id = token?.id ?? session.user.email;
         session.user.credits = token?.credits ?? 0;
-        session.user.language = token?.language ?? 'en';
+        session.user.language = token?.language ?? "en";
       }
       return session;
     },
@@ -142,7 +152,7 @@ export const authOptions = {
   debug: isDev,
 };
 
-// NextAuth v5: returns { handlers, auth, signIn, signOut }
+// App Router: equivalent to const handler = NextAuth(authOptions); export { handler as GET, handler as POST }
 const nextAuth = NextAuth(authOptions);
 export const { handlers, auth } = nextAuth;
 
@@ -169,6 +179,7 @@ function clearSessionAndRedirect(request) {
   return response;
 }
 
+// App Router requires named GET and POST exports; delegate to NextAuth handlers
 export async function GET(request) {
   try {
     return await handlers.GET(request);

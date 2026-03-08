@@ -180,9 +180,10 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full min-h-[44px] bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 text-white font-semibold py-4 rounded-xl shadow-sm transition-all active:scale-[0.99]"
+              className="btn-stratum w-full min-h-[44px] py-4 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)] disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Processing...' : isLogin ? 'Sign in' : 'Get started'}
+              <div className="shimmer-layer animate-shimmer" aria-hidden />
+              <span className="btn-stratum-text">{isLoading ? 'PROCESSING...' : isLogin ? 'STRATUM SIGN IN' : 'GET STARTED · STRATUM'}</span>
             </button>
           </form>
 

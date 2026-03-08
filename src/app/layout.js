@@ -16,9 +16,9 @@ export const metadata = {
   metadataBase: new URL(
     process.env.NODE_ENV === 'development'
       ? 'http://localhost:3000'
-      : 'https://bandbooster.com'
+      : 'https://stratum.ai'
   ),
-  title: 'BANDBOOSTER | AI-Powered IELTS Writing Examiner & Essay Scorer',
+  title: 'STRATUM.ai | AI-Powered IELTS Writing Examiner & Essay Scorer',
   description:
     'Get instant Band 9.0 feedback on your IELTS Task 1 and Task 2. Our AI examiner analyses your grammar, vocabulary, and coherence using official criteria.',
   keywords: [
@@ -31,17 +31,17 @@ export const metadata = {
     'academic writing',
     'English language assessment',
   ],
-  authors: [{ name: 'BANDBOOSTER' }],
+  authors: [{ name: 'STRATUM.ai' }],
   openGraph: {
     type: 'website',
-    title: 'Boost Your IELTS Score with AI | BANDBOOSTER',
+    title: 'Boost Your IELTS Score with AI | STRATUM.ai',
     description:
       'Stop guessing your score. Get detailed academic evaluation for Task 1 and Task 2 in seconds.',
     images: ['/og-image.png'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Master IELTS Writing with BANDBOOSTER',
+    title: 'Master IELTS Writing with STRATUM.ai',
     description:
       'Stop guessing your score. Get detailed academic evaluation for Task 1 and Task 2 in seconds.',
     images: ['/og-image.png'],
@@ -50,7 +50,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: '#dc2626',
+  themeColor: '#6366f1',
   width: 'device-width',
   initialScale: 1,
 };
@@ -58,7 +58,7 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-slate-900 dark:bg-[#030712] dark:text-slate-100 transition-colors duration-500 min-h-screen`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-[#F9FAFB] text-slate-900 dark:bg-[#050505] dark:text-slate-100 transition-colors duration-500 min-h-screen`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Providers>
             {children}
@@ -89,9 +89,9 @@ export default function RootLayout({ children }) {
 //   metadataBase: new URL(
 //     process.env.NODE_ENV === 'development' 
 //       ? 'http://localhost:3000' 
-//       : 'https://bandbooster.com'
+//       : 'https://stratum.ai'
 //   ),
-//   title: "BandBooster | AI IELTS Writing Checker & Examiner",
+//   title: "STRATUM.ai | AI IELTS Writing Checker & Examiner",
 //   description: "Improve your IELTS Writing score with AI...",
 //   // ... остальные метаданные
 // };

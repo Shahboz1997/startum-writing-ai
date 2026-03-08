@@ -56,13 +56,14 @@ const CheckoutForm = ({ plan, darkMode, onClose, isAgreed }) => {
         <button
           type="submit"
           disabled={!canSubmit}
-          className={`w-full min-h-[44px] py-4 rounded-2xl font-semibold tracking-tight text-xs shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${
+          className={`w-full min-h-[44px] py-4 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 ${
             canSubmit
-              ? 'bg-indigo-600 text-white shadow-indigo-600/30 hover:bg-indigo-700'
+              ? 'btn-stratum hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]'
               : 'bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 opacity-50 cursor-not-allowed'
           }`}
         >
-        {processing ? 'Processing...' : plan.price === '3.99$' ? 'Start 3-Day Free Trial' : `Pay ${plan?.price} Now`}
+        {canSubmit && <div className="shimmer-layer animate-shimmer" aria-hidden />}
+        <span className={canSubmit ? 'btn-stratum-text' : ''}>{processing ? 'PROCESSING...' : plan.price === '3.99$' ? 'START TRIAL · STRATUM' : `PAY ${plan?.price} · STRATUM`}</span>
       </button>
     </form>
   );
@@ -122,21 +123,21 @@ const Navbar = ({
   // ... остальной код
   return (
     <>
-      <nav className={`sticky top-0 z-50 p-4 border-b backdrop-blur-xl transition-colors duration-300 ${
-        darkMode ? 'bg-[#030712]/80 border-slate-800/50' : 'bg-white/80 border-slate-100'
+      <nav className={`sticky top-0 z-50 p-4 border-b border-white/5 backdrop-blur-md transition-colors duration-300 ${
+        darkMode ? 'bg-[#050505]/90' : 'bg-[#F9FAFB]/90'
       }`}>
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           
-          {/* ЛОГОТИП — reset to main dashboard (Topics) */}
+          {/* Logo: STRATUM.ai — bold, wide-tracked, accent on dot */}
           <button
             type="button"
             onClick={() => setActiveTab('Topics')}
-            className="flex items-center gap-2 text-2xl font-black italic cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded"
+            className="flex items-center gap-2 text-xl sm:text-2xl font-black tracking-[0.15em] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded uppercase"
             aria-label="Go to Topics"
           >
-            <FireIcon className="w-8 h-8 text-red-600 shrink-0" /> 
-            <span className={`${darkMode ? 'text-white' : 'text-slate-900'} uppercase tracking-tighter font-black`}>
-              BAND<span className="text-red-600">BOOSTER</span>
+            <FireIcon className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-500 dark:text-indigo-400 shrink-0" />
+            <span className={darkMode ? 'text-white' : 'text-slate-900'}>
+              STRATUM<span className="text-indigo-500 dark:text-indigo-400">.</span>ai
             </span>
           </button>
 
@@ -145,9 +146,9 @@ const Navbar = ({
             <div className={`flex p-1 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
               {menuItems.map((item) =>
                 item === 'Archive' ? (
-                  <Link key={item} href="/history" className={`px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-tighter transition-all block ${activeTab === item ? 'bg-red-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-red-600'}`}>{item}</Link>
+                  <Link key={item} href="/history" className={`px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-tighter transition-all block ${activeTab === item ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600'}`}>{item}</Link>
                 ) : (
-                  <button key={item} type="button" onClick={() => setActiveTab(item)} className={`px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-tighter transition-all ${activeTab === item ? 'bg-red-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-red-600'}`}>{item}</button>
+                  <button key={item} type="button" onClick={() => setActiveTab(item)} className={`px-4 py-2 rounded-full font-black text-[11px] uppercase tracking-tighter transition-all ${activeTab === item ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600'}`}>{item}</button>
                 )
               )}
             </div>
@@ -159,7 +160,7 @@ const Navbar = ({
                 </button>
                 <AnimatePresence>
                   {isPricingOpen && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className={`absolute right-0 mt-3 w-64 p-4 rounded-2xl shadow-2xl border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'}`}>
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className={`absolute right-0 mt-3 w-64 p-4 rounded-3xl shadow-2xl shadow-black/10 border border-white/5 backdrop-blur-md ${darkMode ? 'bg-slate-900/90' : 'bg-white/95'}`}>
                        {plans.map(p => (
                           <div key={p.name} onClick={() => { setSelectedPlan(p); setIsPricingOpen(false); }} className="p-3 mb-1 rounded-xl cursor-pointer font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 transition-all">
                              <div className="flex justify-between"><span>{p.name}</span><span className="text-indigo-600">{p.price}</span></div>
@@ -203,7 +204,7 @@ const Navbar = ({
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
-                    className="absolute right-0 mt-2 w-48 py-1 rounded-xl shadow-lg border border-slate-100 dark:border-slate-800 z-50 bg-white dark:bg-slate-900"
+                    className="absolute right-0 mt-2 w-48 py-1 rounded-3xl shadow-2xl shadow-black/10 border border-white/5 backdrop-blur-md z-50 bg-white/95 dark:bg-slate-900/95"
                   >
                     <Link
                       href="/settings"
@@ -226,7 +227,10 @@ const Navbar = ({
           </div>
         </div>
               ) : (
-                <button type="button" onClick={() => onLoginClick()} className="min-h-[44px] font-semibold tracking-tight px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors">Login</button>
+                <button type="button" onClick={() => onLoginClick()} className="btn-stratum min-h-[44px] px-4 py-2 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]">
+                  <div className="shimmer-layer animate-shimmer" aria-hidden />
+                  <span className="btn-stratum-text">STRATUM LOGIN</span>
+                </button>
               )}
               <button
                 type="button"
@@ -264,15 +268,15 @@ const Navbar = ({
                 <div className="grid grid-cols-2 gap-2">
                   {menuItems.map((item) =>
                     item === 'Archive' ? (
-                      <Link key={item} href="/history" onClick={() => setIsMenuOpen(false)} className={`flex items-center justify-center min-h-[44px] p-4 rounded-xl font-semibold tracking-tight text-center block text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 ${activeTab === item ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800'}`}>{item}</Link>
+                      <Link key={item} href="/history" onClick={() => setIsMenuOpen(false)} className={`flex items-center justify-center min-h-[44px] p-4 rounded-xl font-semibold tracking-tight text-center block text-slate-600 dark:text-slate-400 hover:bg-white/5 hover:text-indigo-600 ${activeTab === item ? 'bg-indigo-600 text-white shadow-2xl shadow-indigo-500/20' : 'bg-white/5 dark:bg-white/5 border border-white/5'}`}>{item}</Link>
                     ) : (
-                      <button key={item} type="button" onClick={() => { setActiveTab(item); setIsMenuOpen(false); }} className={`flex items-center justify-center min-h-[44px] p-4 rounded-xl font-semibold tracking-tight text-center text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 ${activeTab === item ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800'}`}>{item}</button>
+                      <button key={item} type="button" onClick={() => { setActiveTab(item); setIsMenuOpen(false); }} className={`flex items-center justify-center min-h-[44px] p-4 rounded-xl font-semibold tracking-tight text-center text-slate-600 dark:text-slate-400 hover:bg-white/5 hover:text-indigo-600 ${activeTab === item ? 'bg-indigo-600 text-white shadow-2xl shadow-indigo-500/20' : 'bg-white/5 dark:bg-white/5 border border-white/5'}`}>{item}</button>
                     )
                   )}
                 </div>
 
                 {/* 2. Блок Pricing внутри бургера */}
-                <div className={`p-4 rounded-2xl border ${darkMode ? 'border-slate-800 bg-slate-800/30' : 'border-slate-100 bg-slate-50'}`}>
+                <div className={`p-4 rounded-3xl border border-white/5 backdrop-blur-md ${darkMode ? 'bg-white/5' : 'bg-white/80'}`}>
                   <h4 className="text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2"><CreditCardIcon className="w-4 h-4" /> Subscription Plans</h4>
                   <div className="space-y-2">
                     {plans.map(p => (
@@ -298,7 +302,10 @@ const Navbar = ({
                      {themeMounted && resolvedTheme === 'dark' ? <><SunIcon className="w-5 h-5" /> Day</> : <><MoonIcon className="w-5 h-5" /> Night</>}
                    </button>
                    {!isLoggedIn && (
-                     <button type="button" onClick={() => onLoginClick()} className="flex-1 min-h-[44px] p-4 bg-indigo-600 text-white rounded-xl font-semibold tracking-tight shadow-lg hover:bg-indigo-700 transition-colors">Login</button>
+                     <button type="button" onClick={() => onLoginClick()} className="btn-stratum flex-1 min-h-[44px] p-4 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]">
+                       <div className="shimmer-layer animate-shimmer" aria-hidden />
+                       <span className="btn-stratum-text">STRATUM LOGIN</span>
+                     </button>
                    )}
                 </div>
 
@@ -313,7 +320,7 @@ const Navbar = ({
         {selectedPlan && (
               <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedPlan(null)} className="absolute inset-0 z-[100] bg-slate-900/90 backdrop-blur-md" aria-hidden="true" />
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className={`relative z-[101] w-full max-w-md p-4 sm:p-8 rounded-[32px] shadow-2xl my-auto max-h-[100dvh] overflow-y-auto ${darkMode ? 'bg-slate-900 border border-slate-800 text-white' : 'bg-white text-slate-900'}`}>
+            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className={`relative z-[101] w-full max-w-md p-4 sm:p-8 rounded-3xl shadow-2xl shadow-black/15 my-auto max-h-[100dvh] overflow-y-auto border border-white/5 backdrop-blur-md ${darkMode ? 'bg-slate-900/95 text-white' : 'bg-white/95 text-slate-900'}`}>
               <div className="flex justify-between items-center mb-8">
                 <div className="italic font-black uppercase text-2xl tracking-tighter">
                   <h3>{selectedPlan.price === '0$' ? 'Start Trial' : 'Checkout'}</h3>

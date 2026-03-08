@@ -1,8 +1,8 @@
 import LegalPageLayout from '@/components/LegalPageLayout';
 
 export const metadata = {
-  title: 'Refund Policy | BandBooster',
-  description: 'BandBooster refund policy: credits, subscriptions, and refund eligibility.',
+  title: 'Refund Policy | STRATUM.ai',
+  description: 'STRATUM.ai refund policy: credits, subscriptions, and refund eligibility.',
 };
 
 const LAST_UPDATED = 'February 19, 2026';
@@ -26,8 +26,8 @@ export default function RefundPage() {
           billing cycle. Refunds for the current billing period are considered on a case-by-case basis
           and are not guaranteed. Subscription fees are generally non-refundable once the billing period
           has started. Contact us at{' '}
-          <a href="mailto:support@bandbooster.com" className="text-red-600 dark:text-red-400 hover:underline">
-            support@bandbooster.com
+          <a href="mailto:support@stratum.ai" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            support@stratum.ai
           </a>{' '}
           for billing questions.
         </p>
@@ -46,8 +46,8 @@ export default function RefundPage() {
         <h2>Contact</h2>
         <p>
           For refund requests or questions about this policy, contact us at{' '}
-          <a href="mailto:support@bandbooster.com" className="text-red-600 dark:text-red-400 hover:underline">
-            support@bandbooster.com
+          <a href="mailto:support@stratum.ai" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            support@stratum.ai
           </a>{' '}
           or at our business address: 16192 Coastal Highway, Lewes, Delaware 19958, USA.
         </p>

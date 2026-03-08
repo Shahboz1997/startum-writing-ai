@@ -219,9 +219,10 @@ const TransformationSlider = ({ darkMode, onCtaClick }) => {
             <button
               type="button"
               onClick={onCtaClick}
-              className="btn-squircle px-6 sm:px-8 py-3 text-white bg-indigo-600 hover:bg-indigo-700 border border-white/10 shadow-lg shadow-slate-200/50 dark:shadow-none transition-all duration-200 shrink-0"
+              className="btn-stratum px-6 sm:px-8 py-3 rounded-xl shrink-0 hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]"
             >
-              Start Improving My Writing
+              <div className="shimmer-layer animate-shimmer" aria-hidden />
+              <span className="btn-stratum-text">START WITH STRATUM</span>
             </button>
           )}
         </div>

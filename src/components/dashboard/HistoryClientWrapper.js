@@ -40,8 +40,8 @@ export default function HistoryClientWrapper({ initialData }) {
 
   return (
     <div className="space-y-6">
-      {/* ПАНЕЛЬ ФИЛЬТРОВ — BandBooster dark glassmorphism */}
-      <div className="grid grid-cols-1 md:flex items-center gap-4 p-4 bg-white/5 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl border border-slate-200/20 dark:border-slate-700/50 shadow-xl">
+      {/* Filters panel — STRATUM.ai glassmorphism */}
+      <div className="grid grid-cols-1 md:flex items-center gap-4 p-4 bg-white/80 dark:bg-white/5 backdrop-blur-md rounded-3xl border border-white/5 shadow-2xl shadow-black/5 dark:shadow-black/20">
         
         {/* Поиск */}
         <div className="relative flex-1 min-w-0">
@@ -49,14 +49,14 @@ export default function HistoryClientWrapper({ initialData }) {
           <input 
             type="text" 
             placeholder="Search essay content..." 
-            className="w-full min-h-[44px] pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none focus:ring-2 ring-red-600 font-bold text-[10px] uppercase transition-all"
+            className="w-full min-h-[44px] pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl outline-none focus:ring-2 ring-indigo-500 font-bold text-[10px] uppercase transition-all"
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
         {/* Фильтр по баллу */}
-        <div className="flex items-center gap-2 px-4 min-h-[44px] bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-800">
-          <Filter className="w-3 h-3 text-red-600 shrink-0" />
+        <div className="flex items-center gap-2 px-4 min-h-[44px] bg-slate-50 dark:bg-slate-800 rounded-2xl border border-white/5">
+          <Filter className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
           <select 
             value={minScore}
             onChange={(e) => setMinScore(e.target.value)}
@@ -73,7 +73,7 @@ export default function HistoryClientWrapper({ initialData }) {
         <button 
           type="button"
           onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
-          className="flex items-center justify-center gap-2 min-h-[44px] px-6 py-3 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-red-600/20 active:scale-95 transition-all"
+          className="flex items-center justify-center gap-2 min-h-[44px] px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all"
         >
           {sortOrder === 'desc' ? <SortDesc className="w-4 h-4" /> : <SortAsc className="w-4 h-4" />}
           {sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}

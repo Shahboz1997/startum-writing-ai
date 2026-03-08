@@ -1,68 +1,99 @@
 import { getPrisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs"; // Используем bcryptjs (он стабильнее)
+import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
+    // Ensure DATABASE_URL (or DIRECT_URL) is available before using Prisma
+    const dbUrl = process.env.DATABASE_URL || process.env.DIRECT_URL;
+    if (!dbUrl) {
+      console.error("REGISTRATION_ERROR: DATABASE_URL and DIRECT_URL are not set in .env");
+      return NextResponse.json(
+        { error: "Server configuration error: database URL not configured." },
+        { status: 503 }
+      );
+    }
+
     const prisma = getPrisma();
 
-    // 1. Парсим тело запроса
     const body = await request.json();
-    const { email, name, password } = body;
+    const rawEmail = body?.email;
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    const password = body?.password;
 
-    // 2. Валидация полей
-    if (!email || !name || !password) {
+    if (!rawEmail || !password) {
       return NextResponse.json(
-        { error: "Все поля обязательны (email, name, password)" }, 
+        { error: "Email and password are required." },
         { status: 400 }
       );
     }
 
-    // 3. Проверка: не занят ли email
+    const email = String(rawEmail).trim().toLowerCase();
+    if (!email) {
+      return NextResponse.json({ error: "Email is required." }, { status: 400 });
+    }
+
+    if (!name) {
+      return NextResponse.json({ error: "Name is required." }, { status: 400 });
+    }
+
+    // If the user already exists, return 400 instead of 500
     const existingUser = await prisma.user.findUnique({
-      where: { email }
+      where: { email },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: "Пользователь с таким email уже существует" }, 
+        { error: "Email already exists" },
         { status: 400 }
       );
     }
 
-    // 4. Хеширование пароля
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password with bcrypt (rounds: 10)
+    const hashedPassword = await bcrypt.hash(String(password), 10);
 
-    // 5. Создание пользователя в Supabase через Prisma
+    // Save user to database; User model fields: email, password, name (id, createdAt, etc. are auto-set)
     const user = await prisma.user.create({
       data: {
         email,
-        name,
+        name: name || null,
         password: hashedPassword,
       },
     });
 
-    // 6. Возвращаем успех (без пароля в целях безопасности)
-    const { password: _, ...userWithoutPassword } = user;
-    return NextResponse.json(
-      { message: "Регистрация успешна", user: userWithoutPassword }, 
-      { status: 201 }
-    );
-
+    // Return 201 with user object (omit password)
+    const { password: _p, ...userWithoutPassword } = user;
+    return NextResponse.json(userWithoutPassword, { status: 201 });
   } catch (error) {
-    console.error("REGISTER_ERROR:", error);
-    const isDbUnreachable = error?.code === "P1001" || /Can't reach database server/i.test(error?.message ?? "");
+    console.error("REGISTRATION_ERROR:", error);
+
+    const code = error?.code;
+    const message = error?.message ?? "";
+
+    if (code === "P2002") {
+      return NextResponse.json(
+        { error: "Email already exists" },
+        { status: 400 }
+      );
+    }
+
+    const isDbUnreachable =
+      code === "P1001" ||
+      /Can't reach database server/i.test(message) ||
+      /Connection refused/i.test(message);
+
     if (isDbUnreachable) {
       return NextResponse.json(
         {
           error:
-            "База данных недоступна. Проверьте DATABASE_URL в .env.local: для Supabase используйте порт 6543 (Session) и добавьте ?sslmode=require.",
+            "Database unavailable. Check DATABASE_URL (and DIRECT_URL) in .env.local.",
         },
         { status: 503 }
       );
     }
+
     return NextResponse.json(
-      { error: "Ошибка сервера при регистрации" },
+      { error: "Registration failed. Please try again." },
       { status: 500 }
     );
   }

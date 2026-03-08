@@ -1,8 +1,8 @@
 import LegalPageLayout from '@/components/LegalPageLayout';
 
 export const metadata = {
-  title: 'Terms of Service | BandBooster',
-  description: 'BandBooster terms of service: service description, credits, and user conduct.',
+  title: 'Terms of Service | STRATUM.ai',
+  description: 'STRATUM.ai terms of service: service description, credits, and user conduct.',
 };
 
 const LAST_UPDATED = 'February 19, 2026';
@@ -13,7 +13,7 @@ export default function TermsPage() {
       <section>
         <h2>Service description</h2>
         <p>
-          BandBooster provides AI-based IELTS writing evaluation for educational purposes. The
+          STRATUM.ai provides AI-based IELTS writing evaluation for educational purposes. The
           service gives you band-style scores and feedback on Task 1 and Task 2 essays. It is not
           affiliated with IDP or British Council and is intended to support practice and
           self-improvement only.
@@ -43,7 +43,7 @@ export default function TermsPage() {
       <section>
         <h2>Disclaimer</h2>
         <p>
-          The band score and feedback provided by BandBooster are AI-generated estimates based on
+          The band score and feedback provided by STRATUM.ai are AI-generated estimates based on
           public IELTS band descriptors. They do not constitute an official IELTS result from IDP or
           British Council and cannot be used in place of an actual exam. Use the service for
           practice and guidance only.
@@ -54,8 +54,8 @@ export default function TermsPage() {
         <h2>Contact</h2>
         <p>
           For questions about these Terms of Service, contact us at{' '}
-          <a href="mailto:legal@bandbooster.com" className="text-red-600 dark:text-red-400 hover:underline">
-            legal@bandbooster.com
+          <a href="mailto:legal@stratum.ai" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            legal@stratum.ai
           </a>.
         </p>
       </section>

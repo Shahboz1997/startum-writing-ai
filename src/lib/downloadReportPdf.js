@@ -12,7 +12,7 @@ function addWatermark(doc) {
     doc.setGState(new doc.GState({ opacity: 0.05 }));
     doc.setTextColor(150, 150, 150);
     doc.setFontSize(50);
-    doc.text('BANDBOOSTER OFFICIAL', 35, 150, { angle: 45 });
+    doc.text('STRATUM.AI OFFICIAL', 35, 150, { angle: 45 });
     doc.restoreGraphicsState();
   } catch (_) {}
 }
@@ -132,6 +132,6 @@ export function downloadCheckReport(check) {
     doc.text(rewriteLines, 20, nextY);
   }
 
-  const filename = `BandBooster_Report_${isT1 ? 'T1' : 'T2'}_${check.id.slice(-8)}_${Date.now()}.pdf`;
+  const filename = `STRATUM_Report_${isT1 ? 'T1' : 'T2'}_${check.id.slice(-8)}_${Date.now()}.pdf`;
   doc.save(filename);
 }
