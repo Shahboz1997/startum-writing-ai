@@ -8,21 +8,19 @@ import AnimatedScore from '../components/AnimatedScore';
 import Navbar from '../components/Navbar';
 import AuthModal from '../components/AuthModal';
 import LandingPage from '../components/LandingPage';
+import { LoadingState, EmptyState, ErrorState, SuccessState } from '../components/stratum';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronUpIcon, PaperAirplaneIcon } from '@heroicons/react/24/solid';
+import {
+  ChevronUp, Send, Download, Search, Check, Sparkles, Share2, Clock, ChevronDown, Trash2,
+  Loader2, FileText, CheckCircle, FlaskConical, Zap, BarChart3, Play, Pause, Globe, MessageCircle,
+  GraduationCap, Users, Building2, Briefcase, Heart, Scale, Bookmark, Sun, Moon, Image as ImageIcon, BookOpen,
+  Menu, X, Volume2, Star,
+} from 'lucide-react';
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import Zoom from 'react-medium-image-zoom';
 import 'react-medium-image-zoom/dist/styles.css';
-import { DocumentArrowDownIcon, MagnifyingGlassIcon, CheckIcon} from '@heroicons/react/24/solid';
-import { 
-  SparklesIcon,ShareIcon, ClockIcon,ChevronDownIcon, TrashIcon, ArrowPathIcon, DocumentTextIcon, CheckCircleIcon,
-  BeakerIcon, FireIcon, ChartBarIcon, ArrowDownTrayIcon, PlayIcon, PauseIcon,
-  GlobeAltIcon, ChatBubbleLeftRightIcon, BoltIcon, AcademicCapIcon, 
-  UsersIcon, BuildingLibraryIcon, BriefcaseIcon, HeartIcon, ScaleIcon, BookmarkIcon,
-  SunIcon, MoonIcon, PhotoIcon, BookOpenIcon, Bars3Icon, XMarkIcon, SpeakerWaveIcon, StarIcon
-} from '@heroicons/react/24/outline';
   const resetTask1 = () => {
     if (window.confirm("Очистить все данные для Task 1?")) {
       setEssayT1('');
@@ -243,6 +241,7 @@ import {
   const [activeResultT1, setResultT1] = useState(null);
   const [status, setStatus] = useState('idle'); // 'idle' | 'sending' | 'success'
   const [error, setError] = useState(null);
+  const [errorIs401, setErrorIs401] = useState(false);
   const [activeResultT2, setResultT2] = useState(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authModalMessage, setAuthModalMessage] = useState(null);
@@ -371,6 +370,7 @@ import {
     const setCurLoading = mode === 'task1' ? setLoadingT1 : setLoadingT2;
     setCurLoading(true);
     setError(null);
+    setErrorIs401(false);
     try {
       const payload = {
         analysisMode: mode,
@@ -398,6 +398,7 @@ import {
       const dataError = err.response?.data?.error;
       let msg = err.response?.data?.error || err.message || 'Analysis failed.';
       if (status === 401) {
+        setErrorIs401(true);
         msg = (dataError === 'INVALID_API_KEY' || dataError === 'Server Configuration Error: Missing API Key' || dataError === 'Environment variable NOT LOADED')
           ? 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.'
           : 'Please sign in to check your essay.';
@@ -1437,9 +1438,9 @@ const insertLinkingWord = (word) => {
   >
     <div className="bg-white dark:bg-slate-800 p-4 md:p-5 rounded-2xl md:rounded-3xl shadow-sm transition-transform">
       {isGenLoadingT1 ? (
-        <ArrowPathIcon className="w-10 h-10 md:w-12 md:h-12 animate-spin text-indigo-600" />
+        <Loader2 className="w-10 h-10 md:w-12 md:h-12 animate-spin text-indigo-600" />
       ) : (
-        <ChartBarIcon className="w-10 h-10 md:w-12 md:h-12 text-indigo-600" />
+        <BarChart3 className="w-10 h-10 md:w-12 md:h-12 text-indigo-600" />
       )}
     </div>
     <div className="text-center">
@@ -1477,9 +1478,9 @@ const insertLinkingWord = (word) => {
         >
           <div className="bg-white dark:bg-slate-800 p-4 md:p-5 rounded-2xl md:rounded-3xl shadow-sm">
             {genLoading ? (
-              <ArrowPathIcon className="w-10 h-10 md:w-12 md:h-12 animate-spin text-indigo-600" />
+              <Loader2 className="w-10 h-10 md:w-12 md:h-12 animate-spin text-indigo-600" />
             ) : (
-              <SparklesIcon className="w-10 h-10 md:w-12 md:h-12 text-indigo-600" />
+              <Sparkles className="w-10 h-10 md:w-12 md:h-12 text-indigo-600" />
             )}
           </div>
           <div className="text-center space-y-4 w-full">
@@ -1583,7 +1584,7 @@ const insertLinkingWord = (word) => {
         className="p-2 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 rounded-xl transition-all"
         title="Clear Draft"
       >
-        <TrashIcon className="w-5 h-5" />
+        <Trash2 className="w-5 h-5" />
       </button>
     </div>
   </div>
@@ -1593,7 +1594,7 @@ const insertLinkingWord = (word) => {
       onClick={() => activeTab === 'Task 1' ? resetTask1() : activeTab === 'Task 2' ? resetTask2() : systemReset()}
       className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all border border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-700 rounded-xl"
     >
-      <TrashIcon className="w-4 h-4" />
+      <Trash2 className="w-4 h-4" />
       Clear Draft
     </button>
   </div>
@@ -1606,14 +1607,14 @@ const insertLinkingWord = (word) => {
         timeLeft <= 60 && timeLeft > 0 ? 'text-red-600 border-red-300 bg-red-50 dark:bg-red-950/30 dark:border-red-800' : 'text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50'
       }`}
     >
-      <ClockIcon className={`w-4 h-4 ${timeLeft <= 60 && timeLeft > 0 && timerActive ? 'text-red-600' : 'text-slate-400'}`} />
+      <Clock className={`w-4 h-4 ${timeLeft <= 60 && timeLeft > 0 && timerActive ? 'text-red-600' : 'text-slate-400'}`} />
       <span className="tabular-nums">{formatTime(timeLeft)}</span>
     </motion.div>
     <button
       onClick={() => setTimerActive(!timerActive)}
       className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all active:scale-95 ${timerActive ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
     >
-      {timerActive ? <PauseIcon className="w-5 h-5 fill-current" /> : <PlayIcon className="w-5 h-5 ml-0.5 fill-current" />}
+      {timerActive ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 ml-0.5 fill-current" />}
     </button>
   </div>
 </div>
@@ -1669,7 +1670,7 @@ const insertLinkingWord = (word) => {
             if (file) handleImageUpload(file);
           }} 
         />
-        <PhotoIcon className="w-10 h-10 mx-auto text-indigo-500" />
+        <ImageIcon className="w-10 h-10 mx-auto text-indigo-500" strokeWidth={1.5} />
         <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400 tracking-tight">Upload Diagram</p>
       </label>
     )}
@@ -1702,7 +1703,7 @@ const insertLinkingWord = (word) => {
       </span>
       {!isPromptOpen && <div className="w-0.5 h-0.5 rounded-full bg-indigo-400/50" />}
     </div>
-    <ChevronDownIcon className={`w-4 h-4 transition-all duration-300 ${isPromptOpen ? 'text-indigo-500 rotate-0' : 'text-slate-400 -rotate-180'}`} />
+    <ChevronDown className={`w-4 h-4 transition-all duration-300 ${isPromptOpen ? 'text-indigo-500 rotate-0' : 'text-slate-400 -rotate-180'}`} />
   </div>
 
   {/* КОНТЕНТ С ПЛАВНЫМ ИСЧЕЗНОВЕНИЕМ */}
@@ -2048,7 +2049,9 @@ const insertLinkingWord = (word) => {
         );
       })
     ) : (
-      <p className="text-center text-slate-600 dark:text-slate-400 py-10 italic">No corrections found.</p>
+      <div className="py-10">
+        <SuccessState message="No corrections found." className="py-0" />
+      </div>
     )}
   </AnimatePresence>
      </div>
@@ -2078,12 +2081,12 @@ const insertLinkingWord = (word) => {
           <div className={`transition-all duration-500 ${
             isRewriteOpen ? 'p-2 bg-green-600 rounded-xl shadow-lg shadow-green-600/30' : 'p-1 bg-slate-200 dark:bg-slate-800 rounded-md shadow-none'
           }`}>
-            <CheckCircleIcon className={`transition-all ${isRewriteOpen ? 'w-5 h-5 text-white' : 'w-3 h-3 text-green-800'}`} />
+            <CheckCircle className={`transition-all ${isRewriteOpen ? 'w-5 h-5 text-white' : 'w-3 h-3 text-green-800'}`} />
           </div>
           Suggested Rewrite
         </h4>
         
-        <ChevronDownIcon className={`w-4 h-4 text-slate-600 dark:text-slate-400 transition-transform duration-500 ${
+        <ChevronDown className={`w-4 h-4 text-slate-600 dark:text-slate-400 transition-transform duration-500 ${
           isRewriteOpen ? 'rotate-0' : '-rotate-180'
         }`} />
       </div>
@@ -2136,12 +2139,12 @@ const insertLinkingWord = (word) => {
           >
             {isSaved ? (
               <>
-                <CheckCircleIcon className="w-4 h-4 animate-bounce" />
+                <CheckCircle className="w-4 h-4 animate-bounce" />
                 <span>Saved!</span>
               </>
             ) : (
               <>
-                <BookmarkIcon className="w-4 h-4 transition-transform group-hover:-translate-y-0.5 text-white" />
+                <Bookmark className="w-4 h-4 transition-transform group-hover:-translate-y-0.5 text-white" />
                 <span>Save to Archive</span>
               </>
             )}
@@ -2149,9 +2152,8 @@ const insertLinkingWord = (word) => {
         </div>
 
         {error && (
-          <div className="w-full basis-full rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 px-4 py-3 text-sm font-medium text-red-700 dark:text-red-300 flex items-center justify-between gap-2">
-            <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg" aria-label="Dismiss"> <XMarkIcon className="w-4 h-4" /> </button>
+          <div className="w-full basis-full">
+            <ErrorState message={error} is401={errorIs401} onDismiss={() => { setError(null); setErrorIs401(false); }} variant="inline" />
           </div>
         )}
         {/* ПРАВАЯ КНОПКА: ANALYZE */}
@@ -2163,9 +2165,9 @@ const insertLinkingWord = (word) => {
           >
             <div className="shimmer-layer animate-shimmer" aria-hidden />
             {(activeTab === 'Task 1' ? loadingT1 : loadingT2) ? (
-              <ArrowPathIcon className="w-5 h-5 animate-spin relative z-10" />
+              <Loader2 className="w-5 h-5 animate-spin relative z-10" />
             ) : (
-              <SparklesIcon className="w-5 h-5 animate-pulse relative z-10" />
+              <Sparkles className="w-5 h-5 animate-pulse relative z-10" />
             )}
             <span className="btn-stratum-text">{(activeTab === 'Task 1' ? loadingT1 : loadingT2) ? "REVIEWING..." : "ANALYZE · STRATUM"}</span>
           </button>
@@ -2176,22 +2178,15 @@ const insertLinkingWord = (word) => {
         {/* Aside: loading skeleton or result */}
          <aside className="lg:col-span-4 space-y-6" ref={activeResultsRef}>
       {(activeTab === 'Task 1' ? loadingT1 : loadingT2) ? (
-        <div className={`rounded-3xl border border-dashed p-8 ${darkMode ? 'border-slate-700 bg-slate-900/40' : 'border-indigo-100 bg-indigo-50/30'}`}>
-          <AnalysisSkeleton darkMode={darkMode} />
-          <p className="text-center text-sm font-semibold tracking-tight text-indigo-600 dark:text-indigo-400 mt-6">
-            Examiner is reviewing your essay...
-          </p>
-          <div className="flex justify-center mt-4">
-            <ArrowPathIcon className="w-8 h-8 animate-spin text-indigo-600" />
-          </div>
+        <div className={`rounded-3xl border border-dashed border-white/5 p-8 ${darkMode ? 'bg-slate-900/40' : 'bg-indigo-50/20'}`}>
+          <LoadingState />
         </div>
       ) : !activeResult ? (
-        <div className={`h-80 border border-dashed rounded-3xl flex flex-col items-center justify-center p-10 text-center transition-all ${darkMode ? 'border-slate-700 bg-slate-900/20 text-slate-500' : 'border-slate-200 bg-slate-50 text-slate-500'}`}>
-          <SparklesIcon className="w-12 h-12 opacity-30 text-indigo-500 mb-4" />
-          <h5 className="text-sm font-semibold tracking-tight mb-2">Analysis Pending {activeTab}</h5>
-          <p className="text-[10px] font-medium leading-relaxed max-w-[180px]">
-            Submit your essay to receive instant AI feedback and band score.
-          </p>
+        <div className={`min-h-80 border border-dashed border-white/5 rounded-3xl transition-all ${darkMode ? 'bg-slate-900/20' : 'bg-slate-50/80'}`}>
+          <EmptyState
+            message="Submit your essay to receive instant AI feedback and band score."
+            className="text-slate-500 dark:text-slate-400"
+          />
         </div>
       ) : (
              <motion.div
@@ -2232,7 +2227,7 @@ const insertLinkingWord = (word) => {
           onClick={() => downloadReport()}
           className="group/btn flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 dark:bg-slate-950 px-4 py-4 text-xs font-extrabold tracking-tight text-white transition-all hover:bg-slate-800 dark:hover:bg-slate-900 hover:shadow-xl active:scale-[0.97] sm:gap-3 sm:rounded-[1.8rem] sm:py-5"
         >
-          <DocumentArrowDownIcon className="h-4 w-4 text-indigo-400 transition-transform group-hover/btn:translate-y-0.5 sm:h-5 sm:w-5" /> 
+          <Download className="h-4 w-4 text-indigo-400 transition-transform group-hover/btn:translate-y-0.5 sm:h-5 sm:w-5" /> 
           <span className="whitespace-nowrap">Official PDF</span>
         </button>
 
@@ -2241,7 +2236,7 @@ const insertLinkingWord = (word) => {
           className="flex aspect-square w-12 items-center justify-center rounded-2xl bg-white/10 text-white transition-all hover:bg-white/20 active:scale-90 sm:w-auto sm:px-5"
           title="Share Analysis"
         >
-          <ShareIcon className="h-5 w-5" /> 
+          <Share2 className="h-5 w-5" /> 
         </button>
       </div>
     </div>
@@ -2284,7 +2279,7 @@ const insertLinkingWord = (word) => {
         <span className="underline underline-offset-[4px] decoration-transparent group-hover:decoration-blue-500 decoration-[3px] transition-all">
           {w}
         </span>
-        <MagnifyingGlassIcon className="w-3 h-3 opacity-0 group-hover:opacity-100 text-blue-500 transition-all transform group-hover:scale-110" />
+        <Search className="w-3 h-3 opacity-0 group-hover:opacity-100 text-blue-500 transition-all transform group-hover:scale-110" />
       </button>
     ))}
   </div>
@@ -2292,7 +2287,7 @@ const insertLinkingWord = (word) => {
   {/* БЛОК ПРЕДЛОЖЕНИЙ */}
     <div className="p-5 rounded-[2.5rem] bg-blue-50/50 dark:bg-blue-950/20 border-2 border-blue-100 dark:border-blue-900/30">
   <p className="text-[9px] font-black uppercase text-blue-600 mb-4 tracking-[0.2em] flex items-center gap-2">
-    <SparklesIcon className="w-3.5 h-3.5 animate-pulse" />
+    <Sparkles className="w-3.5 h-3.5 animate-pulse" />
     <span className="underline underline-offset-[6px] decoration-blue-500/40 decoration-[3px]">
       Suggested Additions
     </span>
@@ -2411,7 +2406,7 @@ const insertLinkingWord = (word) => {
       )}
     </div>
 
-    <MagnifyingGlassIcon className={`
+    <Search className={`
       w-3.5 h-3.5 transition-colors duration-200
       ${searchState.word === wordText.toLowerCase().trim() 
         ? 'text-red-600' 
@@ -2426,7 +2421,7 @@ const insertLinkingWord = (word) => {
           {synonyms.length > 0 && (
             <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
               <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-400 mb-2 tracking-widest flex items-center gap-1">
-                <SparklesIcon className="w-3 h-3 text-emerald-500" />
+                <Sparkles className="w-3 h-3 text-emerald-500" />
                 Band 8.0+ Replacements:
               </p>
               <div className="flex flex-wrap gap-2">
@@ -2482,14 +2477,17 @@ const insertLinkingWord = (word) => {
       onClick={clearArchive} 
       className="w-full sm:w-auto text-slate-900 dark:text-white font-extrabold text-xs tracking-tight flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-xl sm:rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700 active:scale-95 shadow-sm"
     >
-      <TrashIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4"/> 
+      <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4"/> 
       Destroy Archive
     </button>
   </header>
   
   {archive.length === 0 ? (
-    <div className="text-center py-10 sm:p-20 opacity-20">
-      <BookOpenIcon className="w-20 h-20 sm:w-32 sm:h-32 mx-auto text-slate-300 dark:text-slate-600" />
+    <div className="rounded-3xl border border-dashed border-white/5 bg-white/50 dark:bg-white/5 p-6 sm:p-12">
+      <EmptyState
+        onPrimaryAction={() => { setActiveTab('Task 1'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+        primaryLabel="Generate First Task"
+      />
     </div>
   ) : (
     <div className="grid gap-3 sm:gap-4">
@@ -2528,7 +2526,7 @@ const insertLinkingWord = (word) => {
                 className="p-3 sm:p-4 bg-slate-100 dark:bg-slate-800 rounded-xl sm:rounded-2xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
                 title="Download PDF"
               >
-                <DocumentArrowDownIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Download className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
 
               <button 
@@ -2541,7 +2539,7 @@ const insertLinkingWord = (word) => {
                 }} 
                 className="p-3 sm:p-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90 border border-slate-200 dark:border-slate-700"
               >
-                <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
@@ -2648,12 +2646,9 @@ const insertLinkingWord = (word) => {
                 </form>
                 <AnimatePresence>
                   {status === 'success' && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm">
-                      <div className="text-center">
-                        <CheckCircleIcon className="w-10 h-10 text-indigo-600 mx-auto mb-2" />
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">Thanks for your feedback!</p>
-                        <button type="button" onClick={() => setStatus('idle')} className="mt-2 text-xs font-medium text-indigo-600 hover:underline">Close</button>
-                      </div>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm p-6">
+                      <SuccessState message="Thanks for your feedback!" />
+                      <button type="button" onClick={() => setStatus('idle')} className="absolute top-4 right-4 text-xs font-medium tracking-wide text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Close</button>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -2710,7 +2705,7 @@ const insertLinkingWord = (word) => {
           <circle cx="50%" cy="50%" r="46%" fill="transparent" stroke="currentColor" strokeWidth="2" className={darkMode ? 'text-slate-700' : 'text-slate-100'} />
           <motion.circle cx="50%" cy="50%" r="46%" fill="transparent" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" style={{ pathLength: scrollProgress / 100 }} transition={{ type: 'spring', stiffness: 60, damping: 15 }} />
         </svg>
-        <ChevronUpIcon className="w-6 h-6 relative z-10 group-hover:-translate-y-1 transition-transform" />
+        <ChevronUp className="w-6 h-6 relative z-10 group-hover:-translate-y-1 transition-transform" />
       </button>
     </motion.div>
   )}

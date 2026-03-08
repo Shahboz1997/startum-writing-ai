@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DocumentDuplicateIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { Copy, Check } from 'lucide-react';
 
 const task2FullData = {
   original:
@@ -209,7 +209,7 @@ export default function Task2ComparisonLab({ darkMode }) {
                   transition={{ duration: 0.2 }}
                   className="absolute top-4 right-4 z-20 px-3 py-2 rounded-xl bg-emerald-500 text-white text-xs font-medium shadow-lg flex items-center gap-2"
                 >
-                  <CheckIcon className="w-4 h-4 shrink-0" />
+                  <Check className="w-4 h-4 shrink-0" strokeWidth={1.5} />
                   Copied to clipboard
                 </motion.div>
               )}
@@ -226,11 +226,11 @@ export default function Task2ComparisonLab({ darkMode }) {
               >
                 {copied ? (
                   <>
-                    <CheckIcon className="w-3.5 h-3.5" /> Copied
+                    <Check className="w-3.5 h-3.5" /> Copied
                   </>
                 ) : (
                   <>
-                    <DocumentDuplicateIcon className="w-3.5 h-3.5" /> Copy Improved Version
+                    <Copy className="w-3.5 h-3.5" strokeWidth={1.5} /> Copy Improved Version
                   </>
                 )}
               </button>

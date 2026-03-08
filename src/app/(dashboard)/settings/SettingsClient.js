@@ -1,6 +1,6 @@
 "use client";
 // Static profile/account UI. No setTheme, no useEffect that changes theme.
-import { UserCircleIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
+import { UserCircle, Mail } from "lucide-react";
 
 export default function SettingsClient({ user }) {
   return (
@@ -18,7 +18,7 @@ export default function SettingsClient({ user }) {
             />
           ) : (
             <div className="w-14 h-14 rounded-full bg-indigo-600/20 flex items-center justify-center shrink-0">
-              <UserCircleIcon className="w-8 h-8 text-indigo-600" />
+              <UserCircle className="w-8 h-8 text-indigo-600" strokeWidth={1.5} />
             </div>
           )}
           <div className="min-w-0 flex-1">
@@ -26,7 +26,7 @@ export default function SettingsClient({ user }) {
               {user?.name ?? "—"}
             </p>
             <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1 break-all">
-              <EnvelopeIcon className="w-4 h-4 shrink-0" />
+              <Mail className="w-4 h-4 shrink-0" strokeWidth={1.5} />
               {user?.email ?? "—"}
             </p>
           </div>

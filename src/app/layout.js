@@ -12,15 +12,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const baseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://stratum.ai';
+
 export const metadata = {
-  metadataBase: new URL(
-    process.env.NODE_ENV === 'development'
-      ? 'http://localhost:3000'
-      : 'https://stratum.ai'
-  ),
-  title: 'STRATUM.ai | AI-Powered IELTS Writing Examiner & Essay Scorer',
+  metadataBase: new URL(baseUrl),
+  title: {
+    default: 'STRATUM.ai — Premium IELTS Intelligence',
+    template: '%s | STRATUM.ai',
+  },
   description:
-    'Get instant Band 9.0 feedback on your IELTS Task 1 and Task 2. Our AI examiner analyses your grammar, vocabulary, and coherence using official criteria.',
+    'Elevate your IELTS score with Stratum. Precision AI-driven evaluation for Task 1 and Task 2. Master the exam, stratum by stratum.',
   keywords: [
     'IELTS writing',
     'IELTS essay scorer',
@@ -30,21 +31,29 @@ export const metadata = {
     'IELTS preparation',
     'academic writing',
     'English language assessment',
+    'STRATUM',
   ],
-  authors: [{ name: 'STRATUM.ai' }],
+  authors: [{ name: 'STRATUM.ai', url: baseUrl }],
+  creator: 'STRATUM.ai',
   openGraph: {
     type: 'website',
-    title: 'Boost Your IELTS Score with AI | STRATUM.ai',
-    description:
-      'Stop guessing your score. Get detailed academic evaluation for Task 1 and Task 2 in seconds.',
+    locale: 'en_US',
+    url: baseUrl,
+    siteName: 'STRATUM',
+    title: 'STRATUM.ai | Next-Gen IELTS Preparation',
+    description: 'Get instant Band 9.0 feedback and AI-powered essay analysis.',
     images: ['/og-image.png'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Master IELTS Writing with STRATUM.ai',
-    description:
-      'Stop guessing your score. Get detailed academic evaluation for Task 1 and Task 2 in seconds.',
+    title: 'STRATUM.ai | Next-Gen IELTS Preparation',
+    description: 'Get instant Band 9.0 feedback and AI-powered essay analysis.',
     images: ['/og-image.png'],
+  },
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
   robots: { index: true, follow: true },
 };

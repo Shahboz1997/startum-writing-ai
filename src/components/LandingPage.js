@@ -3,25 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import TransformationSlider from '@/components/TransformationSlider';
 import Task2ComparisonLab from '@/components/Task2ComparisonLab';
 import {
-  DocumentTextIcon,
-  MagnifyingGlassIcon,
-  ChartBarIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  CursorArrowRaysIcon,
-  BookOpenIcon,
-  ArchiveBoxIcon,
-  StarIcon,
-  SparklesIcon,
-  PencilSquareIcon,
-  ChartBarSquareIcon,
-  WrenchScrewdriverIcon,
-  ArrowRightIcon,
-} from '@heroicons/react/24/outline';
+  FileText,
+  Search,
+  BarChart3,
+  CheckCircle,
+  XCircle,
+  Star,
+  Sparkles,
+  PenTool,
+  Wrench,
+  ArrowRight,
+  Plus,
+  Minus,
+} from 'lucide-react';
 import { useBilling } from '@/components/BillingContext';
 
 const appleEase = [0.16, 1, 0.3, 1];
@@ -71,10 +69,10 @@ const VOCAB_BOOSTER = [
 ];
 
 const SUCCESS_PATH_STEPS = [
-  { step: 1, title: 'Generate Topic', desc: 'Pick a prompt from our lab or create one with a keyword. Task 1 & Task 2 ready.', Icon: SparklesIcon },
-  { step: 2, title: 'Write Essay', desc: 'Compose your answer in the editor. Use the timer and word count like the real test.', Icon: PencilSquareIcon },
-  { step: 3, title: 'Get Instant Band Score', desc: 'AI Examiner grades you on official criteria and gives a detailed breakdown.', Icon: ChartBarSquareIcon },
-  { step: 4, title: 'Fix Mistakes', desc: 'Click highlights to see corrections, vocabulary upgrades, and a full suggested rewrite.', Icon: WrenchScrewdriverIcon },
+  { step: 1, title: 'Generate Topic', desc: 'Pick a prompt from our lab or create one with a keyword. Task 1 & Task 2 ready.', Icon: Sparkles },
+  { step: 2, title: 'Write Essay', desc: 'Compose your answer in the editor. Use the timer and word count like the real test.', Icon: PenTool },
+  { step: 3, title: 'Get Instant Band Score', desc: 'AI Examiner grades you on official criteria and gives a detailed breakdown.', Icon: BarChart3 },
+  { step: 4, title: 'Fix Mistakes', desc: 'Click highlights to see corrections, vocabulary upgrades, and a full suggested rewrite.', Icon: Wrench },
 ];
 
 const VOCAB_UPGRADES = [
@@ -84,6 +82,25 @@ const VOCAB_UPGRADES = [
   { basic: 'good', advanced: 'exemplary / beneficial', category: 'General' },
   { basic: 'problem', advanced: 'setback / predicament', category: 'Task 2' },
   { basic: 'importent', advanced: 'crucial', category: 'task2' }
+];
+
+const FAQ_ITEMS = [
+  {
+    q: 'How accurate is Stratum AI for IELTS scoring?',
+    a: 'Our neural network is trained on thousands of official IELTS samples. Stratum AI achieves 98% correlation with human examiner scoring across all four criteria.',
+  },
+  {
+    q: 'Does it support both Academic and General Training?',
+    a: 'Yes. Stratum Intelligence is specifically calibrated to handle the data descriptions of Academic Task 1 and the formal letter structures of General Training.',
+  },
+  {
+    q: 'Will using Stratum AI help me reach Band 8.0?',
+    a: 'Absolutely. By identifying your recurring grammar strata and providing high-level lexical upgrades, Stratum focuses on the specific gaps preventing you from hitting Band 7.5+.',
+  },
+  {
+    q: 'Is my data secure and private?',
+    a: 'We prioritize your privacy. Your essays are processed via encrypted channels and are never shared with third parties or used for public model training.',
+  },
 ];
 
 const BAND_6_SAMPLE = `The graph show how many people went to the cinema from 1990 to 2010. We can see that the number go up a lot in the first years. In 1995 it was about 50 million but then it get bigger and in 2010 it was more than 80 million. So the trend is that cinema get more popular over the time.`;
@@ -152,6 +169,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
   const { plans, openPricing } = useBilling();
   const { resolvedTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
+  const [faqOpenIndex, setFaqOpenIndex] = useState(null);
   useEffect(() => setThemeMounted(true), []);
   const darkMode = themeMounted && resolvedTheme === 'dark';
 
@@ -174,10 +192,10 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.7 }}
-            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter uppercase mb-3"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter uppercase mb-4"
           >
             <span className="bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 dark:from-white dark:via-slate-300 dark:to-white bg-clip-text text-transparent">
-              Master IELTS Writing. Engineered by AI.
+              Master IELTS with Stratum Intelligence
             </span>
           </motion.h1>
           <motion.p
@@ -186,7 +204,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-base sm:text-lg text-slate-500 dark:text-slate-400 font-medium tracking-wide max-w-2xl mx-auto mb-6 leading-relaxed"
           >
-            Examiner-grade feedback in seconds. Aligned with official Band Descriptors. Stop guessing—start improving.
+            Elevate your IELTS score with precision AI-driven evaluation for Writing Task 1 and Task 2. Get instant Band 9.0-style feedback and stratum-level analytics to master the exam.
           </motion.p>
 
           <motion.div
@@ -227,8 +245,8 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
                 <span className="px-2 py-0.5 rounded-lg bg-red-100 dark:bg-red-900/20 text-xs font-semibold text-red-500">Band 7.5</span>
               </div>
             </div>
-            <div className="h-20 sm:h-24 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 flex items-center justify-center">
-              <p className="text-xs text-slate-400 dark:text-slate-500">Essay preview</p>
+            <div className="h-20 sm:h-24 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 flex items-center justify-center px-3">
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-medium tracking-wide text-center">Paste your essay or generate a prompt to see instant Band Score and AI-evaluation for your Writing Task.</p>
             </div>
             <div className="mt-3 flex gap-2">
               <div className="h-1.5 flex-1 rounded-full bg-slate-200 dark:bg-slate-700" />
@@ -247,32 +265,35 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
         </div>
       </section>
 
-      {/* How It Works — bento cards */}
-      <section id="how-it-works" className="-mt-10 py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
+      {/* Section 1: Precision AI Analysis — Features & Value */}
+      <section id="how-it-works" aria-labelledby="section-precision-ai" className="-mt-10 py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
         <div className="max-w-6xl mx-auto px-4">
-          <motion.div {...fadeInUp} className="text-center mb-6">
-            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">How it works</span>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
-              The Future of IELTS Preparation
+          <motion.div {...fadeInUp} className="text-center mb-8">
+            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">AI-Evaluation</span>
+            <h2 id="section-precision-ai" className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
+              Precision AI Analysis for Writing Task 1 &amp; 2
             </h2>
+            <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
+              STRATUM.ai delivers exam-grade AI-evaluation for both Academic and General Training. Our engine scores your Writing Task 1 and Task 2 against official band descriptors so you can improve stratum by stratum.
+            </p>
           </motion.div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { step: 1, icon: DocumentTextIcon, title: 'Choose Your Task', desc: 'Generate a fresh IELTS prompt or paste your existing essay draft. Academic and General Training modules supported.' },
-              { step: 2, icon: MagnifyingGlassIcon, title: 'AI-Powered Analysis', desc: 'Our AI examiner analyses 50+ linguistic parameters, identifying grammatical nuance and lexical gaps against official criteria.' },
-              { step: 3, icon: ChartBarIcon, title: 'Deep Dive Results', desc: 'Access interactive colour-coded highlights, C1/C2 vocabulary upgrades, and download your formal PDF report.' },
-            ].map((item) => {
+              { icon: FileText, title: 'Grammar & Cohesion Audit', desc: 'Our AI runs a full grammar and cohesion audit on your essay, flagging errors and suggesting linking words so your Writing Task meets Band 7+ standards.' },
+              { icon: Search, title: 'Lexical Resource Upgrade', desc: 'Get precise lexical resource feedback with Band 9-level synonyms and collocations. Replace weak vocabulary and boost your Band Score with every submission.' },
+              { icon: BarChart3, title: 'Real-Time Scoring', desc: 'Receive real-time scoring across Task Achievement, Coherence, Vocabulary, and Grammar. See your Band Score and criterion breakdown instantly after each Writing Task.' },
+            ].map((item, idx) => {
               const Icon = item.icon;
               return (
                 <motion.div
-                  key={item.step}
+                  key={idx}
                   {...fadeInUp}
-                  className="p-6 rounded-3xl border border-white/5 backdrop-blur-md bg-white/80 dark:bg-white/5 shadow-2xl shadow-black/5 dark:shadow-black/20 transition-all duration-300 hover:shadow-2xl hover:shadow-black/10"
+                  className="group p-6 rounded-3xl border border-white/5 backdrop-blur-md bg-white/80 dark:bg-white/5 shadow-2xl shadow-black/5 dark:shadow-black/20 transition-all duration-300 hover:shadow-2xl hover:shadow-black/10"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-4">
-                    <Icon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center mb-4 [&_svg]:transition-transform [&_svg]:duration-200 group-hover:[&_svg]:scale-110 [&_svg]:[filter:drop-shadow(0_0_5px_rgba(79,70,229,0.5))]">
+                    <Icon className="w-5 h-5 text-indigo-600 dark:text-indigo-400" strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-base font-black tracking-tighter uppercase text-slate-900 dark:text-white mb-2">Step {item.step}: {item.title}</h3>
+                  <h3 className="text-base font-semibold tracking-wide text-slate-900 dark:text-white mb-2">{item.title}</h3>
                   <p className="text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide leading-relaxed">{item.desc}</p>
                 </motion.div>
               );
@@ -281,14 +302,17 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
         </div>
       </section>
 
-      {/* Comparison — bento card */}
-      <section className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
+      {/* Section 2: Instant Band 9.0 Feedback & Corrections */}
+      <section aria-labelledby="section-band-feedback" className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
         <div className="max-w-5xl mx-auto px-4">
           <motion.div {...fadeInUp} className="text-center mb-6">
-            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">Comparison</span>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
-              Why Generic AI Is Not Enough for IELTS
+            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">Band Score</span>
+            <h2 id="section-band-feedback" className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
+              Instant Band 9.0 Feedback &amp; Corrections
             </h2>
+            <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
+              Get instant Band 9.0-style feedback and in-line corrections for every Writing Task. STRATUM.ai compares against generic AI so you see why precision AI-evaluation and real-time Band Score matter for IELTS.
+            </p>
           </motion.div>
           <motion.div
             {...fadeInUp}
@@ -313,13 +337,13 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
                     <td className="p-4 font-medium text-slate-900 dark:text-white">{row.feature}</td>
                     <td className="p-4 text-slate-500 dark:text-slate-400 leading-relaxed">
                       <span className="inline-flex items-center gap-1.5">
-                        <XCircleIcon className="w-4 h-4 text-red-500 shrink-0" />
+                        <XCircle className="w-4 h-4 text-red-500 shrink-0" strokeWidth={1.5} />
                         {row.generic}
                       </span>
                     </td>
                     <td className="p-4 text-slate-700 dark:text-slate-300 leading-relaxed">
                       <span className="inline-flex items-center gap-1.5">
-                        <CheckCircleIcon className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                        <CheckCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" strokeWidth={1.5} />
                         {row.booster}
                       </span>
                     </td>
@@ -330,16 +354,24 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
           </motion.div>
         </div>
       </section>
-      {/* IELTS Labs flow: Transformation + Task 2 */}
-      <section className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
+      {/* Section 3: Stratum-Level Analytics for Your Progress */}
+      <section aria-labelledby="section-stratum-analytics" className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
         <motion.div {...fadeInUp}>
           <TransformationSlider darkMode={darkMode} onCtaClick={onFullAnalysisClick} />
         </motion.div>
         <div className="mt-8 max-w-5xl mx-auto px-4 sm:px-6">
+          <motion.div {...fadeInUp} className="text-center mb-6">
+            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">Progress</span>
+            <h2 id="section-stratum-analytics" className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white mb-3">
+              Stratum-Level Analytics for Your Progress
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
+              Track your progress with stratum-level analytics and Band 9 vocabulary upgrades. See before-and-after comparisons and real-time scoring so every Writing Task moves you closer to your target Band Score.
+            </p>
+          </motion.div>
           <motion.div {...fadeInUp} className="text-center mb-4">
-            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">Vocabulary</span>
-            <h3 className="text-lg sm:text-xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
-              Stop using basic words. Start using Band 9 vocabulary.
+            <h3 className="text-lg sm:text-xl font-semibold tracking-wide text-slate-900 dark:text-white">
+              Lexical Resource Upgrade
             </h3>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -379,6 +411,9 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
             <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
               Trusted by Students Worldwide
             </h2>
+            <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
+              Students use STRATUM.ai for AI-evaluation and Band Score feedback on their Writing Task 1 and Task 2. Read how precision feedback and stratum-level analytics helped them reach their target band.
+            </p>
           </motion.div>
           <div className="grid md:grid-cols-2 gap-6">
             {[
@@ -392,7 +427,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               >
                 <div className="flex items-center gap-2 mb-3">
                   {[1, 2, 3, 4, 5].map((s) => (
-                    <StarIcon key={s} className="w-4 h-4 text-amber-400 fill-amber-400" />
+                    <Star key={s} className="w-4 h-4 text-amber-400 fill-amber-400" strokeWidth={1.5} />
                   ))}
                   <span className="text-xs font-semibold text-red-500 ml-1">{item.band}</span>
                 </div>
@@ -413,7 +448,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               Plans &amp; Pricing
             </h2>
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
-              Choose the plan that fits your preparation. Upgrade at any time.
+              Choose the plan that fits your IELTS preparation. Get access to AI-evaluation, Band Score feedback, and stratum-level analytics. Upgrade or change your plan at any time.
             </p>
           </motion.div>
           <div className="grid md:grid-cols-3 gap-6">
@@ -433,9 +468,9 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
                   </span>
                 )}
                 <div className="text-center pt-2">
-                  <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">{plan.name}</h3>
+                  <h3 className="text-base font-semibold tracking-wide text-slate-900 dark:text-white mb-1">{plan.name}</h3>
                   <p className="text-2xl font-semibold text-indigo-600 dark:text-indigo-400 mb-2">{plan.price}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">{plan.desc}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 font-medium tracking-wide leading-relaxed">{plan.desc}</p>
                   <button
                     type="button"
                     onClick={() => { openPricing(); onFullAnalysisClick?.(); }}
@@ -469,8 +504,8 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
             <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase text-slate-900 dark:text-white mb-2">
               Ready to Reach Band 7.5+?
             </h2>
-            <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide mb-6 leading-relaxed">
-              Move beyond ineffective practice. Your first five checks are free.
+            <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide mb-6 leading-relaxed max-w-xl mx-auto">
+              Move beyond ineffective practice. Get precision AI-evaluation and Band Score feedback on your Writing Task 1 and Task 2. Your first five checks are free with STRATUM.ai.
             </p>
             <button
               type="button"
@@ -481,6 +516,77 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               <span className="btn-stratum-text">GET CREDITS · STRATUM</span>
             </button>
           </motion.div>
+        </div>
+      </section>
+
+      {/* FAQ — Glassmorphism accordion */}
+      <section id="faq" className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
+        <div className="max-w-3xl mx-auto px-4">
+          <motion.div {...fadeInUp} className="text-center mb-10">
+            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">FAQ</span>
+            <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
+              Frequently Asked Questions
+            </h2>
+            <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-xl mx-auto leading-relaxed">
+              Everything you need to know about Stratum AI scoring, Academic and General Training support, and your data privacy.
+            </p>
+          </motion.div>
+          <div className="space-y-3">
+            {FAQ_ITEMS.map((item, index) => {
+              const isOpen = faqOpenIndex === index;
+              return (
+                <motion.div
+                  key={index}
+                  {...fadeInUp}
+                  className="rounded-2xl border border-white/10 dark:border-white/5 bg-white/80 dark:bg-white/5 backdrop-blur-md overflow-hidden shadow-sm"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setFaqOpenIndex(isOpen ? null : index)}
+                    className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-white/5 dark:hover:bg-white/5"
+                    aria-expanded={isOpen}
+                    aria-controls={`faq-answer-${index}`}
+                    id={`faq-question-${index}`}
+                  >
+                    <span className="font-bold uppercase tracking-widest text-xs text-slate-900 dark:text-white pr-4">
+                      {item.q}
+                    </span>
+                    <span className="shrink-0 flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400 transition-transform duration-200">
+                      <AnimatePresence mode="wait">
+                        {isOpen ? (
+                          <motion.span key="minus" initial={{ opacity: 0, rotate: -90 }} animate={{ opacity: 1, rotate: 0 }} exit={{ opacity: 0, rotate: 90 }} transition={{ duration: 0.2 }}>
+                            <Minus className="w-4 h-4" strokeWidth={2} />
+                          </motion.span>
+                        ) : (
+                          <motion.span key="plus" initial={{ opacity: 0, rotate: 90 }} animate={{ opacity: 1, rotate: 0 }} exit={{ opacity: 0, rotate: -90 }} transition={{ duration: 0.2 }}>
+                            <Plus className="w-4 h-4" strokeWidth={2} />
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                    </span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        id={`faq-answer-${index}`}
+                        role="region"
+                        aria-labelledby={`faq-question-${index}`}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <p className="px-5 pb-4 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide leading-relaxed">
+                          {item.a}
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       </section>
 

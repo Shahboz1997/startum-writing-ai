@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { FileText, ChevronRight, Star, Search, SortDesc, SortAsc, Filter, Clock, Download } from "lucide-react";
 import Link from "next/link";
 import { downloadCheckReport } from "@/lib/downloadReportPdf";
+import { EmptyState } from "@/components/stratum";
 
 export default function HistoryClientWrapper({ initialData }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,7 +46,7 @@ export default function HistoryClientWrapper({ initialData }) {
         
         {/* Поиск */}
         <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" strokeWidth={1.5} />
           <input 
             type="text" 
             placeholder="Search essay content..." 
@@ -56,7 +57,7 @@ export default function HistoryClientWrapper({ initialData }) {
 
         {/* Фильтр по баллу */}
         <div className="flex items-center gap-2 px-4 min-h-[44px] bg-slate-50 dark:bg-slate-800 rounded-2xl border border-white/5">
-          <Filter className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
+          <Filter className="w-3 h-3 text-indigo-600 dark:text-indigo-400 shrink-0" strokeWidth={1.5} />
           <select 
             value={minScore}
             onChange={(e) => setMinScore(e.target.value)}
@@ -75,7 +76,7 @@ export default function HistoryClientWrapper({ initialData }) {
           onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
           className="flex items-center justify-center gap-2 min-h-[44px] px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase shadow-2xl shadow-indigo-500/20 active:scale-95 transition-all"
         >
-          {sortOrder === 'desc' ? <SortDesc className="w-4 h-4" /> : <SortAsc className="w-4 h-4" />}
+          {sortOrder === 'desc' ? <SortDesc className="w-4 h-4" strokeWidth={1.5} /> : <SortAsc className="w-4 h-4" strokeWidth={1.5} />}
           {sortOrder === 'desc' ? 'Newest First' : 'Oldest First'}
         </button>
       </div>
@@ -83,8 +84,8 @@ export default function HistoryClientWrapper({ initialData }) {
       {/* СПИСОК КАРТОЧЕК */}
       <div className="space-y-4">
         {filteredChecks.length === 0 ? (
-          <div className="text-center py-20 bg-white/5 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl border-2 border-dashed border-slate-300/30 dark:border-slate-700">
-            <p className="text-slate-500 font-black uppercase text-xs italic">No essays found matching your criteria</p>
+          <div className="rounded-3xl border border-dashed border-white/5 bg-white/50 dark:bg-white/5 backdrop-blur-md p-6">
+            <EmptyState message="No essays found matching your criteria." />
           </div>
         ) : (
           filteredChecks.map((check) => {

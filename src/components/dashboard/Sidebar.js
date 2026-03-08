@@ -5,23 +5,24 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  LayoutDashboard,
-  History,
-  PenLine,
-  Settings,
+  Layers,
+  BarChart3,
+  PenTool,
+  Clock,
+  Sliders,
   LogOut,
   User,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 const mainNavItems = [
-  { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'My Checks', href: '/history', icon: History },
-  { name: 'Writer', href: '/', icon: PenLine },
+  { name: 'Overview', href: '/dashboard', icon: BarChart3 },
+  { name: 'My Checks', href: '/history', icon: Clock },
+  { name: 'Writer', href: '/', icon: PenTool },
 ];
 
 const bottomNavItems = [
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Settings', href: '/settings', icon: Sliders },
 ];
 
 const containerVariants = {
@@ -45,9 +46,9 @@ export default function Sidebar({ user, credits }) {
     const content = (
       <motion.div
         className={`
-          relative flex items-center justify-center sm:justify-start gap-3 min-h-[44px] sm:min-h-[48px]
+          group relative flex items-center justify-center sm:justify-start gap-3 min-h-[44px] sm:min-h-[48px]
           px-3 py-3 rounded-xl font-semibold tracking-tight
-          transition-colors duration-200
+          transition-all duration-200
           ${isActive
             ? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400'
             : 'text-slate-500 dark:text-slate-400'
@@ -55,7 +56,7 @@ export default function Sidebar({ user, credits }) {
           hover:text-indigo-600 dark:hover:text-indigo-400
           hover:shadow-[0_0_20px_rgba(79,70,229,0.15)]
         `}
-        whileHover={{ scale: 1.05 }}
+        whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
         {isActive && (
@@ -64,7 +65,7 @@ export default function Sidebar({ user, credits }) {
             aria-hidden
           />
         )}
-        <Icon className="w-5 h-5 shrink-0 flex items-center justify-center" />
+        <Icon className={`w-5 h-5 shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-110 ${isActive ? '[filter:drop-shadow(0_0_5px_rgba(79,70,229,0.5))]' : ''}`} strokeWidth={1.5} />
         {!isMobile && <span className="hidden sm:inline">{item.name}</span>}
       </motion.div>
     );
@@ -90,15 +91,16 @@ export default function Sidebar({ user, credits }) {
           p-4
         "
       >
-        {/* Logo: STRATUM.ai — bold, wide-tracked, accent on dot */}
+        {/* Logo: STRATUM.ai — Layers icon + bold, wide-tracked */}
         <motion.div
-          className="flex items-center gap-2 mb-8 px-2"
+          className="flex items-center gap-2 mb-8 px-2 group"
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
+          <Layers className="w-5 h-5 shrink-0 text-indigo-500 dark:text-indigo-400 transition-transform duration-200 group-hover:scale-110 [filter:drop-shadow(0_0_5px_rgba(79,70,229,0.5))]" strokeWidth={1.5} />
           <motion.span
-            className="font-black tracking-[0.2em] text-lg text-slate-900 dark:text-slate-100 select-none block uppercase"
+            className="font-black tracking-[0.2em] text-lg text-slate-900 dark:text-slate-100 select-none uppercase"
             style={{ textShadow: '0 0 20px rgba(99,102,241,0.2)' }}
             animate={{ opacity: [1, 0.9, 1] }}
             transition={{ opacity: { repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}}
@@ -134,7 +136,7 @@ export default function Sidebar({ user, credits }) {
           {user && (
             <div className="flex items-center gap-3 min-h-[44px] px-3 py-2 rounded-xl text-slate-500 dark:text-slate-400">
               <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-200/80 dark:bg-slate-700/80">
-                <User className="w-4 h-4 shrink-0" />
+                <User className="w-4 h-4 shrink-0" strokeWidth={1.5} />
               </div>
               <div className="hidden sm:block min-w-0 flex-1">
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
@@ -160,9 +162,9 @@ export default function Sidebar({ user, credits }) {
             <button
               type="button"
               onClick={() => signOut()}
-              className="relative flex items-center justify-start gap-3 w-full min-h-[48px] px-3 py-3 rounded-xl font-semibold tracking-tight text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:shadow-[0_0_20px_rgba(79,70,229,0.12)] transition-colors"
+              className="group relative flex items-center justify-start gap-3 w-full min-h-[48px] px-3 py-3 rounded-xl font-semibold tracking-tight text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:shadow-[0_0_20px_rgba(79,70,229,0.12)] transition-colors"
             >
-              <LogOut className="w-5 h-5 shrink-0 flex items-center justify-center" />
+              <LogOut className="w-5 h-5 shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} />
               <span className="hidden sm:inline">Sign Out</span>
             </button>
           </motion.div>
@@ -194,9 +196,9 @@ export default function Sidebar({ user, credits }) {
               >
                 <motion.span
                   whileTap={{ scale: 0.92 }}
-                  className={`flex items-center justify-center w-10 h-10 rounded-xl ${isActive ? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400' : ''}`}
+                  className={`group flex items-center justify-center w-10 h-10 rounded-xl transition-transform duration-200 hover:scale-110 ${isActive ? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 [&_svg]:[filter:drop-shadow(0_0_5px_rgba(79,70,229,0.5))]' : ''}`}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-5 h-5" strokeWidth={1.5} />
                 </motion.span>
                 <span className="text-[10px] font-medium mt-0.5 truncate max-w-[72px]">
                   {item.name}
@@ -210,9 +212,9 @@ export default function Sidebar({ user, credits }) {
           >
             <motion.span
               whileTap={{ scale: 0.92 }}
-              className={`flex items-center justify-center w-10 h-10 rounded-xl ${pathname === '/settings' ? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400' : ''}`}
+              className={`group flex items-center justify-center w-10 h-10 rounded-xl transition-transform duration-200 hover:scale-110 ${pathname === '/settings' ? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 [&_svg]:[filter:drop-shadow(0_0_5px_rgba(79,70,229,0.5))]' : ''}`}
             >
-              <Settings className="w-5 h-5" />
+              <Sliders className="w-5 h-5" strokeWidth={1.5} />
             </motion.span>
             <span className="text-[10px] font-medium mt-0.5">Settings</span>
           </Link>

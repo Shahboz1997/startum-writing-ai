@@ -6,11 +6,9 @@ import { useTheme } from 'next-themes';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { 
-  FireIcon, SunIcon, MoonIcon, Bars3Icon, XMarkIcon, 
-  BoltIcon, CreditCardIcon, ShieldCheckIcon,
-  GlobeAltIcon,
-  ChevronDownIcon,
-} from '@heroicons/react/24/outline';
+  Zap, Sun, Moon, Menu, X, 
+  CreditCard, ShieldCheck, ChevronDown,
+} from 'lucide-react';
 import { useBilling } from '@/components/BillingContext';
 
 // --- ФОРМА ОПЛАТЫ STRIPE ---
@@ -132,10 +130,10 @@ const Navbar = ({
           <button
             type="button"
             onClick={() => setActiveTab('Topics')}
-            className="flex items-center gap-2 text-xl sm:text-2xl font-black tracking-[0.15em] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded uppercase"
+            className="group flex items-center gap-2 text-xl sm:text-2xl font-black tracking-[0.15em] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 rounded uppercase"
             aria-label="Go to Topics"
           >
-            <FireIcon className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-500 dark:text-indigo-400 shrink-0" />
+            <Zap className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-500 dark:text-indigo-400 shrink-0 transition-transform duration-200 group-hover:scale-110 [filter:drop-shadow(0_0_5px_rgba(79,70,229,0.5))]" strokeWidth={1.5} />
             <span className={darkMode ? 'text-white' : 'text-slate-900'}>
               STRATUM<span className="text-indigo-500 dark:text-indigo-400">.</span>ai
             </span>
@@ -156,7 +154,7 @@ const Navbar = ({
             <div className="flex items-center gap-4 border-l pl-6 border-slate-700/30">
               <div className="relative">
                 <button type="button" onClick={() => setIsPricingOpen(!isPricingOpen)} className="flex items-center gap-2 min-h-[44px] px-3 py-2 font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 rounded-xl transition-all">
-                  <CreditCardIcon className="w-4 h-4" /> Pricing
+                  <CreditCard className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} /> Pricing
                 </button>
                 <AnimatePresence>
                   {isPricingOpen && (
@@ -175,7 +173,7 @@ const Navbar = ({
         <div className="flex items-center gap-3">
           {/* Кредиты */}
           <div className="flex items-center gap-1 font-semibold text-xs text-indigo-600 bg-indigo-600/10 px-2 py-1 rounded-lg tracking-tight">
-            {credits} <BoltIcon className="w-3 h-3" />
+            {credits} <Zap className="w-3 h-3 inline-block" strokeWidth={1.5} />
           </div>
           
           {/* User dropdown: Profile, Billing, Logout */}
@@ -194,7 +192,7 @@ const Navbar = ({
                   {session.user.name?.charAt(0) || 'U'}
                 </div>
               )}
-              <ChevronDownIcon className="w-4 h-4" />
+              <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
             </button>
             <AnimatePresence>
               {isUserMenuOpen && (
@@ -236,10 +234,10 @@ const Navbar = ({
                 type="button"
                 onClick={handleThemeToggle}
                 disabled={!themeMounted}
-                className="flex items-center justify-center min-h-[44px] min-w-[44px] p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-indigo-600 transition-colors"
+                className="group flex items-center justify-center min-h-[44px] min-w-[44px] p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-indigo-600 transition-colors"
                 aria-label={themeMounted && resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
               >
-                {themeMounted && resolvedTheme === 'dark' ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+                {themeMounted && resolvedTheme === 'dark' ? <Sun className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} /> : <Moon className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} />}
               </button>
             </div>
           </div>
@@ -253,7 +251,7 @@ const Navbar = ({
               aria-expanded={isMenuOpen}
               aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
             >
-              {isMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+              {isMenuOpen ? <X className="w-6 h-6 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} /> : <Menu className="w-6 h-6 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} />}
             </button>
           </div>
         </div>
@@ -277,7 +275,7 @@ const Navbar = ({
 
                 {/* 2. Блок Pricing внутри бургера */}
                 <div className={`p-4 rounded-3xl border border-white/5 backdrop-blur-md ${darkMode ? 'bg-white/5' : 'bg-white/80'}`}>
-                  <h4 className="text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2"><CreditCardIcon className="w-4 h-4" /> Subscription Plans</h4>
+                  <h4 className="text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4" strokeWidth={1.5} /> Subscription Plans</h4>
                   <div className="space-y-2">
                     {plans.map(p => (
                       <button key={p.name} type="button" onClick={() => { setSelectedPlan(p); setIsMenuOpen(false); }} className="w-full flex justify-between items-center min-h-[44px] p-4 rounded-xl bg-white dark:bg-slate-900 border dark:border-slate-700 shadow-sm active:scale-[0.98] transition-transform">
@@ -299,7 +297,7 @@ const Navbar = ({
                      disabled={!themeMounted}
                      className="flex-1 min-h-[44px] p-4 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center gap-3 font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 transition-colors"
                    >
-                     {themeMounted && resolvedTheme === 'dark' ? <><SunIcon className="w-5 h-5" /> Day</> : <><MoonIcon className="w-5 h-5" /> Night</>}
+                     {themeMounted && resolvedTheme === 'dark' ? <><Sun className="w-5 h-5" strokeWidth={1.5} /> Day</> : <><Moon className="w-5 h-5" strokeWidth={1.5} /> Night</>}
                    </button>
                    {!isLoggedIn && (
                      <button type="button" onClick={() => onLoginClick()} className="btn-stratum flex-1 min-h-[44px] p-4 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]">
@@ -325,7 +323,7 @@ const Navbar = ({
                 <div className="italic font-black uppercase text-2xl tracking-tighter">
                   <h3>{selectedPlan.price === '0$' ? 'Start Trial' : 'Checkout'}</h3>
                 </div>
-                <button type="button" onClick={() => setSelectedPlan(null)} className="flex items-center justify-center min-h-[44px] min-w-[44px] p-2 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 rounded-full transition-colors" aria-label="Close"><XMarkIcon className="w-6 h-6" /></button>
+                <button type="button" onClick={() => setSelectedPlan(null)} className="group flex items-center justify-center min-h-[44px] min-w-[44px] p-2 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 rounded-full transition-colors" aria-label="Close"><X className="w-6 h-6 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} /></button>
               </div>
 
               <div className={`mb-8 p-5 rounded-2xl border-2 border-dashed ${darkMode ? 'border-slate-700 bg-slate-800/40' : 'border-slate-100 bg-slate-50'}`}>
@@ -371,7 +369,7 @@ const Navbar = ({
               )}
 
               <div className="mt-8 flex justify-center items-center gap-2 text-[9px] font-black uppercase text-slate-500 opacity-50 italic">
-                <ShieldCheckIcon className="w-4 h-4" /> 256-bit Encrypted Secure Payment
+                <ShieldCheck className="w-4 h-4" strokeWidth={1.5} /> 256-bit Encrypted Secure Payment
               </div>
             </motion.div>
           </div>

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { DocumentDuplicateIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { Copy, Check } from 'lucide-react';
 
 const TransformationSlider = ({ darkMode, onCtaClick }) => {
   const [copied, setCopied] = useState(false);
@@ -121,11 +121,11 @@ const TransformationSlider = ({ darkMode, onCtaClick }) => {
               >
                 {copied ? (
                   <>
-                    <CheckIcon className="w-3.5 h-3.5" /> Copied
+                    <Check className="w-3.5 h-3.5" strokeWidth={1.5} /> Copied
                   </>
                 ) : (
                   <>
-                    <DocumentDuplicateIcon className="w-3.5 h-3.5" /> Copy
+                    <Copy className="w-3.5 h-3.5" strokeWidth={1.5} /> Copy
                   </>
                 )}
               </button>

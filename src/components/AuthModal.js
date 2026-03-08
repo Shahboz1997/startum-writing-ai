@@ -1,8 +1,9 @@
 'use client'; 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { XMarkIcon, EnvelopeIcon, LockClosedIcon, UserIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { signIn } from 'next-auth/react'; 
+import { X, Mail, Lock, User, AlertTriangle } from 'lucide-react';
+import { signIn } from 'next-auth/react';
+import { ErrorState } from '@/components/stratum'; 
 
 const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -112,8 +113,8 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
         exit={{ scale: 0.95, opacity: 0, y: 20 }}
         className="relative z-10 w-full max-w-md max-h-[100dvh] overflow-y-auto bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800 my-auto"
       >
-        <button type="button" onClick={onClose} className="absolute top-4 right-4 flex items-center justify-center min-h-[44px] min-w-[44px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors rounded-lg" aria-label="Close">
-          <XMarkIcon className="w-5 h-5" />
+        <button type="button" onClick={onClose} className="group absolute top-4 right-4 flex items-center justify-center min-h-[44px] min-w-[44px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors rounded-lg" aria-label="Close">
+          <X className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} />
         </button>
 
         <div className="p-4 sm:p-8">
@@ -130,10 +131,15 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
-                className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl flex items-center gap-2 text-red-600 dark:text-red-400 text-sm font-medium"
+                className="mb-4"
               >
-                <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
-                {error}
+                <ErrorState
+                  message={error}
+                  is401={error === 'Invalid email or password' || error === 'Access Denied. Check Stratum Credentials.'}
+                  onDismiss={() => setError('')}
+                  variant="inline"
+                  className="!p-4 !flex-row !justify-between"
+                />
               </motion.div>
             )}
           </AnimatePresence>
@@ -141,7 +147,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
           <form className="space-y-4" onSubmit={handleSubmit}>
             {!isLogin && (
               <div className="relative">
-                <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" strokeWidth={1.5} />
                 <input
                   type="text"
                   placeholder="Full name"
@@ -154,7 +160,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
             )}
 
             <div className="relative">
-              <EnvelopeIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" strokeWidth={1.5} />
               <input
                 type="email"
                 placeholder="Email address"
@@ -166,7 +172,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
             </div>
 
             <div className="relative">
-              <LockClosedIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" strokeWidth={1.5} />
               <input
                 type="password"
                 placeholder="Password"

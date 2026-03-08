@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { FireIcon } from '@heroicons/react/24/outline';
+import { Layers } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -12,7 +12,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <FireIcon className="w-6 h-6 text-indigo-500 dark:text-indigo-400" />
+              <Layers className="w-6 h-6 text-indigo-500 dark:text-indigo-400 transition-transform duration-200 hover:scale-110 [filter:drop-shadow(0_0_5px_rgba(79,70,229,0.5))]" strokeWidth={1.5} />
               <span className="font-black tracking-tighter uppercase text-slate-900 dark:text-white">STRATUM<span className="text-indigo-500 dark:text-indigo-400">.</span>ai</span>
             </div>
             <p className="text-sm font-medium tracking-tight text-slate-500 dark:text-slate-400">
