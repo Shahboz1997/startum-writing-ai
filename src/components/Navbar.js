@@ -7,7 +7,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { 
   Zap, Sun, Moon, Menu, X, 
-  CreditCard, ShieldCheck, ChevronDown,
+  CreditCard, ShieldCheck, ChevronDown, LogOut,
 } from 'lucide-react';
 import { useBilling } from '@/components/BillingContext';
 
@@ -81,6 +81,7 @@ const Navbar = ({
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [confirmLogoutMobile, setConfirmLogoutMobile] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
   const [stripePromise, setStripePromise] = useState(null);
   const [stripeLoadError, setStripeLoadError] = useState(null);
@@ -105,6 +106,10 @@ const Navbar = ({
   useEffect(() => {
     if (selectedPlan) setIsAgreed(false);
   }, [selectedPlan]);
+
+  useEffect(() => {
+    if (!isMenuOpen) setConfirmLogoutMobile(false);
+  }, [isMenuOpen]);
 
   const menuItems = ['Topics', 'Task 1', 'Task 2', 'Archive'];
   const handleThemeToggle = () => {
@@ -213,9 +218,10 @@ const Navbar = ({
                     </Link>
                     <button
                       type="button"
-                      onClick={() => { signOut(); setIsUserMenuOpen(false); }}
-                      className="w-full text-left flex items-center min-h-[44px] px-4 py-2 text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 border-t border-slate-100 dark:border-slate-800"
+                      onClick={() => { signOut({ callbackUrl: '/' }); setIsUserMenuOpen(false); }}
+                      className="w-full text-left flex items-center min-h-[44px] px-4 py-2 text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:text-red-500 hover:bg-red-500/10 border-t border-slate-100 dark:border-slate-800"
                     >
+                      <LogOut className="w-4 h-4 mr-2 shrink-0" strokeWidth={1.5} />
                       Logout
                     </button>
                   </motion.div>
@@ -289,7 +295,7 @@ const Navbar = ({
                   </div>
                 </div>
 
-                {/* 3. Утилиты: только Theme и Login (Settings — в Sidebar) */}
+                {/* 3. Утилиты: Theme, Login (or Logout when logged in) */}
                 <div className="flex gap-2">
                    <button
                      type="button"
@@ -299,13 +305,40 @@ const Navbar = ({
                    >
                      {themeMounted && resolvedTheme === 'dark' ? <><Sun className="w-5 h-5" strokeWidth={1.5} /> Day</> : <><Moon className="w-5 h-5" strokeWidth={1.5} /> Night</>}
                    </button>
-                   {!isLoggedIn && (
+                   {!isLoggedIn ? (
                      <button type="button" onClick={() => onLoginClick()} className="btn-stratum flex-1 min-h-[44px] p-4 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]">
                        <div className="shimmer-layer animate-shimmer" aria-hidden />
                        <span className="btn-stratum-text">STRATUM LOGIN</span>
                      </button>
-                   )}
+                   ) : null}
                 </div>
+
+                {/* 4. Logout row (mobile) — prominent, fat-finger friendly, optional confirm */}
+                {isLoggedIn && (
+                  <div className="pt-2 border-t border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirmLogoutMobile) {
+                          signOut({ callbackUrl: '/' });
+                          setIsMenuOpen(false);
+                        } else {
+                          setConfirmLogoutMobile(true);
+                        }
+                      }}
+                      className="
+                        w-full flex items-center justify-center gap-2 min-h-[48px] rounded-xl
+                        font-black uppercase tracking-[0.2em] text-[10px]
+                        text-slate-500 dark:text-slate-400
+                        hover:text-red-500 hover:bg-red-500/10 active:text-red-500 active:bg-red-500/10
+                        transition-colors
+                      "
+                    >
+                      <LogOut className="w-5 h-5 shrink-0" strokeWidth={1.5} />
+                      <span>{confirmLogoutMobile ? 'Tap again to sign out' : 'Sign Out'}</span>
+                    </button>
+                  </div>
+                )}
 
               </div>
             </motion.div>

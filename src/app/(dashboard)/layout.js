@@ -21,7 +21,7 @@ export default async function DashboardLayout({ children }) {
       <main
         className="flex-1 overflow-y-auto min-h-0
           px-4 sm:pl-60 sm:pr-6 lg:pr-8
-          pt-6 pb-24 sm:pb-8
+          pt-6 pb-32 sm:pb-8
           border-t border-white/5
           bg-gradient-to-b from-slate-50/80 to-[#F9FAFB] dark:from-slate-950/80 dark:to-[#050505]
           transition-all duration-500 ease-in-out"

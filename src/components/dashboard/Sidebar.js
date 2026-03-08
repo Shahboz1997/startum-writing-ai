@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -40,6 +40,17 @@ const itemVariants = {
 
 export default function Sidebar({ user, credits }) {
   const pathname = usePathname();
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
+  useEffect(() => {
+    if (!confirmLogout) return;
+    const t = setTimeout(() => setConfirmLogout(false), 3000);
+    return () => clearTimeout(t);
+  }, [confirmLogout]);
+
+  const handleSignOut = () => {
+    signOut({ callbackUrl: '/' });
+  };
 
   const NavLink = ({ item, isActive, isMobile = false }) => {
     const Icon = item.icon;
@@ -161,30 +172,53 @@ export default function Sidebar({ user, credits }) {
           <motion.div variants={itemVariants}>
             <button
               type="button"
-              onClick={() => signOut()}
-              className="group relative flex items-center justify-start gap-3 w-full min-h-[48px] px-3 py-3 rounded-xl font-semibold tracking-tight text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:shadow-[0_0_20px_rgba(79,70,229,0.12)] transition-colors"
+              onClick={handleSignOut}
+              className="group relative flex items-center justify-start gap-3 w-full min-h-[48px] px-3 py-3 rounded-xl font-semibold tracking-tight text-slate-500 dark:text-slate-400 hover:text-red-500 hover:bg-red-500/10 active:text-red-500 active:bg-red-500/10 transition-colors"
             >
-              <LogOut className="w-5 h-5 shrink-0 flex items-center justify-center transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} />
+              <LogOut className="w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} />
               <span className="hidden sm:inline">Sign Out</span>
             </button>
           </motion.div>
         </motion.div>
       </motion.aside>
 
-      {/* Mobile: bottom tab bar */}
+      {/* Mobile: dedicated Sign Out row + bottom tab bar (safe-area friendly) */}
       <motion.nav
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
         className="
           sm:hidden fixed bottom-0 left-0 right-0 z-50
-          h-16 w-full
+          w-full flex flex-col
           bg-white/80 dark:bg-[#050505]/90 backdrop-blur-md
           border-t border-white/5 dark:border-white/5
-          flex items-center justify-center gap-0
+          pb-[max(1rem,env(safe-area-inset-bottom))]
         "
       >
-        <div className="flex items-center justify-center gap-2 w-full max-w-md px-2">
+        {/* Dedicated Sign Out row — fat-finger friendly, red tint, optional confirm */}
+        <div className="flex items-stretch px-3 pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (confirmLogout) {
+                handleSignOut();
+              } else {
+                setConfirmLogout(true);
+              }
+            }}
+            className="
+              flex items-center justify-center gap-2 w-full min-h-[48px] rounded-xl
+              font-black uppercase tracking-[0.2em] text-[10px]
+              text-slate-500 dark:text-slate-400
+              hover:text-red-500 hover:bg-red-500/10 active:text-red-500 active:bg-red-500/10
+              transition-colors
+            "
+          >
+            <LogOut className="w-5 h-5 shrink-0" strokeWidth={1.5} />
+            <span>{confirmLogout ? 'Tap again to sign out' : 'Sign Out'}</span>
+          </button>
+        </div>
+        <div className="flex items-center justify-center gap-2 w-full max-w-md px-2 pb-2">
           {mainNavItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
