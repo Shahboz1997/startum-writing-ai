@@ -16,7 +16,9 @@ import {
   Loader2, FileText, CheckCircle, FlaskConical, Zap, BarChart3, Play, Pause, Globe, MessageCircle,
   GraduationCap, Users, Building2, Briefcase, Heart, Scale, Bookmark, Sun, Moon, Image as ImageIcon, BookOpen,
   Menu, X, Volume2, Star,
+  EyeOff, Crown, Filter, Type, LayoutGrid, RefreshCw, AlignLeft, Shield, Target, AlertCircle,
 } from 'lucide-react';
+import { TASK1_TIPS, TASK2_TIPS, getChecklistStatus } from '@/lib/ieltsGuidelines';
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import Zoom from 'react-medium-image-zoom';
@@ -195,6 +197,7 @@ import 'react-medium-image-zoom/dist/styles.css';
   const [appliedCorrections, setAppliedCorrections] = useState([]);
   const [customKeyword, setCustomKeyword] = useState('');
   const [isPromptOpen, setIsPromptOpen] = useState(true); // Состояние для открытия/закрытия
+  const [showCheatSheet, setShowCheatSheet] = useState(false);
   const UPGRADE_MAP = {
   'good': ['beneficial', 'advantageous', 'exemplary', 'vital'],
   'bad': ['detrimental', 'harmful', 'adverse', 'unfavorable'],
@@ -401,7 +404,7 @@ import 'react-medium-image-zoom/dist/styles.css';
         setErrorIs401(true);
         msg = (dataError === 'INVALID_API_KEY' || dataError === 'Server Configuration Error: Missing API Key' || dataError === 'Environment variable NOT LOADED')
           ? 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.'
-          : 'Please sign in to check your essay.';
+          : 'Please sign in to ANALYZE STRATUM DATA.';
       } else if (status === 503) msg = 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.';
       else if (status === 403) msg = 'You have run out of credits. Please refill to continue.';
       setError(msg);
@@ -1904,6 +1907,53 @@ const insertLinkingWord = (word) => {
   />
 
 </div>
+          {/* Quick Cheat Sheet — Expert IELTS Guidelines */}
+          <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowCheatSheet((v) => !v)}
+              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            >
+              <BookOpen className="w-4 h-4" strokeWidth={1.5} />
+              Quick Cheat Sheet
+              <ChevronDown className={`w-4 h-4 transition-transform ${showCheatSheet ? 'rotate-180' : ''}`} strokeWidth={1.5} />
+            </button>
+            <AnimatePresence>
+              {showCheatSheet && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="overflow-hidden"
+                >
+                  <div className={`mt-4 p-4 rounded-2xl border backdrop-blur-md bg-white/60 dark:bg-white/5 border-slate-200/80 dark:border-white/10 sticky bottom-4 space-y-3`}>
+                    <span className="font-black uppercase tracking-[0.2em] text-[10px] text-indigo-600 dark:text-indigo-400 block mb-2">
+                      {activeTab === 'Task 1' ? 'Task 1: Analytical Precision' : 'Task 2: Argumentative Mastery'}
+                    </span>
+                    {(activeTab === 'Task 1' ? TASK1_TIPS : TASK2_TIPS).map((tip, i) => {
+                      const IconMap = activeTab === 'Task 1'
+                        ? { EyeOff, Crown, Filter, Type, LayoutGrid }
+                        : { RefreshCw, AlignLeft, Shield, Target, Zap };
+                      const Icon = IconMap[tip.icon];
+                      return (
+                        <motion.div
+                          key={tip.id}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                          className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300 text-sm"
+                        >
+                          {Icon && <Icon className="w-4 h-4 shrink-0 text-indigo-500 dark:text-indigo-400" strokeWidth={1.5} />}
+                          <span>{tip.label}</span>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 </div>
     {activeResult && !loading && (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
@@ -2245,6 +2295,53 @@ const insertLinkingWord = (word) => {
   {/* Background Decor */}
   <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-400/10 blur-[100px] rounded-full -mr-20 -mt-20 pointer-events-none" />
 </div>
+
+          {/* EXAMINER'S CHECKLIST — Expert tips status */}
+          {(() => {
+            const checklistTips = activeTab === 'Task 1' ? TASK1_TIPS : TASK2_TIPS;
+            const status = getChecklistStatus(activeTab, activeTab === 'Task 1' ? essayT1 : essayT2, activeResult);
+            const IconMapT1 = { EyeOff, Crown, Filter, Type, LayoutGrid };
+            const IconMapT2 = { RefreshCw, AlignLeft, Shield, Target, Zap };
+            const IconMap = activeTab === 'Task 1' ? IconMapT1 : IconMapT2;
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className={`p-5 rounded-[2rem] border shadow-sm ${darkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white/80 border-slate-200'}`}
+              >
+                <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-4">
+                  Examiner&apos;s Checklist
+                </h5>
+                <ul className="space-y-3">
+                  {checklistTips.map((tip, i) => {
+                    const followed = status[tip.id] === true;
+                    const Icon = IconMap[tip.icon];
+                    return (
+                      <motion.li
+                        key={tip.id}
+                        initial={{ opacity: 0, x: -6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.05 * i }}
+                        className="flex items-center gap-2.5 text-sm"
+                      >
+                        {followed ? (
+                          <Check className="w-4 h-4 shrink-0 text-emerald-500 dark:text-emerald-400" strokeWidth={1.5} />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 shrink-0 text-amber-500 dark:text-amber-400" strokeWidth={1.5} />
+                        )}
+                        {Icon && <Icon className="w-4 h-4 shrink-0 text-slate-500 dark:text-slate-400" strokeWidth={1.5} />}
+                        <span className={followed ? 'text-slate-700 dark:text-slate-200' : 'text-slate-600 dark:text-slate-300'}>
+                          {tip.label}
+                        </span>
+                      </motion.li>
+                    );
+                  })}
+                </ul>
+              </motion.div>
+            );
+          })()}
+
           {/* --- 3. DEEP LINGUISTIC ANALYSIS --- */}
           <div className={`p-8 rounded-[3rem] border shadow-sm max-h-[600px] overflow-y-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
  ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 dark:border-slate-800'}`}>

@@ -179,6 +179,11 @@ function clearSessionAndRedirect(request) {
   return response;
 }
 
+// Return JSON on error so the client never receives HTML (fixes ClientFetchError "Unexpected token '<', '<!DOCTYPE'")
+function jsonError(message, status = 500) {
+  return NextResponse.json({ error: message }, { status });
+}
+
 // App Router requires named GET and POST exports; delegate to NextAuth handlers
 export async function GET(request) {
   try {
@@ -188,7 +193,8 @@ export async function GET(request) {
       if (isDev) console.warn("[auth] Session decryption failed, clearing session:", err?.message);
       return clearSessionAndRedirect(request);
     }
-    throw err;
+    if (isDev) console.error("[auth] GET error:", err?.message ?? err);
+    return jsonError(err?.message ?? "Authentication error");
   }
 }
 
@@ -200,7 +206,8 @@ export async function POST(request) {
       if (isDev) console.warn("[auth] Session decryption failed, clearing session:", err?.message);
       return clearSessionAndRedirect(request);
     }
-    throw err;
+    if (isDev) console.error("[auth] POST error:", err?.message ?? err);
+    return jsonError(err?.message ?? "Authentication error");
   }
 }
 

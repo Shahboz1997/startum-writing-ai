@@ -1,0 +1,1 @@
+Stop-Process -Name "node" -Force; rd /s /q .next; npm run dev

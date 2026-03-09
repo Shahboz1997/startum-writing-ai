@@ -17,10 +17,27 @@ import {
   PenTool,
   Wrench,
   ArrowRight,
+  Download,
   Plus,
   Minus,
+  EyeOff,
+  Crown,
+  Filter,
+  Type,
+  LayoutGrid,
+  RefreshCw,
+  AlignLeft,
+  Shield,
+  ShieldCheck,
+  Target,
+  Zap,
+  Volume2,
+  Headphones,
+  X,
 } from 'lucide-react';
+import { TASK1_TIPS, TASK2_TIPS } from '@/lib/ieltsGuidelines';
 import { useBilling } from '@/components/BillingContext';
+import NeuralSyncShowcase from '@/components/NeuralSyncShowcase';
 
 const appleEase = [0.16, 1, 0.3, 1];
 const fadeInUp = {
@@ -170,8 +187,20 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
   const { resolvedTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
   const [faqOpenIndex, setFaqOpenIndex] = useState(null);
+  const [isSampleOpen, setIsSampleOpen] = useState(false);
   useEffect(() => setThemeMounted(true), []);
   const darkMode = themeMounted && resolvedTheme === 'dark';
+
+  const cycleContainer = {
+    initial: {},
+    whileInView: { transition: { staggerChildren: 0.12, delayChildren: 0.08 } },
+    viewport: { once: true, margin: '-48px' },
+  };
+  const cycleItem = {
+    initial: { opacity: 0, y: 20 },
+    whileInView: { opacity: 1, y: 0 },
+    transition: { ease: appleEase, duration: 0.7 },
+  };
 
   return (
     <main className="min-h-screen bg-[#F9FAFB] dark:bg-[#050505] transition-colors duration-300 pt-0">
@@ -282,6 +311,18 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               { icon: FileText, title: 'Grammar & Cohesion Audit', desc: 'Our AI runs a full grammar and cohesion audit on your essay, flagging errors and suggesting linking words so your Writing Task meets Band 7+ standards.' },
               { icon: Search, title: 'Lexical Resource Upgrade', desc: 'Get precise lexical resource feedback with Band 9-level synonyms and collocations. Replace weak vocabulary and boost your Band Score with every submission.' },
               { icon: BarChart3, title: 'Real-Time Scoring', desc: 'Receive real-time scoring across Task Achievement, Coherence, Vocabulary, and Grammar. See your Band Score and criterion breakdown instantly after each Writing Task.' },
+              {
+                icon: Volume2,
+                title: 'MP3 Audio Models',
+                desc: (
+                  <>
+                    Download AI-generated audio models of Band 9.0-level responses for advanced shadowing practice.
+                    <span className="block mt-3">
+                      Master the Sound of Band 9.0. Download AI-generated audio models and perfect your pronunciation with the Stratum Shadowing technique.
+                    </span>
+                  </>
+                ),
+              },
             ].map((item, idx) => {
               const Icon = item.icon;
               return (
@@ -354,10 +395,20 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
           </motion.div>
         </div>
       </section>
+
+      {/* Neural Sync — THE SOUND OF PERFECTION */}
+      <NeuralSyncShowcase onCtaClick={onFullAnalysisClick} />
+
       {/* Section 3: Stratum-Level Analytics for Your Progress */}
       <section aria-labelledby="section-stratum-analytics" className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
         <motion.div {...fadeInUp}>
-          <TransformationSlider darkMode={darkMode} onCtaClick={onFullAnalysisClick} />
+          <div className="max-w-6xl mx-auto px-4">
+            <div className="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-1">
+              <div className="rounded-[1.8rem] bg-white/80 dark:bg-white/5">
+                <TransformationSlider darkMode={darkMode} onCtaClick={onFullAnalysisClick} />
+              </div>
+            </div>
+          </div>
         </motion.div>
         <div className="mt-8 max-w-5xl mx-auto px-4 sm:px-6">
           <motion.div {...fadeInUp} className="text-center mb-6">
@@ -398,9 +449,299 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
         </div>
       </section>
 
-      {/* Task 2 Comparison Lab */}
+      {/* Task 2 Comparison Lab — Static Premium Demo (Cathalon.ai style) */}
       <section className="py-8 sm:py-10 bg-white/50 dark:bg-white/5 border-b border-white/5">
         <Task2ComparisonLab darkMode={darkMode} />
+      </section>
+
+      {/* Intelligence Ecosystem — The Stratum Cycle */}
+      <section aria-labelledby="section-stratum-cycle" className="py-14 sm:py-20 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
+        <div className="max-w-6xl mx-auto px-4">
+          <motion.div {...fadeInUp} className="text-center mb-10 sm:mb-12">
+            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+              Intelligence Ecosystem
+            </span>
+            <h2 id="section-stratum-cycle" className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
+              BEYOND EVALUATION. COMPLETE MASTERY.
+            </h2>
+            <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
+              The Stratum Cycle connects prompt generation, examiner-grade evaluation, and audio shadowing into one continuous improvement loop.
+            </p>
+          </motion.div>
+
+          <motion.div {...cycleContainer} className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+            {[
+              {
+                step: '01',
+                title: 'Neural Generation',
+                Icon: Sparkles,
+                text: 'Generate infinite Task 1 & 2 prompts calibrated to 2026 IELTS standards.',
+              },
+              {
+                step: '02',
+                title: 'Deep Analysis',
+                Icon: ShieldCheck,
+                text: 'Receive instant Band Score evaluation with precise grammar and lexical strata mapping.',
+              },
+              {
+                step: '03',
+                title: 'Auditory Mastery',
+                Icon: Headphones,
+                text: 'Download AI-generated MP3 models to master the rhythm and pronunciation of Band 9.0 responses.',
+              },
+            ].map(({ step, title, Icon, text }) => (
+              <motion.div
+                key={step}
+                {...cycleItem}
+                className="relative overflow-hidden rounded-[2rem] border border-white/10 dark:border-white/5 bg-white/80 dark:bg-white/5 backdrop-blur-md shadow-2xl shadow-black/5 dark:shadow-black/20 p-6 sm:p-7"
+              >
+                <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-indigo-500/10 blur-[50px] pointer-events-none" aria-hidden />
+                <div className="flex items-start justify-between gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center border border-indigo-200/40 dark:border-indigo-700/30">
+                    <Icon className="w-6 h-6 text-indigo-600 dark:text-indigo-300" strokeWidth={1.5} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                    Step {step}
+                  </span>
+                </div>
+                <h3 className="mt-5 text-base font-semibold tracking-wide text-slate-900 dark:text-white">
+                  {title}
+                </h3>
+                <p className="mt-2 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide leading-relaxed">
+                  {text}
+                </p>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <motion.div {...fadeInUp} className="mt-10 sm:mt-12 flex flex-col items-center gap-4">
+            <button
+              type="button"
+              onClick={() => setIsSampleOpen(true)}
+              className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 text-white px-6 py-3 text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-slate-800 hover:shadow-[0_0_25px_rgba(79,70,229,0.22)] active:scale-[0.98]"
+            >
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/10 border border-white/10 group-hover:border-indigo-300/40 transition-colors">
+                <Download className="w-4 h-4 text-indigo-300" />
+              </span>
+              Download Sample Strata
+              <ArrowRight className="w-4 h-4 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-wide text-center max-w-xl">
+              Preview the STRATUM report format + audio model interface before you generate your first check.
+            </p>
+          </motion.div>
+        </div>
+
+        <AnimatePresence>
+          {isSampleOpen && (
+            <motion.div
+              className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8 bg-black/40 backdrop-blur-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSampleOpen(false)}
+              role="dialog"
+              aria-modal="true"
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 18, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 18, scale: 0.98 }}
+                transition={{ ease: appleEase, duration: 0.35 }}
+                className="w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 backdrop-blur-xl shadow-2xl shadow-black/40"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                  <div className="flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.6)]" />
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/80">
+                      Sample STRATA Preview
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsSampleOpen(false)}
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors"
+                    aria-label="Close sample preview"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+                  {/* Mock PDF */}
+                  <div className="p-6 border-b md:border-b-0 md:border-r border-white/10">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Mock PDF</p>
+                      <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-white/70">
+                        STRATUM_REPORT.pdf
+                      </span>
+                    </div>
+                    <div className="aspect-[4/5] rounded-2xl bg-white/5 border border-white/10 overflow-hidden relative">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(99,102,241,0.25)_0%,transparent_55%)]" aria-hidden />
+                      <div className="p-5 space-y-3">
+                        <div className="h-3 w-2/3 rounded bg-white/10" />
+                        <div className="h-2 w-full rounded bg-white/10" />
+                        <div className="h-2 w-11/12 rounded bg-white/10" />
+                        <div className="h-2 w-10/12 rounded bg-white/10" />
+                        <div className="mt-4 h-24 rounded-xl bg-white/5 border border-white/10" />
+                        <div className="h-2 w-9/12 rounded bg-white/10" />
+                        <div className="h-2 w-full rounded bg-white/10" />
+                      </div>
+                      <div className="absolute bottom-4 right-4 px-2 py-1 rounded-lg bg-slate-900/60 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/70">
+                        Page 1/3
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mock MP3 */}
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Mock MP3</p>
+                      <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-white/70">
+                        STRATUM_MODEL.mp3
+                      </span>
+                    </div>
+                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center">
+                          <Headphones className="w-5 h-5 text-indigo-300" strokeWidth={1.5} />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-white/90">Band 9.0 Model Voice</p>
+                          <p className="text-[11px] text-white/60">Shadowing-ready pacing &amp; intonation</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-400/20 text-white hover:bg-indigo-500/25 transition-colors"
+                          aria-label="Play sample"
+                        >
+                          <Volume2 className="w-5 h-5" strokeWidth={1.5} />
+                        </button>
+                      </div>
+
+                      <div className="mt-5 rounded-2xl bg-slate-900/40 border border-white/10 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">
+                            Audio strata bar
+                          </span>
+                          <span className="text-[10px] font-bold text-white/60">00:15 / 00:45</span>
+                        </div>
+                        <div className="flex items-end gap-[2px] h-8 rounded-2xl bg-white/5 border border-white/10 px-2 overflow-hidden">
+                          {Array.from({ length: 34 }, (_, i) => {
+                            const v = Math.abs(Math.sin(i * 0.92 + 0.7));
+                            const h = 0.28 + v * 0.72;
+                            const filled = i < 12;
+                            return (
+                              <span
+                                key={i}
+                                className={filled ? 'bg-indigo-400/90' : 'bg-white/20'}
+                                style={{
+                                  width: 3,
+                                  height: `${Math.round(h * 100)}%`,
+                                  borderRadius: 999,
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                        <button
+                          type="button"
+                          className="btn-stratum w-full py-3 rounded-2xl flex items-center justify-center gap-2"
+                          onClick={onFullAnalysisClick}
+                        >
+                          <div className="shimmer-layer animate-shimmer" aria-hidden />
+                          <span className="btn-stratum-text">GET STARTED · STRATUM</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-colors"
+                          onClick={() => setIsSampleOpen(false)}
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+
+      {/* STRATUM METHODOLOGY — Expert IELTS Guidelines */}
+      <section className="py-12 sm:py-16 bg-[#050505] dark:bg-[#050505] border-b border-white/5">
+        <div className="max-w-5xl mx-auto px-4">
+          <motion.div {...fadeInUp} className="text-center mb-10">
+            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">Expert Guidelines</span>
+            <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase text-white">
+              STRATUM METHODOLOGY
+            </h2>
+            <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
+              The five principles we use to evaluate and improve your writing for Band 7+.
+            </p>
+          </motion.div>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Task 1: Analytical Precision */}
+            <motion.div
+              {...fadeInUp}
+              className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md p-6 sm:p-8 shadow-xl shadow-black/10"
+            >
+              <h3 className="font-black uppercase tracking-[0.2em] text-[10px] text-indigo-400 mb-6">
+                Task 1: Analytical Precision
+              </h3>
+              <ul className="space-y-4">
+                {TASK1_TIPS.map((tip, i) => {
+                  const Icon = { EyeOff, Crown, Filter, Type, LayoutGrid }[tip.icon];
+                  return (
+                    <motion.li
+                      key={tip.id}
+                      initial={{ opacity: 0, x: -12 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true, margin: '-24px' }}
+                      transition={{ delay: i * 0.08, duration: 0.4 }}
+                      className="flex items-center gap-3 text-slate-300 dark:text-slate-300"
+                    >
+                      {Icon && <Icon className="w-4 h-4 shrink-0 text-indigo-400" strokeWidth={1.5} />}
+                      <span className="text-sm font-medium">{tip.label}</span>
+                    </motion.li>
+                  );
+                })}
+              </ul>
+            </motion.div>
+            {/* Task 2: Argumentative Mastery */}
+            <motion.div
+              {...fadeInUp}
+              className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md p-6 sm:p-8 shadow-xl shadow-black/10"
+            >
+              <h3 className="font-black uppercase tracking-[0.2em] text-[10px] text-indigo-400 mb-6">
+                Task 2: Argumentative Mastery
+              </h3>
+              <ul className="space-y-4">
+                {TASK2_TIPS.map((tip, i) => {
+                  const Icon = { RefreshCw, AlignLeft, Shield, Target, Zap }[tip.icon];
+                  return (
+                    <motion.li
+                      key={tip.id}
+                      initial={{ opacity: 0, x: -12 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true, margin: '-24px' }}
+                      transition={{ delay: i * 0.08, duration: 0.4 }}
+                      className="flex items-center gap-3 text-slate-300 dark:text-slate-300"
+                    >
+                      {Icon && <Icon className="w-4 h-4 shrink-0 text-indigo-400" strokeWidth={1.5} />}
+                      <span className="text-sm font-medium">{tip.label}</span>
+                    </motion.li>
+                  );
+                })}
+              </ul>
+            </motion.div>
+          </div>
+        </div>
       </section>
 
       {/* Success Stories — bento cards */}
@@ -613,6 +954,9 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
             </div>
             <p className="text-sm font-medium tracking-wide text-slate-900 dark:text-white">
               © 2026 STRATUM LLC. Registered in Delaware, USA.
+            </p>
+            <p className="text-xs font-semibold tracking-wide text-slate-500 dark:text-slate-400">
+              Don&apos;t just practice. Evolve. Start your Stratum journey today.
             </p>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               <a href="mailto:support@stratum.ai" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">

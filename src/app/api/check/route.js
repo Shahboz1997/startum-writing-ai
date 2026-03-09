@@ -30,6 +30,7 @@ function getOpenAIClient() {
   const organization = typeof process.env.OPENAI_ORG_ID === 'string' ? process.env.OPENAI_ORG_ID.trim() : undefined;
   if (!_openaiKeyLogged) {
     _openaiKeyLogged = true;
+    console.log("STRATUM_SYSTEM_READY: API Key Verified.");
     console.log('[OpenAI] API key loaded at first use; baseURL:', baseURL, 'project:', project || '(none)');
   }
 
@@ -142,15 +143,15 @@ export async function POST(req) {
   try {
     // Single trimmed key so we never use raw env (avoids hidden \r or spaces). If you still see wrong key, it's from another source.
     const apiKey = (process.env.OPENAI_API_KEY || '').trim();
-    console.log("DEBUG: Request received. API Key Length:", apiKey.length);
-    console.log("DEBUG: Key Ends With (trimmed):", apiKey.slice(-4));
     if (!apiKey) {
       return NextResponse.json({ error: "Environment variable NOT LOADED" }, { status: 401 });
     }
-    if (apiKey.slice(-4) === 'nTkA') {
-      console.warn("OPENAI_API_KEY still ends with nTkA (old key). Next.js does NOT override existing env: if OPENAI_API_KEY is set in your shell or system, that wins over .env.local. Unset it before starting: PowerShell: $env:OPENAI_API_KEY=''; npm run dev. Or check .env .env.development .env.development.local in project root.");
+    if (process.env.NODE_ENV !== 'production') {
+      if (apiKey.slice(-4) === 'nTkA') {
+        console.warn("OPENAI_API_KEY still ends with nTkA (old key). Next.js does NOT override existing env: if OPENAI_API_KEY is set in your shell or system, that wins over .env.local. Unset it before starting: PowerShell: $env:OPENAI_API_KEY=''; npm run dev.");
+      }
+      console.log("DEBUG: OpenAI request attempt; project:", process.env.OPENAI_PROJECT_ID || '(none)');
     }
-    console.log("Attempting OpenAI request with Project:", process.env.OPENAI_PROJECT_ID, "Key ends with:", apiKey.slice(-4));
     const body = await req.json();
      // --- НОВЫЙ РЕЖИМ: Отправка Email (Feedback/Improvement Hub) ---
     // Проверяем наличие полей, которые приходят из вашей формы
@@ -306,7 +307,7 @@ await transporter.sendMail({
     const { getPrisma } = await import('@/lib/prisma');
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: "Please sign in to check your essay." }, { status: 401 });
+      return NextResponse.json({ error: "Please sign in to ANALYZE STRATUM DATA." }, { status: 401 });
     }
     const prisma = getPrisma();
     const user = await prisma.user.findUnique({ where: { id: session.user.id } });
@@ -360,6 +361,7 @@ await transporter.sendMail({
 
     const typeValue = isT1 ? 'TASK_1' : 'TASK_2';
     const userId = session.user.id;
+    const savedScore = Number.isFinite(Number(result?.overall_band)) ? Number(result.overall_band) : null;
 
     // Run create and update separately to avoid transaction timeout (e.g. "Unable to start a transaction in the given time").
     // Ensure DATABASE_URL / DIRECT_URL in .env.local is correct and reachable (VPN/network).
@@ -368,7 +370,7 @@ await transporter.sendMail({
         type: typeValue,
         content: userText,
         promptText: promptText || null,
-        score: result.overall_band,
+        score: savedScore,
         feedback: JSON.stringify(result),
         userId,
       },
