@@ -108,6 +108,14 @@ html, body {
   cursor: pointer;
 }
 
+/* CEFR vocabulary distribution highlights (Cathoven style) */
+.cefr-a1 { background-color: rgba(148, 163, 184, 0.35); border-radius: 2px; cursor: pointer; }
+.cefr-a2 { background-color: rgba(34, 197, 94, 0.35); border-radius: 2px; cursor: pointer; }
+.cefr-b1 { background-color: rgba(59, 130, 246, 0.35); border-radius: 2px; cursor: pointer; }
+.cefr-b2 { background-color: rgba(139, 92, 246, 0.35); border-radius: 2px; cursor: pointer; }
+.cefr-c1 { background-color: rgba(249, 115, 22, 0.35); border-radius: 2px; cursor: pointer; }
+.cefr-c2 { background-color: rgba(239, 68, 68, 0.35); border-radius: 2px; cursor: pointer; }
+
 @keyframes scan-line {
   0% { top: 0%; }
   100% { top: 100%; }

@@ -146,10 +146,14 @@ export async function POST(req) {
     if (!apiKey) {
       return NextResponse.json({ error: "Environment variable NOT LOADED" }, { status: 401 });
     }
-    if (process.env.NODE_ENV !== 'production') {
-      if (apiKey.slice(-4) === 'nTkA') {
-        console.warn("OPENAI_API_KEY still ends with nTkA (old key). Next.js does NOT override existing env: if OPENAI_API_KEY is set in your shell or system, that wins over .env.local. Unset it before starting: PowerShell: $env:OPENAI_API_KEY=''; npm run dev.");
+    if (apiKey.slice(-4) === 'nTkA') {
+      const msg = "Invalid or old API key (ends with nTkA). Get a new key at https://platform.openai.com/api-keys, set OPENAI_API_KEY in .env.local, and restart the dev server. If you already updated .env.local, unset the variable in your shell first (PowerShell: $env:OPENAI_API_KEY=''; then npm run dev).";
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(msg);
       }
+      return NextResponse.json({ error: msg }, { status: 401 });
+    }
+    if (process.env.NODE_ENV !== 'production') {
       console.log("DEBUG: OpenAI request attempt; project:", process.env.OPENAI_PROJECT_ID || '(none)');
     }
     const body = await req.json();

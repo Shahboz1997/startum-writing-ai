@@ -1,1 +1,1 @@
-Stop-Process -Name "node" -Force; rd /s /q .next; npm run dev
+Stop-Process -Name "node" -Force -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force .next; npm run dev

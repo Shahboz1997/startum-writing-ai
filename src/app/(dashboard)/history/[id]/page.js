@@ -1,7 +1,7 @@
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getPrisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import AnalyticalLab from "@/components/dashboard/AnalyticalLab";
+import AnalyticalLabClient from "./AnalyticalLabClient";
 
 export default async function HistoryDetailPage({ params }) {
   const session = await auth();
@@ -23,5 +23,5 @@ export default async function HistoryDetailPage({ params }) {
   }
   if (!check) notFound();
 
-  return <AnalyticalLab check={check} />;
+  return <AnalyticalLabClient check={check} />;
 }
