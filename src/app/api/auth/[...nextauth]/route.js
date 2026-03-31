@@ -28,6 +28,10 @@ export const authOptions = {
   trustHost: true,
   secret: getSecret(),
   adapter: PrismaAdapter(getPrisma()),
+  // Silence optional experiments/features (reduces noisy warnings).
+  experimental: {
+    webAuthn: false,
+  },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -149,7 +153,9 @@ export const authOptions = {
     signIn: "/",
     error: "/",
   },
-  debug: isDev,
+  // Auth.js warning "debug-enabled" will only show when debug=true.
+  // Default to false unless explicitly enabled.
+  debug: process.env.NEXTAUTH_DEBUG === "true" && isDev,
 };
 
 // App Router: equivalent to const handler = NextAuth(authOptions); export { handler as GET, handler as POST }

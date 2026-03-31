@@ -20,8 +20,18 @@ const CEFR_LEVELS = [
 /** Hex colors for legend dots (synced with bars). */
 const CEFR_COLORS = { A1: '#94a3b8', A2: '#10b981', B1: '#3b82f6', B2: '#8b5cf6', C1: '#f97316', C2: '#ef4444' };
 
-/** Text color for CEFR word spans (matches bar palette). Errors override with bg-yellow-100 border. */
-const CEFR_TEXT_CLASS = { A1: 'text-slate-500', A2: 'text-emerald-600', B1: 'text-blue-600', B2: 'text-violet-600', C1: 'text-orange-600', C2: 'text-red-600' };
+/** Text color for CEFR word spans (matches bar palette, opacity-80). Errors override with bg-yellow-100 border. */
+const CEFR_TEXT_CLASS = {
+  // A1/A2 (Basic): gray
+  A1: 'text-slate-400/80',
+  A2: 'text-slate-400/80',
+  // B1/B2 (Intermediate): blue / purple
+  B1: 'text-blue-500/80',
+  B2: 'text-violet-500/80',
+  // C1/C2 (Advanced): orange / red
+  C1: 'text-orange-500/80',
+  C2: 'text-red-500/80',
+};
 
 const CEFR_LEVEL_LABELS = { A1: 'A1 - Beginner', A2: 'A2 - Elementary', B1: 'B1 - Intermediate', B2: 'B2 - Upper Intermediate', C1: 'C1 - Advanced', C2: 'C2 - Proficiency' };
 
@@ -99,9 +109,23 @@ function buildErrorWordsSet(errorsArray, corrections) {
   return set;
 }
 
-/** Renders userText with each word in a span: CEFR color from word_levels, or error style (bg-yellow-100 border) when in analysis.errors. */
-function renderTextWithWordLevels(userText, wordLevelsMap, errorWordsSet, onErrorClick) {
+/**
+ * Prompt:
+ * "Refactor the text highlighting in the highlightRef layer to color-code words by their CEFR level:
+ * Logic: Split userText into words. For each word, check its CEFR level from props.analysis.word_levels (or cefr_stats).
+ * Colors: Wrap words in <span> with these Tailwind classes:
+ * A1/A2 (Basic): text-slate-400 (Gray)
+ * B1/B2 (Intermediate): text-blue-500 or text-violet-500 (Blue/Purple)
+ * C1/C2 (Advanced): text-orange-500 or text-red-500 (Orange/Red)
+ * Errors Priority: If a word exists in props.analysis.errors, ignore its CEFR color and apply bg-yellow-100 border-b-2 border-orange-400 instead.
+ * Preserve Layout: Ensure spaces and line breaks (\n to <br/>) are preserved so the highlight layer perfectly matches the textarea text.
+ * Styling: Use opacity-80 for CEFR colors so they don't distract too much from the errors."
+ *
+ * Renders userText with each word in a span: CEFR color from word_levels, or error style (bg-yellow-100 border) when in analysis.errors.
+ */
+function renderTextWithWordLevels(userText, wordLevelsMap, errorWordsSet, onErrorClick, weakWordsSet) {
   if (!userText || typeof userText !== 'string') return userText;
+  const weakSet = weakWordsSet && weakWordsSet.size > 0 ? weakWordsSet : null;
   const tokens = userText.split(/(\b\w+\b)/);
   return tokens.map((token, i) => {
     if (!/^\w+$/.test(token)) return <span key={i}>{token}</span>;
@@ -109,10 +133,11 @@ function renderTextWithWordLevels(userText, wordLevelsMap, errorWordsSet, onErro
     const normalized = token.toLowerCase();
     const level = wordLevelsMap.get(normalized);
     const isError = errorWordsSet.has(normalized);
+    const isWeak = weakSet && weakSet.has(normalized);
     const title = level ? CEFR_LEVEL_LABELS[level] : undefined;
     const className = [
       'rounded px-0.5 cursor-pointer transition-colors',
-      isError ? 'bg-yellow-100 border-b-2 border-orange-400 dark:bg-yellow-500/20 dark:border-orange-400' : (level && CEFR_TEXT_CLASS[level] ? `${CEFR_TEXT_CLASS[level]} hover:opacity-90` : ''),
+      isError ? 'bg-yellow-100 border-b-2 border-orange-400 dark:bg-yellow-500/20 dark:border-orange-400' : isWeak ? 'bg-amber-100/80 dark:bg-amber-900/30 border-b-2 border-amber-400/70 dark:border-amber-500/50 text-amber-800/90 dark:text-amber-200/90' : (level && CEFR_TEXT_CLASS[level] ? `${CEFR_TEXT_CLASS[level]} hover:opacity-90` : ''),
     ].filter(Boolean).join(' ');
     return (
       <span
@@ -295,6 +320,14 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
 
   const wordLevelsMap = useMemo(() => buildWordLevelsMap(feedback.word_levels), [feedback.word_levels]);
   const errorWordsSet = useMemo(() => buildErrorWordsSet(feedback.errors, corrections), [feedback.errors, corrections]);
+  const weakWordsSet = useMemo(() => {
+    const set = new Set();
+    (lexicalUpgrade || []).forEach((row) => {
+      const w = (row.band_56_word || '').toString().toLowerCase().trim().replace(/[.,!?;:()]/g, '');
+      if (w) set.add(w);
+    });
+    return set;
+  }, [lexicalUpgrade]);
   const useWordLevelRendering = viewMode === 'feedback' && wordLevelsMap && wordLevelsMap.size > 0;
 
   const formatTime = useCallback((seconds) => {
@@ -452,6 +485,33 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     }
     handleAutoFix(original, fixed);
   }, [handleReplaceWord, handleAutoFix]);
+
+  /** Одним кликом заменить первое вхождение каждого слабого слова на первый синоним. */
+  const handleApplyAllUpgrades = useCallback(() => {
+    if (!setUserText || !lexicalUpgrade.length) return;
+    const entries = lexicalUpgrade
+      .map((row) => {
+        const w = (row.band_56_word || '').trim();
+        const syns = Array.isArray(row.band_89_synonyms) ? row.band_89_synonyms : (row.band_89_synonyms ? String(row.band_89_synonyms).split(',').map((s) => s.trim()) : []);
+        const first = syns[0]?.trim();
+        return w && first ? { weakWord: w, firstSyn: first } : null;
+      })
+      .filter(Boolean);
+    if (entries.length === 0) return;
+    const lower = userText.toLowerCase();
+    const replacements = entries
+      .map(({ weakWord, firstSyn }) => {
+        const idx = lower.indexOf(weakWord.toLowerCase());
+        return idx === -1 ? null : { idx, weakWord, firstSyn, len: weakWord.length };
+      })
+      .filter(Boolean);
+    replacements.sort((a, b) => b.idx - a.idx);
+    let result = userText;
+    replacements.forEach(({ idx, firstSyn, len }) => {
+      result = result.slice(0, idx) + firstSyn + result.slice(idx + len);
+    });
+    setUserText(result);
+  }, [setUserText, userText, lexicalUpgrade]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -640,7 +700,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                 </button>
               </div>
             </div>
-            {/* {viewMode === 'feedback' && (
+            {viewMode === 'feedback' && (
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">vocabulary distribution</span>
                 <div className="flex flex-wrap items-center gap-3">
@@ -652,12 +712,12 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                   ))}
                 </div>
               </div>
-            )} */}
+            )}
             <div className="text-slate-800 dark:text-slate-200 text-base leading-relaxed whitespace-pre-wrap break-words transition-all duration-200" spellCheck={false}>
               {viewMode === 'original'
                 ? userText
                 : useWordLevelRendering
-                  ? renderTextWithWordLevels(userText, wordLevelsMap, errorWordsSet, () => setRightPanelTab('vocabulary'))
+                  ? renderTextWithWordLevels(userText, wordLevelsMap, errorWordsSet, () => setRightPanelTab('vocabulary'), weakWordsSet)
                   : errorSegments.map((seg, i) =>
                       seg.kind === 'error' ? (
                         <span
@@ -682,29 +742,82 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
             </div>
           </div>
 
-          {lexicalUpgrade.length > 0 && (
-            <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
-              <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200 tracking-tight px-6 py-3 border-b border-slate-100 dark:border-white/5">Lexical upgrade</h2>
-              <div className="p-6 overflow-x-auto">
-                <table className="w-full min-w-[260px] text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 dark:border-slate-700/50 text-left text-slate-500 dark:text-slate-400">
-                      <th className="pb-2 pr-3 font-medium">B5–6</th>
-                      <th className="pb-2 font-medium">B8–9</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lexicalUpgrade.slice(0, 6).map((row, i) => (
-                      <tr key={i} className="border-b border-slate-50 dark:border-white/5">
-                        <td className="py-2 pr-3 text-slate-600 dark:text-slate-400 italic">{row.band_56_word}</td>
-                        <td className="py-2 text-slate-800 dark:text-slate-200">{Array.isArray(row.band_89_synonyms) ? row.band_89_synonyms.join(', ') : row.band_89_synonyms}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 sm:px-6 sm:py-3 border-b border-slate-100 dark:border-white/5">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-indigo-50 text-indigo-600 text-xs dark:bg-indigo-500/10 dark:text-indigo-300" aria-hidden>
+                  🪄
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                    Lexical upgrade
+                  </span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                    Swap weak words for sharper choices
+                  </span>
+                </div>
               </div>
+              {lexicalUpgrade.length > 0 && setUserText && (
+                <button
+                  type="button"
+                  onClick={handleApplyAllUpgrades}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-amber-500/90 hover:bg-amber-500 text-white shadow-sm border border-amber-400/50 transition-colors"
+                  title="Заменить первое вхождение каждого слабого слова на первый синоним"
+                >
+                  <span aria-hidden>🪄</span>
+                  Применить все улучшения
+                </button>
+              )}
             </div>
-          )}
+            <div className="p-3 sm:p-4">
+              {lexicalUpgrade.length === 0 ? (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 italic py-4 text-center">
+                  No upgrades needed yet. Use more academic language to see suggestions.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                  {lexicalUpgrade.map((row, i) => {
+                    const weakWord = row.band_56_word;
+                    const synonymsRaw = Array.isArray(row.band_89_synonyms)
+                      ? row.band_89_synonyms
+                      : (row.band_89_synonyms ? String(row.band_89_synonyms).split(',') : []);
+                    const synonyms = synonymsRaw.map((s) => s.trim()).filter(Boolean);
+
+                    if (!weakWord || synonyms.length === 0) return null;
+
+                    return (
+                      <div
+                        key={`${weakWord}-${i}`}
+                        className="flex flex-col gap-1.5 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/60 dark:bg-slate-900/60 px-2.5 py-2"
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-medium shrink-0">
+                            B5–6
+                          </span>
+                          <span className="truncate text-xs font-medium text-slate-800 dark:text-slate-100 italic">
+                            {weakWord}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {synonyms.map((syn, idx) => (
+                            <button
+                              key={`${weakWord}-${syn}-${idx}`}
+                              type="button"
+                              className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-medium hover:bg-indigo-100 hover:text-indigo-800 dark:bg-indigo-500/10 dark:text-indigo-200 dark:hover:bg-indigo-500/20 transition-colors"
+                              onClick={() => onReplaceWord(weakWord, syn, 1, i)}
+                              title={`Replace "${weakWord}" with "${syn}" in your essay`}
+                            >
+                              {syn}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 w-full lg:w-fit">
             <div className="flex flex-wrap gap-2">
@@ -872,7 +985,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
   </div>
 )}
 
-                  {/* {errors.length > 0 && (
+                  {errors.length > 0 && (
                     <div className="space-y-3">
                       <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">Errors & corrections</h3>
                       {errors.map((err, idx) => (
@@ -892,7 +1005,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                         </div>
                       ))}
                     </div>
-                  )} */}
+                  )}
                 </div>
               )}
               {rightPanelTab === 'grammar' && (

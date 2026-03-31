@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
@@ -296,6 +296,132 @@ import 'react-medium-image-zoom/dist/styles.css';
       "https://anu.edu.vn/wp-content/uploads/2023/04/de-thi-ielts-writing-task-1-ngay-02022023.jpg"
     ],
   };
+  // Слабые слова для подсветки: из API (lexical_upgrade) или локальный список + UPGRADE_MAP.
+  // ВАЖНО: не используем `activeResult`, потому что он объявляется позже в файле.
+  const weakWordsSet = useMemo(() => {
+    const set = new Set();
+    const lexSource = activeTab === 'Task 1' ? activeResultT1 : activeResultT2;
+    const lex = Array.isArray(lexSource?.lexical_upgrade) ? lexSource.lexical_upgrade : [];
+    lex.forEach((row) => {
+      const w = (row.band_56_word || '').toLowerCase().trim().replace(/[.,!?;:()]/g, '');
+      if (w) set.add(w);
+    });
+    if (set.size === 0) WEAK_WORDS.forEach((w) => set.add(w.toLowerCase()));
+    return set;
+  }, [activeTab, activeResultT1, activeResultT2]);
+
+  // Рендер CEFR-раскраски текста в подложке (highlightRef) на основе activeResult.analysis.word_levels и .errors.
+  function renderColoredText() {
+    const text = (activeTab === 'Task 1' ? essayT1 : essayT2) || "";
+    const analysis = activeResult?.analysis || {};
+    const wordLevels = Array.isArray(analysis.word_levels) ? analysis.word_levels : [];
+    const errorsArray = Array.isArray(analysis.errors) ? analysis.errors : [];
+
+    // Собираем множество "проблемных" слов из errors (в нижнем регистре, без пунктуации).
+    const errorWordsSet = new Set();
+    const addErrorWords = (val) => {
+      if (!val) return;
+      String(val)
+        .toLowerCase()
+        .split(/\s+/)
+        .forEach((w) => {
+          const clean = w.replace(/[.,!?;:()]/g, "").trim();
+          if (clean) errorWordsSet.add(clean);
+        });
+    };
+    errorsArray.forEach((e) => {
+      addErrorWords(e.word || e.original || e.text);
+    });
+
+    let wordIndex = 0;
+    const parts = text.split(/(\s+|[.,!?;:()])/); // сохраняем пробелы и знаки
+
+    return parts.map((part, i) => {
+      // Пробелы и пунктуация — без стилей, чтобы не ломать разметку
+      if (/^(\s+|[.,!?;:()])$/.test(part)) {
+        return <span key={i}>{part}</span>;
+      }
+
+      const clean = part.toLowerCase().trim().replace(/[.,!?;:()]/g, "");
+      if (!clean) {
+        return <span key={i}>{part}</span>;
+      }
+
+      const wl = wordLevels[wordIndex] || {};
+      const level = wl.level;
+      const isError = errorWordsSet.has(clean);
+      const isWeak = weakWordsSet.has(clean);
+      wordIndex += 1;
+
+      let classes = "inline";
+      if (isError) {
+        // Ошибка важнее: красное зачёркивание
+        classes += " line-through decoration-red-500 decoration-2 text-red-500/60";
+      } else if (isWeak) {
+        // Слабые слова (Band 5–6): подсветка янтарным
+        classes += " bg-amber-100/80 dark:bg-amber-900/30 border-b-2 border-amber-400/70 dark:border-amber-500/50 text-amber-800/90 dark:text-amber-200/90 rounded px-0.5";
+      } else {
+        if (level === "A1" || level === "A2") {
+          classes += " text-slate-400";
+        } else if (level === "B1" || level === "B2") {
+          classes += " text-indigo-500";
+        } else if (level === "C1" || level === "C2") {
+          classes += " text-orange-500 font-bold";
+        }
+      }
+
+      return (
+        <span key={i} className={classes}>
+          {part}
+        </span>
+      );
+    });
+  }
+
+  // Одним кликом заменить первое вхождение каждого слабого слова на первый синоним (из API или UPGRADE_MAP).
+  function handleApplyAllUpgrades() {
+    const setter = activeTab === 'Task 1' ? setEssayT1 : setEssayT2;
+    const currentText = activeTab === 'Task 1' ? essayT1 : essayT2;
+    const lexSource = activeTab === 'Task 1' ? activeResultT1 : activeResultT2;
+    const lex = Array.isArray(lexSource?.lexical_upgrade) ? lexSource.lexical_upgrade : [];
+    const entries = [];
+    if (lex.length > 0) {
+      lex.forEach((row) => {
+        const w = (row.band_56_word || "").trim();
+        const syns = Array.isArray(row.band_89_synonyms) ? row.band_89_synonyms : (row.band_89_synonyms ? String(row.band_89_synonyms).split(",").map((s) => s.trim()) : []);
+        const firstSyn = syns[0]?.trim();
+        if (w && firstSyn) entries.push({ weakWord: w, firstSyn });
+      });
+    } else {
+      WEAK_WORDS.forEach((word) => {
+        const syns = UPGRADE_MAP[word];
+        const firstSyn = Array.isArray(syns) ? syns[0] : (typeof syns === "string" ? syns : null);
+        if (firstSyn) entries.push({ weakWord: word, firstSyn });
+      });
+    }
+    if (entries.length === 0) return;
+    // Замены с конца текста к началу, чтобы индексы не сбивались.
+    const lower = currentText.toLowerCase();
+    const replacements = [];
+    entries.forEach(({ weakWord, firstSyn }) => {
+      const idx = lower.indexOf(weakWord.toLowerCase());
+      if (idx !== -1) replacements.push({ idx, weakWord, firstSyn, len: weakWord.length });
+    });
+    replacements.sort((a, b) => b.idx - a.idx);
+    let result = currentText;
+    replacements.forEach(({ idx, firstSyn, len }) => {
+      result = result.slice(0, idx) + firstSyn + result.slice(idx + len);
+    });
+    setter(result);
+    setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.style.height = "auto";
+        editorRef.current.style.height = `${editorRef.current.scrollHeight}px`;
+      }
+      if (highlightRef.current) highlightRef.current.style.height = `${editorRef.current?.scrollHeight ?? 320}px`;
+    }, 50);
+  }
+
   // ФУНКЦИЯ ОБРАБОТКИ
   // Внутри вашего клиентского компонента с формой
   const handleSubmit = async (e) => {
@@ -1083,12 +1209,25 @@ const renderHighlightedText = (text, highlights, searchState) => { // Добав
       const data = e.response?.data;
       const serverMessage = (data && typeof data.message === 'string') ? data.message : null;
       const dataError = (typeof data === 'object' && data !== null && typeof data.error === 'string') ? data.error : null;
-      const isApiKeyError = status === 401 || status === 503 || dataError === 'INVALID_API_KEY' || dataError === 'Server Configuration Error: Missing API Key' || dataError === 'Environment variable NOT LOADED';
-      const display = status === 401
-        ? 'Authentication failed. The server is still using an old API Key (nTkA).'
-        : isApiKeyError
-          ? 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.'
-          : (serverMessage || dataError || e.message || 'Image description failed. Please try another image.');
+      const isApiKeyError =
+        status === 401 ||
+        status === 503 ||
+        dataError === 'INVALID_API_KEY' ||
+        dataError === 'Server Configuration Error: Missing API Key' ||
+        dataError === 'Environment variable NOT LOADED';
+
+      const display =
+        status === 401
+          ? (dataError || serverMessage || 'Request unauthorized (401). Check your OPENAI_API_KEY in .env.local and restart the dev server.')
+          : isApiKeyError
+            ? (dataError || 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.')
+            : (serverMessage || dataError || e.message || 'Image description failed. Please try another image.');
+
+      // Показываем ошибку и в общем ErrorState (как в других запросах), чтобы не выглядело как "сломанные ссылки".
+      if (status === 401) {
+        setErrorIs401(true);
+        setError(display);
+      }
       setImageUploadError(display);
     } finally {
       setIsDescribing(false);
@@ -1887,89 +2026,40 @@ const insertLinkingWord = (word) => {
       }`} style={{ width: `${Math.min(100, (currentWordCount / targetWords) * 100)}%` }}
     />
   </div>
+  {/* --- Кнопка «Применить все улучшения» (слабые слова → первый синоним) --- */}
+  {weakWordsSet.size > 0 && (
+    <div className="absolute top-3 left-3 z-30">
+      <button
+        type="button"
+        onClick={handleApplyAllUpgrades}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-amber-500/90 hover:bg-amber-500 text-white shadow-sm border border-amber-400/50 transition-colors"
+        title="Заменить первое вхождение каждого слабого слова на первый синоним"
+      >
+        <span aria-hidden>🪄</span>
+        Применить все улучшения
+      </button>
+    </div>
+  )}
   {/* --- 1. СЛОЙ ВИЗУАЛИЗАЦИИ (Подложка) --- */}
-  <div 
-  ref={highlightRef}
-  className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden"
-  style={{ 
-    ...sharedStyles, 
-    color: 'transparent',
-    width: '100%',
-    minHeight: '320px',
-    // КРИТИЧЕСКИЕ ПРАВКИ ДЛЯ СИНХРОНИЗАЦИИ:
-    display: 'block',
-     // Должно быть 1:1 как в textarea
-    border: '1px solid transparent', // Имитирует невидимую рамку textarea
-    fontVariantLigatures: 'none',    // Отключает слияние букв (fi, fl)
-    letterSpacing: 'normal',        // Убирает микро-сдвиги шрифта
-    WebkitFontSmoothing: 'antialiased',
-  }}
->
-  {((activeTab === 'Task 1' ? essayT1 : essayT2) || "")
-    .split(/(\s+|[.,!?;:()])/) // Сохраняем пробелы и пунктуацию
-    .map((part, i) => {
-  // 1. Выводим пробелы и знаки препинания без стилей (сохраняем структуру)
-  if (/^(\s+|[.,!?;:()])$/.test(part)) {
-    return <span key={i}>{part}</span>;
-  }
-
-  const clean = part.toLowerCase().trim().replace(/[.,!?;:]/g, '');
-  if (!clean) return <span key={i}>{part}</span>;
-
-  // 2. Логика проверок (согласно вашим последним изменениям)
-  const isExcluded = EXCLUDED_WORDS.includes(clean);
-  const isWeak = !isExcluded && WEAK_WORDS.includes(clean);
-  const grammarData = !isExcluded && grammarMap[clean];
-  const isLinking = !isExcluded && linkingMap[clean];
-  const isSearchMatch = searchState?.word && clean === searchState.word.toLowerCase().trim();
-
-  let highlightStyle = "";
-  let tooltip = "";
-
-  // 3. ПРИОРИТЕТНОСТЬ СТИЛЕЙ (Не меняя логику)
-  if (grammarData) {
-    // Приоритет 1: Ошибки (Красное зачеркивание)
-    highlightStyle = "bg-red-400 decoration-skip-ink-none";
-    tooltip = `Fix: ${grammarData.fixed} (${grammarData.rule})`;
-  } else if (isLinking) {
-    // Приоритет 2: Связки (Синее подчеркивание)
-    highlightStyle = "border-b-[3px] border-blue-800/90 dark:border-blue-800 -mb-[3px]";
-  } else if (isWeak) {
-    // Приоритет 3: Слабые слова (Желтый пунктир по вашему CSS классу)
-    // Добавлены Tailwind-аналоги вашего CSS для надежности
-    highlightStyle = "weak-word-hint border-b-2 border-dashed border-yellow-500/50 text-orange-400/80";
-    tooltip = "Weak Word: Consider using a more academic synonym for a higher score.";
-  }
-  if (isWeak && !grammarData) {
-  highlightStyle = "weak-word-hint border-b-2 border-dashed border-yellow-500/50 cursor-pointer pointer-events-auto";
-  tooltip = "Click to see academic upgrades";
-}
-  return (
-  <span 
-    key={i} 
-    title={tooltip || undefined}
-    onClick={(e) => {
-      if (isWeak) {
-        e.stopPropagation();
-        const rect = e.target.getBoundingClientRect();
-        setTooltipData({
-          word: clean,
-          x: rect.left,
-          y: rect.top,
-          synonyms: UPGRADE_MAP[clean] || []
-        });
-      }
+  <div
+    ref={highlightRef}
+    className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden"
+    style={{
+      ...sharedStyles,
+      color: 'transparent',
+      width: '100%',
+      minHeight: '320px',
+      // КРИТИЧЕСКИЕ ПРАВКИ ДЛЯ СИНХРОНИЗАЦИИ:
+      display: 'block',
+      // Должно быть 1:1 как в textarea
+      border: '1px solid transparent', // Имитирует невидимую рамку textarea
+      fontVariantLigatures: 'none', // Отключает слияние букв (fi, fl)
+      letterSpacing: 'normal', // Убирает микро-сдвиги шрифта
+      WebkitFontSmoothing: 'antialiased',
     }}
-    className={`inline transition-all duration-200 ${highlightStyle} ${
-      isSearchMatch ? 'ring-2 ring-yellow-400 bg-yellow-400/20 rounded-sm' : ''
-    }`}
   >
-    {part}
-  </span>
-);
-    }
-    )}
-</div>
+    {renderColoredText()}
+  </div>
   {/* --- 2. ВЕРХНИЙ СЛОЙ (Textarea) --- */}
     <textarea
     ref={editorRef}
@@ -2004,8 +2094,8 @@ const insertLinkingWord = (word) => {
     placeholder="Begin your essay..."
     className={`relative z-10 w-full min-h-[320px] bg-transparent outline-none resize-none overflow-hidden transition-colors duration-200
       ${darkMode 
-        ? 'text-slate-100 caret-indigo-400 selection:bg-indigo-500/30' 
-        : 'text-slate-900 caret-indigo-600 selection:bg-indigo-200/50'}`}
+        ? 'caret-indigo-400 selection:bg-indigo-500/30' 
+        : 'caret-indigo-600 selection:bg-indigo-200/50'}`}
     style={{
       ...sharedStyles,
       // ВАЖНО: Эти отступы должны быть в точности как в highlightRef слое
@@ -2014,6 +2104,8 @@ const insertLinkingWord = (word) => {
       lineHeight: '1.8',
       WebkitFontSmoothing: 'antialiased',
       border: '1px solid transparent', // Чтобы не было сдвига относительно подложки
+      color: 'transparent',
+      caretColor: darkMode ? '#ffffff' : '#000000',
     }}
   />
 

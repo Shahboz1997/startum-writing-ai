@@ -16,33 +16,50 @@ function getOpenAIBaseURL() {
 
 /** Uses process.env.OPENAI_API_KEY and OPENAI_PROJECT_ID (server-side). Key is trimmed to remove hidden \\r/spaces. */
 let _openaiKeyLogged = false;
+// function getOpenAIClient() {
+//   const apiKey = (process.env.OPENAI_API_KEY || '').trim();
+//   const hasKey = apiKey.length > 0;
+
+//   if (!hasKey) {
+//     console.error('OPENAI_API_KEY is missing or empty. Set it in .env.local and restart the dev server.');
+//     return { error: NextResponse.json({ error: 'Server Configuration Error: Missing API Key' }, { status: 401 }) };
+//   }
+
+//   const baseURL = getOpenAIBaseURL();
+//   const project = typeof process.env.OPENAI_PROJECT_ID === 'string' ? process.env.OPENAI_PROJECT_ID.trim() : undefined;
+//   const organization = typeof process.env.OPENAI_ORG_ID === 'string' ? process.env.OPENAI_ORG_ID.trim() : undefined;
+//   if (!_openaiKeyLogged) {
+//     _openaiKeyLogged = true;
+//     console.log("STRATUM_SYSTEM_READY: API Key Verified.");
+//     console.log('[OpenAI] API key loaded at first use; baseURL:', baseURL, 'project:', project || '(none)');
+//   }
+
+//   const client = new OpenAI({
+//     apiKey,
+//     baseURL,
+//     organization: organization || undefined,
+//     project: project || undefined,
+//   });
+//   return { openai: client };
+// }
 function getOpenAIClient() {
   const apiKey = (process.env.OPENAI_API_KEY || '').trim();
-  const hasKey = apiKey.length > 0;
-
-  if (!hasKey) {
-    console.error('OPENAI_API_KEY is missing or empty. Set it in .env.local and restart the dev server.');
-    return { error: NextResponse.json({ error: 'Server Configuration Error: Missing API Key' }, { status: 401 }) };
+  
+  if (!apiKey) {
+    return { error: NextResponse.json({ error: 'Missing API Key' }, { status: 401 }) };
   }
 
-  const baseURL = getOpenAIBaseURL();
-  const project = typeof process.env.OPENAI_PROJECT_ID === 'string' ? process.env.OPENAI_PROJECT_ID.trim() : undefined;
-  const organization = typeof process.env.OPENAI_ORG_ID === 'string' ? process.env.OPENAI_ORG_ID.trim() : undefined;
-  if (!_openaiKeyLogged) {
-    _openaiKeyLogged = true;
-    console.log("STRATUM_SYSTEM_READY: API Key Verified.");
-    console.log('[OpenAI] API key loaded at first use; baseURL:', baseURL, 'project:', project || '(none)');
-  }
-
+  // ЛОГ ДЛЯ ПРОВЕРКИ (появится в терминале)
+  console.log(`[DEBUG] Using Key: ${apiKey.slice(0, 7)}...${apiKey.slice(-4)}`);
+  
   const client = new OpenAI({
     apiKey,
-    baseURL,
-    organization: organization || undefined,
-    project: project || undefined,
+    // Временно убери organization и project, чтобы исключить конфликт ID
+    baseURL: getOpenAIBaseURL(),
   });
+  
   return { openai: client };
 }
-
 function isOpenAIAuthError(err) {
   if (!err) return false;
   const status = err.status ?? err.statusCode ?? err.response?.status;
@@ -65,6 +82,16 @@ const BAND_LIMITERS = `STRICT BAND LIMITERS (apply rigorously):
 - Band 7.0+ only when "less common lexical items" and a variety of structures with good control appear.
 - Band 8.0–9.0 only for near-native fluency, sophisticated vocabulary, and no systematic errors. Use the official 0–9 scale only.`;
 
+const LEXICAL_UPGRADE_INSTRUCTIONS = `LEXICAL UPGRADE (lexical_upgrade array):
+- Analyze the essay and identify at least 10–20 overused or low-level words (Band 5–6).
+- Selection rules:
+  • Do NOT only pick obvious words like "good" or "bad". Look for repetitive nouns (e.g. "people" → "individuals"), verbs (e.g. "have" → "possess"), and adverbs.
+  • Context matters: suggestions must fit the specific topic (e.g. if the topic is Work, suggest "professional growth" rather than just "better").
+  • Target IELTS domains: collocations, academic synonyms, and precise terminology.
+- Each entry in lexical_upgrade must have:
+  • band_56_word: the weak or overused word/phrase from the essay.
+  • band_89_synonyms: an array of 3–4 Band 8–9 alternatives (academic, topic-appropriate).`;
+
 function buildExaminerPrompt(taskCriteriaName, isT1) {
   const taskFocus = isT1 ? TASK1_FOCUS : TASK2_FOCUS;
   return `You are a Senior IELTS Examiner (IDP/BC certified). Evaluate the script against the official IELTS Writing Band Descriptors. Be precise and consistent.
@@ -76,8 +103,10 @@ ${BAND_LIMITERS}
 OUTPUT RULES:
 1. Every highlight must have "type" exactly one of: "grammar" | "lexical" | "cohesion". (grammar = errors; lexical = poor word choice/repetition; cohesion = linking/flow issues.)
 2. "corrections" must each include: category (e.g. "Articles", "Subject-Verb Agreement", "Punctuation", "Lexical Precision"), impact (how much this error affects the band, e.g. "high"/"medium"/"low"), band_descriptor (short reference to official criteria, e.g. "Limited range of structures").
-3. "lexical_upgrade": list words/phrases that are Band 5–6 level with Band 8–9 academic synonyms.
+3. For "lexical_upgrade", follow the LEXICAL UPGRADE rules below (at least 10–20 entries, each with 3–4 synonyms).
 4. "suggested_rewrite": full professional rewrite of the essay. You may add a short "structural_changes" note if helpful.
+
+${LEXICAL_UPGRADE_INSTRUCTIONS}
 
 Return ONLY valid JSON in this exact shape (no markdown):
 {
@@ -104,7 +133,7 @@ Return ONLY valid JSON in this exact shape (no markdown):
     }
   ],
   "lexical_upgrade": [
-    { "band_56_word": "string", "band_89_synonyms": ["string"] }
+    { "band_56_word": "string", "band_89_synonyms": ["string", "string", "string"] }
   ],
   "analysis": {
     "linking_words": { "score": 0, "found": [], "suggestions": [] },
@@ -141,6 +170,17 @@ export async function DELETE(req) {
 }
 export async function POST(req) {
   try {
+    // Debug: confirm request reaches this route (never log full secrets).
+    const _rawKey = process.env.OPENAI_API_KEY || '';
+    const _trimKey = typeof _rawKey === 'string' ? _rawKey.trim() : '';
+    console.log('[/api/check] POST start', {
+      hasKey: _trimKey.length > 0,
+      keyLast4: _trimKey ? _trimKey.slice(-4) : null,
+      baseURL: getOpenAIBaseURL(),
+      nodeEnv: process.env.NODE_ENV,
+      time: new Date().toISOString(),
+    });
+
     // Single trimmed key so we never use raw env (avoids hidden \r or spaces). If you still see wrong key, it's from another source.
     const apiKey = (process.env.OPENAI_API_KEY || '').trim();
     if (!apiKey) {
@@ -157,6 +197,13 @@ export async function POST(req) {
       console.log("DEBUG: OpenAI request attempt; project:", process.env.OPENAI_PROJECT_ID || '(none)');
     }
     const body = await req.json();
+    console.log('[/api/check] request body flags', {
+      describeImage: Boolean(body?.describeImage),
+      hasImage: Boolean(body?.image),
+      hasEssay1: typeof body?.essay1 === 'string' && body.essay1.trim().length > 0,
+      hasEssay2: typeof body?.essay2 === 'string' && body.essay2.trim().length > 0,
+      analysisMode: body?.analysisMode,
+    });
      // --- НОВЫЙ РЕЖИМ: Отправка Email (Feedback/Improvement Hub) ---
     // Проверяем наличие полей, которые приходят из вашей формы
     if (body.name && body.email && body.message) {
@@ -310,13 +357,15 @@ await transporter.sendMail({
     const { auth } = await import('@/app/api/auth/[...nextauth]/route');
     const { getPrisma } = await import('@/lib/prisma');
     const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Please sign in to ANALYZE STRATUM DATA." }, { status: 401 });
-    }
-    const prisma = getPrisma();
-    const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-    if (!user || (user.credits != null && user.credits < 1)) {
-      return NextResponse.json({ error: "You have run out of credits. Please refill to continue." }, { status: 403 });
+    const userId = session?.user?.id || null;
+    const prisma = userId ? getPrisma() : null;
+
+    // Do NOT require auth for analysis. If signed in, we can save + decrement credits.
+    if (userId && prisma) {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user || (user.credits != null && user.credits < 1)) {
+        return NextResponse.json({ error: "You have run out of credits. Please refill to continue." }, { status: 403 });
+      }
     }
     const clientResult = getOpenAIClient();
     if (clientResult.error) return clientResult.error;
@@ -364,27 +413,30 @@ await transporter.sendMail({
     if (!Array.isArray(result.lexical_upgrade)) result.lexical_upgrade = [];
 
     const typeValue = isT1 ? 'TASK_1' : 'TASK_2';
-    const userId = session.user.id;
     const savedScore = Number.isFinite(Number(result?.overall_band)) ? Number(result.overall_band) : null;
 
     // Run create and update separately to avoid transaction timeout (e.g. "Unable to start a transaction in the given time").
     // Ensure DATABASE_URL / DIRECT_URL in .env.local is correct and reachable (VPN/network).
-    const savedCheck = await prisma.check.create({
-      data: {
-        type: typeValue,
-        content: userText,
-        promptText: promptText || null,
-        score: savedScore,
-        feedback: JSON.stringify(result),
-        userId,
-      },
-    });
-    await prisma.user.update({
-      where: { id: userId },
-      data: { credits: { decrement: 1 } },
-    });
+    if (userId && prisma) {
+      const savedCheck = await prisma.check.create({
+        data: {
+          type: typeValue,
+          content: userText,
+          promptText: promptText || null,
+          score: savedScore,
+          feedback: JSON.stringify(result),
+          userId,
+        },
+      });
+      await prisma.user.update({
+        where: { id: userId },
+        data: { credits: { decrement: 1 } },
+      });
+      return NextResponse.json({ ...result, savedId: savedCheck.id });
+    }
 
-    return NextResponse.json({ ...result, savedId: savedCheck.id });
+    // Guest mode: return analysis without saving to DB / decrementing credits.
+    return NextResponse.json({ ...result, savedId: null });
   } catch (error) {
     console.error("API ERROR:", error);
     if (isOpenAIAuthError(error)) {
