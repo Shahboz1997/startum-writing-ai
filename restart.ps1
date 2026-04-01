@@ -1,1 +1,2 @@
-Stop-Process -Name "node" -Force -ErrorAction SilentlyContinue; Remove-Item -Recurse -Force .next; npm run dev
+$env:OPENAI_API_KEY=""
+npm run dev

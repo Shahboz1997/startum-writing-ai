@@ -983,30 +983,8 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
       </div>
     ))}
   </div>
-)}
-
-                  {errors.length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">Errors & corrections</h3>
-                      {errors.map((err, idx) => (
-                        <div
-                          key={err.id}
-                          ref={(el) => { if (errorCardRefs.current) errorCardRefs.current[err.id] = el; }}
-                          className="rounded-2xl border border-slate-100 dark:border-white/5 p-4 bg-slate-50/50 dark:bg-white/5"
-                        >
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <span className="text-red-500 dark:text-red-400 line-through text-sm font-medium">{err.original}</span>
-                            <span className="text-slate-400" aria-hidden>→</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-sm">{err.suggestion || err.fixed || '—'}</span>
-                          </div>
-                          {(err.explanation || err.suggestion) && (
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1"><span className="font-semibold">Why?</span> {err.explanation || err.suggestion}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+)}    
+ </div>
               )}
               {rightPanelTab === 'grammar' && (
                 <div className="space-y-4">
