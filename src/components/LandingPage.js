@@ -205,7 +205,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
   return (
     <main className="min-h-screen bg-[#F9FAFB] dark:bg-[#050505] transition-colors duration-300 pt-0">
       {/* Hero — centered, spotlight gradient, noise overlay */}
-      <section className="relative flex flex-col justify-center bg-[#F9FAFB] dark:bg-[#050505] px-4 pt-24 pb-16 border-b border-white/5 overflow-hidden hero-noise">
+      <section className="relative flex flex-col justify-center bg-[#F9FAFB] dark:bg-[#050505] px-4 pt-10 pb-16 border-b border-white/5 overflow-hidden hero-noise">
         {/* Subtle radial spotlight */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(99,102,241,0.08)_0%,transparent_50%)] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(99,102,241,0.12)_0%,transparent_50%)] pointer-events-none" aria-hidden />
         <div className="max-w-4xl mx-auto text-center relative z-10">
