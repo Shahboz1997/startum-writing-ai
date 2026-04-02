@@ -2026,20 +2026,6 @@ const insertLinkingWord = (word) => {
       }`} style={{ width: `${Math.min(100, (currentWordCount / targetWords) * 100)}%` }}
     />
   </div>
-  {/* --- Кнопка «Применить все улучшения» (слабые слова → первый синоним) --- */}
-  {weakWordsSet.size > 0 && (
-    <div className="absolute top-3 left-3 z-30">
-      <button
-        type="button"
-        onClick={handleApplyAllUpgrades}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-semibold bg-amber-500/90 hover:bg-amber-500 text-white shadow-sm border border-amber-400/50 transition-colors"
-        title="Заменить первое вхождение каждого слабого слова на первый синоним"
-      >
-        <span aria-hidden>🪄</span>
-        Применить все улучшения
-      </button>
-    </div>
-  )}
   {/* --- 1. СЛОЙ ВИЗУАЛИЗАЦИИ (Подложка) --- */}
   <div
     ref={highlightRef}
@@ -2197,6 +2183,11 @@ const insertLinkingWord = (word) => {
         // Пропускаем рендер, если этот блок уже был применен
         if (appliedCorrections.includes(i)) return null;
          const isExpanded = expandedIndex === i;
+        const typeLabel = err.category || err.rule || 'Grammar';
+        const recommended = String(err.fixed || err.suggestion || '').trim();
+        const canApply =
+          recommended.length > 0 &&
+          recommended.toLowerCase() !== String(err.original || '').trim().toLowerCase();
         return (
           <motion.div 
             key={err.original + i}
@@ -2210,9 +2201,14 @@ const insertLinkingWord = (word) => {
               {/* ЛЕВАЯ ЧАСТЬ: Оригинал и Исправление */}
               <div className="flex-1 space-y-8">
                 <div className="space-y-3">
-                  <span className="text-xs font-semibold text-indigo-600 uppercase px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-full border border-indigo-100 dark:border-indigo-800/30">
-                    Original Text
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-indigo-600 uppercase px-3 py-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-full border border-indigo-100 dark:border-indigo-800/30">
+                      Original Text
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-600 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                      {typeLabel}
+                    </span>
+                  </div>
                   <p className="text-sm sm:text-base font-medium text-slate-400 dark:text-slate-500 line-through decoration-indigo-400/50 leading-relaxed">
                     {err.original}
                   </p>
@@ -2224,7 +2220,8 @@ const insertLinkingWord = (word) => {
                       Recommended Correction
                     </span>
                     <button 
-                      onClick={() => speak(err.fixed)} 
+                      type="button"
+                      onClick={() => speak(recommended || err.explanation || '')} 
                       className="group/btn p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-green-500 transition-all active:scale-90 shadow-sm"
                     >
                       <svg xmlns="http://www.w3.org" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-slate-400 group-hover/btn:text-white transition-colors">
@@ -2234,14 +2231,21 @@ const insertLinkingWord = (word) => {
                     </button>
                   </div>
                   <p className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-slate-100 leading-[1.6]">
-                    {err.fixed}
+                    {recommended || '—'}
                   </p> 
+                  {!canApply && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                      No direct replacement — use the band-score explanation on the right to revise.
+                    </p>
+                  )}
 
                   {/* КНОПКА ЗАМЕНЫ С ФУНКЦИЕЙ СКРЫТИЯ */}
+                  {canApply ? (
                   <button 
+                    type="button"
                     onClick={() => {
                       const occurrenceIndex = err.occurrenceIndex || 1;
-                      handleReplaceWord(err.original, err.fixed, occurrenceIndex, i);
+                      handleReplaceWord(err.original, recommended, occurrenceIndex, i);
                     }}
                     className={`mt-4 group/apply flex items-center gap-3 px-6 py-3 rounded-2xl text-sm font-extrabold tracking-tight transition-all active:scale-95 shadow-lg
                       ${darkMode 
@@ -2256,6 +2260,7 @@ const insertLinkingWord = (word) => {
                     </span>
                     Apply & Dismiss
                   </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -2266,15 +2271,16 @@ const insertLinkingWord = (word) => {
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse" />
                       <span className="font-extrabold uppercase text-[10px] text-indigo-600 dark:text-indigo-400 tracking-widest">
-                        Rule: {err.rule}
+                        Type: {typeLabel}
                       </span>
                     </div>
                     <span className="px-2 py-0.5 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[9px] font-black border border-purple-200 dark:border-purple-800">
                       {err.level || 'B2'}
                     </span>
                   </div>
-                  <p className="font-semibold italic text-slate-800 dark:text-slate-200 leading-[1.7] text-[13px] sm:text-[14px]">
-                    {err.explanation}
+                  <p className="font-semibold text-slate-800 dark:text-slate-200 leading-[1.7] text-[13px] sm:text-[14px]">
+                    <span className="font-extrabold text-indigo-700 dark:text-indigo-300 not-italic">Why? </span>
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">{err.explanation || '—'}</span>
                   </p>
                 </div>
 

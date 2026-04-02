@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { Headphones, Loader2, Volume2, Pause } from 'lucide-react';
+import { Headphones, Loader2, Play, Pause } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 /**
@@ -30,9 +30,116 @@ export function getWordTimings(text, totalDuration) {
   return result;
 }
 
+/**
+ * Inserts \n\n after sentence-ending punctuation before common IELTS paragraph openers
+ * (introduction / body / conclusion style flow). Does not add tokens — only whitespace.
+ */
+export function insertLogicalParagraphBreaks(text) {
+  let s = (text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const phrases = [
+    'In the final period',
+    'In conclusion',
+    'By the last',
+    'Overall',
+    'Between',
+    'From',
+  ];
+  for (const phrase of phrases) {
+    const esc = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`([.!?])\\s+(${esc})\\b`, 'gi');
+    s = s.replace(re, (_, punct, p) => `${punct}\n\n${p}`);
+  }
+  return s.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Maps paragraph slices to global word indices; aligns with getWordTimings after whitespace collapse. */
+export function getParagraphWordRanges(text) {
+  const paras = (text || '').split(/\n\s*\n/).filter(Boolean);
+  const ranges = [];
+  let idx = 0;
+  for (const p of paras) {
+    const n = p.replace(/\s+/g, ' ').trim().split(' ').filter(Boolean).length;
+    if (n === 0) continue;
+    ranges.push({ start: idx, end: idx + n });
+    idx += n;
+  }
+  return ranges;
+}
+
+/** Longest multi-word phrases first so regex / window matching prefer full collocations. */
+const LINKING_PHRASES = [
+  'The bar chart illustrates',
+  'In conclusion',
+  'Nevertheless',
+  'By the last',
+  'Moreover',
+  'However',
+  'Between',
+  'From',
+];
+
+function normalizeWordToken(w) {
+  return String(w || '')
+    .replace(/^[.,!?;:'"()[\]]+|[.,!?;:'"()[\]]+$/g, '')
+    .toLowerCase();
+}
+
+function phraseToRegexPattern(phrase) {
+  return phrase
+    .split(/\s+/)
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\s+');
+}
+
+/** Splits paragraph text and wraps linking phrases in <strong className="font-bold">. */
+export function renderParagraphWithLinkingPhrases(text) {
+  const sorted = [...LINKING_PHRASES].sort((a, b) => b.length - a.length);
+  if (!text || sorted.length === 0) return text;
+  const inner = `(${sorted.map(phraseToRegexPattern).join('|')})`;
+  const re = new RegExp(inner, 'gi');
+  const parts = text.split(re);
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <strong key={i} className="font-bold">
+        {part}
+      </strong>
+    ) : (
+      <React.Fragment key={i}>{part}</React.Fragment>
+    )
+  );
+}
+
+function buildLinkingWordMask(wordTimingList) {
+  const words = wordTimingList.map((t) => t.word);
+  const n = words.length;
+  const mask = new Array(n).fill(false);
+  const sorted = [...LINKING_PHRASES].sort(
+    (a, b) => b.split(/\s+/).length - a.split(/\s+/).length || b.length - a.length
+  );
+  for (const phrase of sorted) {
+    const pw = phrase.split(/\s+/);
+    const L = pw.length;
+    if (L === 0) continue;
+    for (let s = 0; s <= n - L; s++) {
+      let ok = true;
+      for (let k = 0; k < L; k++) {
+        if (normalizeWordToken(words[s + k]) !== normalizeWordToken(pw[k])) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) {
+        for (let k = 0; k < L; k++) mask[s + k] = true;
+      }
+    }
+  }
+  return mask;
+}
+
 const WAVEFORM = Array.from({ length: 34 }, (_, i) => 0.28 + Math.abs(Math.sin(i * 0.92 + 0.7)) * 0.72);
 
 export default function SuggestedRewriteKaraoke({
+  bandScore,
   suggestedRewrite,
   audioRef,
   audioUrl,
@@ -52,10 +159,30 @@ export default function SuggestedRewriteKaraoke({
   const karaokeScrollRef = useRef(null);
   const activeWordRef = useRef(null);
 
-  const wordTimings = useMemo(
-    () => getWordTimings(suggestedRewrite || '', audioDuration),
-    [suggestedRewrite, audioDuration]
+  const segmentedRewrite = useMemo(() => insertLogicalParagraphBreaks(suggestedRewrite || ''), [suggestedRewrite]);
+
+  const plainTextForTimings = useMemo(
+    () => segmentedRewrite.replace(/\s+/g, ' ').trim(),
+    [segmentedRewrite]
   );
+
+  const wordTimings = useMemo(
+    () => getWordTimings(plainTextForTimings, audioDuration),
+    [plainTextForTimings, audioDuration]
+  );
+
+  const karaokeParagraphRanges = useMemo(() => {
+    const total = wordTimings.length;
+    if (total === 0) return [];
+    const ranges = getParagraphWordRanges(segmentedRewrite);
+    const covered = ranges.reduce((sum, r) => sum + (r.end - r.start), 0);
+    if (ranges.length === 0 || covered !== total) {
+      return [{ start: 0, end: total }];
+    }
+    return ranges;
+  }, [segmentedRewrite, wordTimings.length]);
+
+  const linkingWordMask = useMemo(() => buildLinkingWordMask(wordTimings), [wordTimings]);
 
   const handleWordClick = useCallback(
     (index) => {
@@ -102,150 +229,177 @@ export default function SuggestedRewriteKaraoke({
     };
   }, [audioUrl, wordTimings]);
 
+  const bandLabel =
+    bandScore != null && String(bandScore).trim() !== '' ? String(bandScore).trim() : '—';
+
   useEffect(() => {
     if (activeWordIndex >= 0 && activeWordRef.current && karaokeScrollRef.current) {
       activeWordRef.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     }
   }, [activeWordIndex]);
 
+  const staticParas = segmentedRewrite.split(/\n\s*\n/).filter(Boolean);
+
+  const paraClass =
+    'mb-6 text-lg leading-[1.8] font-serif text-slate-700 dark:text-slate-300 last:mb-0 whitespace-pre-wrap';
+
   return (
     <motion.section
+      ref={karaokeScrollRef}
       initial={{ y: 20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.5, delay: 0.12 }}
-      className="mt-2 sm:mt-3 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-700/80 shadow-sm backdrop-blur-sm p-3 sm:p-4 ring-1 ring-slate-100/50 dark:ring-slate-800/50"
+      className="mt-6 rounded-2xl bg-white/70 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800/60 shadow-xl backdrop-blur-md overflow-hidden"
     >
-      <div className="flex flex-col gap-2 sm:gap-3">
-        <h2 className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 tracking-tight">Suggested rewrite</h2>
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800/50 flex items-center justify-between bg-indigo-50/30 dark:bg-indigo-500/5">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="bg-indigo-600 text-white px-3 py-1 rounded-lg font-black text-xl shadow-lg shadow-indigo-500/20 tabular-nums shrink-0">
+            {bandLabel}
+          </div>
+          <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 truncate">
+            IELTS Band Score
+          </span>
+        </div>
+        {audioTime > 0 ? (
+          <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 shrink-0 ml-2">
+            {formatTime(audioTime)} / {formatTime(audioDuration)}
+          </span>
+        ) : null}
+      </div>
 
-        <div className="bg-slate-900/50 backdrop-blur-md border border-white/10 rounded-xl p-2.5 sm:p-3 flex flex-wrap items-center gap-2 sm:gap-3 text-white w-full">
+      <div className="p-6 sm:p-8">
+        <div className="mb-8 bg-slate-900 dark:bg-black/50 rounded-2xl p-3 flex items-center gap-4 border border-white/5">
           <audio ref={audioRef} src={audioUrl || undefined} className="hidden" preload="metadata" />
 
           <button
             type="button"
             onClick={onTogglePlay}
             disabled={!audioUrl || isAudioLoading}
-            className="inline-flex items-center justify-center h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-white/10 border border-white/10 hover:border-indigo-300/50 hover:bg-white/15 transition-colors disabled:opacity-50 disabled:pointer-events-none shrink-0"
+            className="h-10 w-10 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center text-white shrink-0 transition-colors disabled:opacity-30 disabled:pointer-events-none"
             aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
           >
             <AnimatePresence mode="wait" initial={false}>
               {isAudioLoading ? (
-                <motion.span key="loading" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }} transition={{ duration: 0.15 }}>
-                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                <motion.span key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 </motion.span>
               ) : isPlaying ? (
-                <motion.span key="pause" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }} transition={{ duration: 0.15 }}>
-                  <Pause className="w-4 h-4 sm:w-5 sm:h-5" />
+                <motion.span key="pause" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                  <Pause className="w-5 h-5" fill="currentColor" />
                 </motion.span>
               ) : (
-                <motion.span key="volume" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.92 }} transition={{ duration: 0.15 }}>
-                  <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <motion.span key="play" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                  <Play className="w-5 h-5 ml-0.5" fill="currentColor" />
                 </motion.span>
               )}
             </AnimatePresence>
           </button>
 
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-white/80 whitespace-nowrap shrink-0">
-              {formatTime(audioTime)}<span className="text-white/40">/</span>{formatTime(audioDuration)}
-            </div>
-            <div
-              className="flex items-end gap-[1px] h-6 sm:h-7 flex-1 min-w-0 max-w-[180px] sm:max-w-[220px] md:max-w-none px-1.5 sm:px-2 rounded-xl bg-white/5 border border-white/10 overflow-hidden cursor-pointer"
-              onClick={onSeek}
-              role="slider"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(audioProgress * 100)}
-              tabIndex={0}
-            >
-              {WAVEFORM.map((h, idx) => {
-                const filled = audioProgress >= (idx + 1) / WAVEFORM.length;
-                return (
-                  <span
-                    key={idx}
-                    className={filled ? 'bg-indigo-400/90' : 'bg-white/20'}
-                    style={{ width: 2, height: `${Math.round(h * 100)}%`, borderRadius: 999, transition: 'background-color 200ms ease' }}
-                  />
-                );
-              })}
-            </div>
+          <div
+            className="flex-1 min-w-0 h-8 flex items-center gap-[2px] cursor-pointer group"
+            onClick={onSeek}
+            role="slider"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(audioProgress * 100)}
+            tabIndex={0}
+          >
+            {WAVEFORM.map((h, idx) => {
+              const progress = (idx + 1) / WAVEFORM.length;
+              const isFilled = audioProgress >= progress;
+              return (
+                <motion.span
+                  key={idx}
+                  initial={false}
+                  animate={{
+                    height: `${h * 100}%`,
+                    backgroundColor: isFilled ? '#818cf8' : '#334155',
+                  }}
+                  className="w-1 rounded-full transition-colors group-hover:opacity-80"
+                />
+              );
+            })}
           </div>
+
+          <span className="hidden sm:block text-[10px] font-mono text-white/50 tracking-tighter shrink-0 whitespace-nowrap">
+            AI VOICE
+          </span>
 
           <button
             type="button"
             onClick={onGenerateAudio}
             disabled={!suggestedRewrite || isAudioLoading}
-            className="inline-flex items-center justify-center min-h-[36px] sm:min-h-[40px] gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-white/10 border border-white/10 hover:border-indigo-300/50 hover:text-indigo-100 hover:bg-white/15 transition-colors disabled:opacity-50 disabled:pointer-events-none font-bold uppercase tracking-[0.15em] text-[9px] sm:text-[10px] shrink-0"
+            className="h-10 px-3 sm:px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[10px] font-black uppercase tracking-wider border border-white/10 transition-all shrink-0 flex items-center gap-2 disabled:opacity-30 disabled:pointer-events-none"
             title="Generate audio"
           >
-            {isAudioLoading ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 animate-spin" /> : <Headphones className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />}
-            <span className="hidden sm:inline">Generate</span>
+            {isAudioLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Headphones className="w-3 h-3" />}
+            <span className="hidden md:inline">AI Voice</span>
           </button>
         </div>
+
+        <div className="prose prose-slate dark:prose-invert max-w-none h-auto min-h-0 overflow-visible overflow-x-visible">
+          {audioError ? (
+            <div className="mb-6 p-2 bg-rose-500/10 border border-rose-500/20 rounded-lg text-[10px] text-rose-500 text-center not-prose">
+              {audioError}
+            </div>
+          ) : null}
+
+          {audioUrl && wordTimings.length > 0 ? (
+            <div className="not-prose h-auto overflow-visible">
+              {karaokeParagraphRanges.map((range, pi) => (
+                <p key={pi} className={paraClass}>
+                  {wordTimings.slice(range.start, range.end).map((w, i) => {
+                    const globalIndex = range.start + i;
+                    const isActive = globalIndex === activeWordIndex;
+                    const isPlayed = activeWordIndex >= 0 && globalIndex < activeWordIndex;
+                    return (
+                      <span key={globalIndex} className="inline-block mr-1.5 mb-1">
+                        <span
+                          ref={isActive ? activeWordRef : undefined}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => handleWordClick(globalIndex)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleWordClick(globalIndex);
+                            }
+                          }}
+                          className={[
+                            'inline-block px-1 rounded transition-all cursor-pointer',
+                            linkingWordMask[globalIndex] ? 'font-bold' : '',
+                            isActive
+                              ? 'bg-indigo-500 text-white'
+                              : isPlayed
+                                ? 'text-slate-900 dark:text-slate-100 underline decoration-indigo-500/40'
+                                : 'text-slate-700 dark:text-slate-300',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          aria-label={`Word: ${w.word}, click to seek`}
+                        >
+                          {w.word}
+                        </span>
+                      </span>
+                    );
+                  })}
+                </p>
+              ))}
+            </div>
+          ) : staticParas.length > 0 ? (
+            <div className="not-prose h-auto overflow-visible">
+              {staticParas.map((para, idx) => (
+                <p key={idx} className={paraClass}>
+                  {renderParagraphWithLinkingPhrases(para)}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <div className="not-prose h-auto overflow-visible">
+              <p className={paraClass}>{renderParagraphWithLinkingPhrases(segmentedRewrite || suggestedRewrite || '')}</p>
+            </div>
+          )}
+        </div>
       </div>
-
-      {audioError ? (
-        <div className="mt-2 text-[10px] font-medium text-rose-600 dark:text-rose-300">{audioError}</div>
-      ) : null}
-
-      <motion.div
-        ref={karaokeScrollRef}
-        variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06, delayChildren: 0.08 } } }}
-        initial="hidden"
-        animate="show"
-        className="bg-transparent leading-relaxed break-words border-l-2 border-indigo-200 dark:border-indigo-800 pl-3 py-2 pr-2 text-sm sm:text-base"
-      >
-        {audioUrl && wordTimings.length > 0 ? (
-          <p className="whitespace-pre-wrap text-slate-600 dark:text-slate-400 font-medium leading-loose">
-            {wordTimings.map((w, i) => {
-              const isActive = i === activeWordIndex;
-              const isPlayed = activeWordIndex >= 0 && i < activeWordIndex;
-              return (
-                <span key={i}>
-                  <motion.span
-                    ref={isActive ? activeWordRef : undefined}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleWordClick(i)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleWordClick(i);
-                      }
-                    }}
-                    transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className={
-                      isActive
-                        ? 'text-indigo-600 dark:text-indigo-400 font-bold tracking-tight scale-105 inline-block leading-[1.35] align-middle cursor-pointer transition-all duration-150 ease-out origin-center'
-                        : isPlayed
-                          ? 'text-slate-900 dark:text-slate-100 opacity-100 inline-block leading-[1.35] align-middle cursor-pointer transition-all duration-150 ease-out'
-                          : 'text-slate-600 dark:text-slate-400 font-medium inline-block leading-[1.35] align-middle cursor-pointer transition-all duration-150 ease-out'
-                    }
-                    aria-label={`Word: ${w.word}, click to seek`}
-                  >
-                    {w.word}
-                  </motion.span>
-                  {i < wordTimings.length - 1 ? ' ' : ''}
-                </span>
-              );
-            })}
-          </p>
-        ) : (
-          suggestedRewrite
-            .split(/\n\s*\n/g)
-            .filter(Boolean)
-            .map((para, idx) => (
-              <motion.p
-                key={idx}
-                variants={{ hidden: { opacity: 0, y: 6 }, show: { opacity: 1, y: 0 } }}
-                transition={{ duration: 0.35, ease: 'easeOut' }}
-                className={idx === 0 ? 'whitespace-pre-wrap' : 'whitespace-pre-wrap mt-3'}
-              >
-                {para}
-              </motion.p>
-            ))
-        )}
-      </motion.div>
     </motion.section>
   );
 }

@@ -1,4 +1,6 @@
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
@@ -68,70 +70,190 @@ function isOpenAIAuthError(err) {
   return status === 401 || code === 'invalid_api_key' || code === 'authentication_error' || msg.includes('api key') || msg.includes('incorrect api key');
 }
 
-const TASK1_FOCUS = `TASK 1 (Academic) FOCUS:
-- Task Achievement: Accurate reporting of main trends, key features, and data; clear overview; no irrelevant detail.
-- Coherence and Cohesion: Logical organisation; accurate data comparisons; appropriate linking (e.g. "whereas", "in contrast"); clear progression.`;
+const ERROR_TYPES_ALLOWED = new Set(['grammar', 'logic', 'lexical']);
 
-const TASK2_FOCUS = `TASK 2 (General/Academic) FOCUS:
-- Task Response: Clear position; full development of ideas; relevant examples; argument progression.
-- Coherence and Cohesion: Clear paragraphing; logical flow; cohesive devices; topic sentences.`;
+function normalizeExaminerErrorType(t) {
+  const s = String(t || '')
+    .toLowerCase()
+    .trim();
+  if (s === 'vocabulary' || s === 'lexical') return 'lexical';
+  if (s === 'logical' || s === 'task' || s === 'cohesion' || s === 'coherence') return 'logic';
+  if (ERROR_TYPES_ALLOWED.has(s)) return s;
+  return 'grammar';
+}
 
-const BAND_LIMITERS = `STRICT BAND LIMITERS (apply rigorously):
-- If there are systematic grammar errors (e.g. repeated article/subject-verb errors), Grammatical_Range_and_Accuracy MUST NOT exceed 6.0, even if vocabulary is C2.
-- If vocabulary is mostly high-frequency (Band 5–6), Lexical_Resource MUST NOT exceed 6.0.
-- Band 7.0+ only when "less common lexical items" and a variety of structures with good control appear.
-- Band 8.0–9.0 only for near-native fluency, sophisticated vocabulary, and no systematic errors. Use the official 0–9 scale only.`;
+/**
+ * Single canonical list for the app. Order: model `errors` first, then logical_errors, corrections, highlights (skip duplicates by original text).
+ */
+function mergeUnifiedErrors(result) {
+  const byKey = new Map();
 
-const LEXICAL_UPGRADE_INSTRUCTIONS = `LEXICAL UPGRADE (lexical_upgrade array):
-- Analyze the essay and identify at least 10–20 overused or low-level words (Band 5–6).
-- Selection rules:
-  • Do NOT only pick obvious words like "good" or "bad". Look for repetitive nouns (e.g. "people" → "individuals"), verbs (e.g. "have" → "possess"), and adverbs.
-  • Context matters: suggestions must fit the specific topic (e.g. if the topic is Work, suggest "professional growth" rather than just "better").
-  • Target IELTS domains: collocations, academic synonyms, and precise terminology.
-- Each entry in lexical_upgrade must have:
-  • band_56_word: the weak or overused word/phrase from the essay.
-  • band_89_synonyms: an array of 3–4 Band 8–9 alternatives (academic, topic-appropriate).`;
+  const push = (row) => {
+    const original = String(row?.original ?? row?.phrase ?? row?.text ?? '')
+      .trim();
+    if (!original) return;
+    const key = original.toLowerCase();
+    if (byKey.has(key)) return;
+    const type = normalizeExaminerErrorType(row.type ?? row.category);
+    // App expects `fixed`/`suggestion`, but the examiner may return `correction` instead.
+    const fixed =
+      typeof row.fixed === 'string'
+        ? row.fixed.trim()
+        : typeof row.correction === 'string'
+          ? row.correction.trim()
+          : '';
+    const suggestion = typeof row.suggestion === 'string' ? row.suggestion.trim() : '';
+    const explanation =
+      typeof row.explanation === 'string'
+        ? row.explanation.trim()
+        : typeof row.reason === 'string'
+          ? row.reason.trim()
+          : '';
+    byKey.set(key, {
+      original,
+      type,
+      fixed: fixed || suggestion,
+      suggestion: suggestion || fixed,
+      explanation:
+        explanation ||
+        (type === 'logic'
+          ? 'This issue affects Task Achievement or Task Response and may lower your band.'
+          : 'See criterion feedback for impact on your band score.'),
+    });
+  };
 
-function buildExaminerPrompt(taskCriteriaName, isT1) {
-  const taskFocus = isT1 ? TASK1_FOCUS : TASK2_FOCUS;
-  return `You are a Senior IELTS Examiner (IDP/BC certified). Evaluate the script against the official IELTS Writing Band Descriptors. Be precise and consistent.
+  (Array.isArray(result.errors) ? result.errors : []).forEach(push);
+  (Array.isArray(result.logical_errors) ? result.logical_errors : []).forEach((e) =>
+    push({
+      phrase: e?.phrase,
+      text: e?.text,
+      type: 'logic',
+      explanation: e?.explanation ?? e?.reason,
+      fixed: typeof e?.fixed === 'string' ? e.fixed : '',
+    })
+  );
+  (Array.isArray(result.corrections) ? result.corrections : []).forEach((c) => push(c));
+  (Array.isArray(result.highlights) ? result.highlights : []).forEach((h) =>
+    push({
+      text: h?.text,
+      type: h?.type,
+      suggestion: h?.suggestion,
+      fixed: '',
+      explanation: typeof h?.suggestion === 'string' ? h.suggestion : '',
+    })
+  );
 
-${taskFocus}
+  return Array.from(byKey.values()).map((e, i) => ({
+    ...e,
+    id: `err-${i}`,
+  }));
+}
 
-${BAND_LIMITERS}
+function correctionsFromErrors(errorsArr) {
+  return (errorsArr || []).map((e) => ({
+    original: e.original,
+    fixed: e.fixed || '',
+    category: e.type === 'lexical' ? 'Vocabulary' : e.type === 'logic' ? 'Logic' : 'Grammar',
+    impact: 'medium',
+    band_descriptor: '',
+    explanation: e.explanation || '',
+    rule: e.type === 'lexical' ? 'Vocabulary' : e.type === 'logic' ? 'Logic' : 'Grammar',
+  }));
+}
 
-OUTPUT RULES:
-1. Every highlight must have "type" exactly one of: "grammar" | "lexical" | "cohesion". (grammar = errors; lexical = poor word choice/repetition; cohesion = linking/flow issues.)
-2. "corrections" must each include: category (e.g. "Articles", "Subject-Verb Agreement", "Punctuation", "Lexical Precision"), impact (how much this error affects the band, e.g. "high"/"medium"/"low"), band_descriptor (short reference to official criteria, e.g. "Limited range of structures").
-3. For "lexical_upgrade", follow the LEXICAL UPGRADE rules below (at least 10–20 entries, each with 3–4 synonyms).
-4. "suggested_rewrite": full professional rewrite of the essay. You may add a short "structural_changes" note if helpful.
+function buildIeltsCheckSystemPrompt(taskCriteriaName, isT1) {
+  const targetBand = isT1 ? 'Task Achievement' : 'Task Response';
+  const targetContext = isT1 ? 'data description' : 'argumentation';
+  const sternDataAnalyst = `You are a professional IELTS Data Analyst. Your main task is to identify CONTRADICTIONS in the ${targetContext} (${targetBand}).
 
-${LEXICAL_UPGRADE_INSTRUCTIONS}
+Categorize errors strictly into 3 types:
+- 'logic' (Blue) - for factual errors, contradictory trends (e.g., saying 'doubled' then 'decreased to 0'), or missing overview/incorrect overview.
+- 'lexical' (Purple) - for repetitive words, informal tone, or low-level vocabulary.
+- 'grammar' (Red) - for syntax, tenses, and punctuation.
 
-Return ONLY valid JSON in this exact shape (no markdown):
+If the user mentions a trend/claim that contradicts their previous sentence (e.g., 'Atlantic City had the largest increase' vs 'decreased back to 0'), YOU MUST mark it as 'logic'.
+
+Be exhaustive and do not be lazy: list every contradiction you can find; do not summarize or reduce the number of items.`;
+
+  const baseCriteria = `FOUR IELTS CRITERIA — score each 0.0–9.0 (halves allowed) with a concise comment:
+- **${isT1 ? 'Task Achievement' : 'Task Response'}**, **Coherence and Cohesion**, **Lexical Resource**, **Grammatical Range and Accuracy**.`;
+
+  const errorsSpec = `Strict Schema for the "errors" array (mandatory):
+Each error MUST have exactly:
+{
+  "original": "exact phrase from text",
+  "correction": "corrected phrase (or empty string if no one-to-one correction is possible)",
+  "type": "logic" | "grammar" | "lexical",
+  "explanation": "Start with 'Logic Error:' or 'Grammar Error:' (or 'Lexical Error:'). Explain EXACTLY why the data/argument is wrong and how it lowers the Band score."
+}
+
+Error categories:
+- "logic" (Blue): factual errors, contradictions, wrong trends, missing overview/incorrect overview impact, or thesis–example disconnect.
+- "lexical" (Purple): overused words, informal tone, simple vocabulary, wrong collocations.
+- "grammar" (Red): tense, articles, punctuation, subject-verb agreement, sentence structure.`;
+
+  const task1Rules = `You are a strict universal IELTS Writing expert (British Council / IDP style).
+The student wrote **Academic Task 1** (graph, chart, table, diagram, or process).
+
+${sternDataAnalyst}
+
+1) WHEN AN IMAGE IS PROVIDED: treat it as the source of truth. Cross-check every number, trend, comparison, and overview against the visual. Flag factual mistakes, wrong trends, contradictions with the data, or unsupported claims as type "logic" in the "errors" array.
+
+2) WHEN NO IMAGE: still use the task prompt and any stated data; flag internal contradictions and implausible claims as type "logic".
+
+${baseCriteria}
+
+${errorsSpec}
+
+Keep "analysis.word_repetition" and "lexical_upgrade" as before.
+
+Return a Band 9–style "suggested_rewrite" with paragraphs separated by \\n\\n; no bullets or markdown inside the essay body.`;
+
+  const task2Rules = `You are a strict universal IELTS Writing expert (British Council / IDP style).
+The student wrote **Task 2** (opinion / discussion essay). There is **no chart image**.
+
+Treat logical contradictions in argumentation (claims that contradict each other, irrelevant examples, unclear thesis–example links) as type "logic".
+
+${sternDataAnalyst}
+
+Check:
+1) Task Response: whether the thesis is relevant and developed; any contradictory or unsupported argumentation must be type "logic" with a precise "original" excerpt.
+2) Structure coherence: if the essay lacks a clear introduction/position, body progression, or conclusion linkage, mark it as type "logic" where appropriate.
+
+${baseCriteria.replace('Task Achievement', 'Task Response')}
+
+${errorsSpec}
+
+Keep "analysis.word_repetition" and "lexical_upgrade" as before.
+
+Return a Band 9–style "suggested_rewrite" with paragraphs separated by \\n\\n; no bullets or markdown inside the essay body.`;
+
+  const taskBlock = isT1 ? task1Rules : task2Rules;
+
+  return `${taskBlock}
+
+OUTPUT: Return **ONLY** valid JSON (no markdown fences). Shape:
 {
   "overall_band": 0.0,
   "word_count": 0,
-  "improvement_strategy": "string",
+  "improvement_strategy": "Brief overall feedback to the candidate.",
   "criteria": {
     "${taskCriteriaName}": { "score": 0.0, "comment": "string" },
     "Coherence_and_Cohesion": { "score": 0.0, "comment": "string" },
     "Lexical_Resource": { "score": 0.0, "comment": "string" },
     "Grammatical_Range_and_Accuracy": { "score": 0.0, "comment": "string" }
   },
-  "highlights": [
-    { "text": "exact phrase from essay", "type": "grammar" | "lexical" | "cohesion", "suggestion": "string" }
-  ],
-  "corrections": [
+  "errors": [
     {
-      "original": "string",
-      "fixed": "string",
-      "category": "string",
-      "impact": "high|medium|low",
-      "band_descriptor": "string",
-      "explanation": "string"
+      "original": "exact substring copied from the student essay",
+      "correction": "corrected phrase; use empty string if no one-to-one replacement is possible",
+      "type": "grammar" | "logic" | "lexical",
+      "explanation": "Start with 'Logic Error:' or 'Grammar Error:' (or 'Lexical Error:'). Explain EXACTLY why the data/argument is wrong and how it lowers the Band score."
     }
   ],
+  "logical_errors": [],
+  "highlights": [],
+  "corrections": [],
   "lexical_upgrade": [
     { "band_56_word": "string", "band_89_synonyms": ["string", "string", "string"] }
   ],
@@ -139,8 +261,55 @@ Return ONLY valid JSON in this exact shape (no markdown):
     "linking_words": { "score": 0, "found": [], "suggestions": [] },
     "word_repetition": [{ "word": "string", "count": 0, "alternatives": [] }]
   },
-  "suggested_rewrite": "string"
-}`;
+  "suggested_rewrite": "Intro...\\n\\nBody...\\n\\nClosing..."
+}
+
+Rules: Whenever the essay has issues, list them in **errors** with **type** ∈ { grammar, logic, lexical }. Use [] only if the essay is genuinely flawless. You may leave **logical_errors**, **highlights**, and **corrections** as empty arrays — the app merges legacy fields if present. Be rigorous; scores must match official descriptor limits.`; 
+}
+
+/** Legacy compact API shape → full app shape */
+function isSimplifiedCheckResult(obj) {
+  if (!obj || typeof obj !== 'object') return false;
+  if (obj.overall_band != null && typeof obj.overall_band === 'number') return false;
+  if (Array.isArray(obj.logical_errors)) return false;
+  return 'bandScore' in obj || 'suggestedRewrite' in obj;
+}
+
+function normalizeSimplifiedCheckResult(raw, taskCriteriaName, userText) {
+  const feedback = typeof raw.feedback === 'string' ? raw.feedback : '';
+  const suggested =
+    typeof raw.suggestedRewrite === 'string'
+      ? raw.suggestedRewrite
+      : typeof raw.suggested_rewrite === 'string'
+        ? raw.suggested_rewrite
+        : '';
+  const bandStr = raw.bandScore != null ? String(raw.bandScore) : raw.overall_band != null ? String(raw.overall_band) : '';
+  const bandNum = parseFloat(bandStr.replace(/[^\d.]/g, ''));
+  const overall_band = Number.isFinite(bandNum) ? bandNum : null;
+  const scoreForCriteria = overall_band ?? 0;
+  const wc = userText.trim().split(/\s+/).filter(Boolean).length;
+  const subComment = 'See overall feedback.';
+  return {
+    overall_band,
+    word_count: wc,
+    improvement_strategy: feedback,
+    criteria: {
+      [taskCriteriaName]: { score: scoreForCriteria, comment: feedback || subComment },
+      Coherence_and_Cohesion: { score: scoreForCriteria, comment: subComment },
+      Lexical_Resource: { score: scoreForCriteria, comment: subComment },
+      Grammatical_Range_and_Accuracy: { score: scoreForCriteria, comment: subComment },
+    },
+    errors: [],
+    logical_errors: [],
+    highlights: [],
+    corrections: [],
+    lexical_upgrade: [],
+    analysis: {
+      linking_words: { score: 0, found: [], suggestions: [] },
+      word_repetition: [],
+    },
+    suggested_rewrite: suggested,
+  };
 }
 
 async function imageUrlToBase64(url) {
@@ -371,13 +540,16 @@ await transporter.sendMail({
     if (clientResult.error) return clientResult.error;
     const openai = clientResult.openai;
 
-    const examinerPrompt = buildExaminerPrompt(taskCriteriaName, isT1);
+    const examinerSystemPrompt = buildIeltsCheckSystemPrompt(taskCriteriaName, isT1);
+
     let response;
     try {
       response = await openai.chat.completions.create({
         model: "gpt-4o",
+        temperature: 0.2,
+        max_tokens: 1400,
         messages: [
-          { role: "system", content: examinerPrompt },
+          { role: "system", content: examinerSystemPrompt },
           {
             role: "user",
             content: [
@@ -396,12 +568,15 @@ await transporter.sendMail({
       throw err;
     }
 
-    const result = JSON.parse(response.choices[0].message.content);
+    let result = JSON.parse(response.choices[0].message.content);
+    if (isSimplifiedCheckResult(result)) {
+      result = normalizeSimplifiedCheckResult(result, taskCriteriaName, userText);
+    }
     result.word_count = result.word_count ?? userText.trim().split(/\s+/).filter(Boolean).length;
     if (!Array.isArray(result.highlights)) result.highlights = [];
     result.highlights = result.highlights.map(h => ({
       ...h,
-      type: ['grammar', 'lexical', 'cohesion'].includes(h.type) ? h.type : (h.type === 'error' ? 'grammar' : 'lexical')
+      type: ['grammar', 'lexical', 'cohesion', 'logic'].includes(h.type) ? h.type : (h.type === 'error' ? 'grammar' : 'lexical')
     }));
     if (!Array.isArray(result.corrections)) result.corrections = [];
     result.corrections = result.corrections.map(c => ({
@@ -411,6 +586,23 @@ await transporter.sendMail({
       band_descriptor: c.band_descriptor || ''
     }));
     if (!Array.isArray(result.lexical_upgrade)) result.lexical_upgrade = [];
+    if (!Array.isArray(result.logical_errors)) result.logical_errors = [];
+    result.logical_errors = result.logical_errors.map((e) => ({
+      phrase: typeof e?.phrase === 'string' ? e.phrase : typeof e?.text === 'string' ? e.text : '',
+      explanation: typeof e?.explanation === 'string' ? e.explanation : typeof e?.reason === 'string' ? e.reason : '',
+      criterion:
+        typeof e?.criterion === 'string'
+          ? e.criterion
+          : isT1
+            ? 'Task Achievement'
+            : 'Task Response',
+    }));
+    if (!Array.isArray(result.errors)) result.errors = [];
+
+    const mergedErrors = mergeUnifiedErrors(result);
+    result.errors = mergedErrors;
+    result.corrections = correctionsFromErrors(mergedErrors);
+    result.highlights = [];
 
     const typeValue = isT1 ? 'TASK_1' : 'TASK_2';
     const savedScore = Number.isFinite(Number(result?.overall_band)) ? Number(result.overall_band) : null;

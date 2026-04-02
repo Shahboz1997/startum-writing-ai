@@ -5,7 +5,70 @@ import { Download, ArrowLeft, Zap, BookOpen, GitBranch, ChevronDown } from 'luci
 import { downloadCheckReport } from '@/lib/downloadReportPdf';
 import SuggestedRewriteKaraoke from './SuggestedRewriteKaraoke';
 
-const FEED_LABEL = { grammar: 'Grammar', lexical: 'Vocabulary', cohesion: 'Cohesion' };
+const FEED_LABEL = { grammar: 'Grammar', lexical: 'Vocabulary', cohesion: 'Cohesion', logic: 'Logic' };
+
+const ERROR_TYPE_HIGHLIGHT_CLASS = {
+  grammar: 'bg-rose-100 dark:bg-rose-900/30 border-b-2 border-rose-500 text-rose-900 dark:text-rose-300 cursor-help',
+  logic: 'bg-sky-100 dark:bg-sky-900/30 border-b-2 border-sky-500 text-sky-900 dark:text-sky-300 cursor-help',
+  lexical: 'bg-purple-100 dark:bg-purple-900/30 border-b-2 border-purple-500 text-purple-900 dark:text-purple-300 cursor-help',
+};
+
+const ERROR_TYPE_BADGE_CLASS = {
+  grammar: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200 border border-rose-200/80 dark:border-rose-800/50',
+  logic: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200 border border-sky-200/80 dark:border-sky-800/50',
+  lexical: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200 border border-purple-200/80 dark:border-purple-800/50',
+};
+
+const ERROR_TYPE_BADGE_LABEL = { grammar: 'Grammar', logic: 'Logic', lexical: 'Vocabulary' };
+
+function normalizeClientErrorType(t) {
+  const s = String(t || '')
+    .toLowerCase()
+    .trim();
+  if (s === 'vocabulary' || s === 'lexical') return 'lexical';
+  if (s === 'logical' || s === 'task' || s === 'cohesion' || s === 'coherence') return 'logic';
+  if (s === 'grammar' || s === 'logic' || s === 'lexical') return s;
+  return 'grammar';
+}
+
+/** Main essay panel: map segments from buildSegmentsFromErrors to colored spans (IELTS error types). */
+function renderHighlighterSpans(segments, { handleAutoFix, setUserText, scrollToErrorCard }) {
+  return segments.map((seg, i) => {
+    if (seg.kind !== 'error') {
+      return <span key={`t-${i}`}>{seg.text}</span>;
+    }
+    const errType = normalizeClientErrorType(seg.errorType);
+    const cls = ERROR_TYPE_HIGHLIGHT_CLASS[errType] || ERROR_TYPE_HIGHLIGHT_CLASS.grammar;
+    const replacement = seg.fixed || seg.suggestion;
+    const canReplace = Boolean(setUserText && replacement && String(replacement).trim() !== String(seg.text).trim());
+    return (
+      <span
+        key={`${seg.id}-${i}`}
+        className={`${cls} rounded px-0.5 transition-all duration-200 cursor-pointer hover:opacity-90`}
+        role="button"
+        tabIndex={0}
+        onClick={() => {
+          scrollToErrorCard(seg.id, seg.errorType);
+          if (canReplace) {
+            handleAutoFix(seg.text, replacement);
+          }
+        }}
+        onKeyDown={(ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            scrollToErrorCard(seg.id, seg.errorType);
+            if (canReplace) {
+              handleAutoFix(seg.text, replacement);
+            }
+          }
+        }}
+        title={seg.explanation || replacement || seg.suggestion || ''}
+      >
+        {seg.text}
+      </span>
+    );
+  });
+}
 
 /** CEFR levels: bars and text use same palette. A1 slate, A2 emerald, B1 blue, B2 violet, C1 orange, C2 red. */
 const CEFR_LEVELS = [
@@ -200,9 +263,10 @@ function buildSegmentsFromErrors(content, errors) {
     .map((e, i) => ({
       id: e.id ?? `error-${i}`,
       original: (e.original ?? e.word ?? e.text ?? '').toString().trim(),
-      suggestion: e.suggestion ?? e.fixed ?? e.explanation ?? e.impact,
-      explanation: e.explanation ?? e.impact,
-      fixed: e.fixed,
+      errorType: normalizeClientErrorType(e.type ?? e.category),
+      suggestion: e.suggestion || e.fixed || '',
+      explanation: e.explanation || e.impact || '',
+      fixed: e.fixed || e.suggestion || '',
     }))
     .filter((e) => e.original);
   if (!items.length) return [{ kind: 'text', text: content }];
@@ -220,7 +284,15 @@ function buildSegmentsFromErrors(content, errors) {
     const pos = content.toLowerCase().indexOf(it.original.toLowerCase(), lastEnd);
     if (pos === -1) continue;
     if (pos > lastEnd) segments.push({ kind: 'text', text: content.slice(lastEnd, pos) });
-    segments.push({ kind: 'error', id: it.id, text: it.original, suggestion: it.suggestion, explanation: it.explanation, fixed: it.fixed });
+    segments.push({
+      kind: 'error',
+      id: it.id,
+      errorType: it.errorType,
+      text: it.original,
+      suggestion: it.suggestion,
+      explanation: it.explanation,
+      fixed: it.fixed,
+    });
     lastEnd = pos + it.original.length;
   }
   if (lastEnd < content.length) segments.push({ kind: 'text', text: content.slice(lastEnd) });
@@ -293,16 +365,24 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
 
   const highlights = Array.isArray(feedback.highlights) ? feedback.highlights : [];
   const corrections = Array.isArray(feedback.corrections) ? feedback.corrections : [];
-  const errors = useMemo(
-    () => (Array.isArray(feedback.errors) ? feedback.errors : corrections).map((e, i) => ({
-      id: e.id ?? `error-${i}`,
-      original: e.original ?? e.word ?? e.text ?? '',
-      suggestion: e.suggestion ?? e.fixed ?? e.explanation ?? e.impact ?? '',
-      explanation: e.explanation ?? e.impact ?? '',
-      fixed: e.fixed,
-    })),
-    [feedback.errors, corrections]
-  );
+  const errors = useMemo(() => {
+    const raw =
+      Array.isArray(feedback.errors) && feedback.errors.length > 0 ? feedback.errors : corrections;
+    return raw.map((e, i) => {
+      const type = normalizeClientErrorType(e.type ?? e.category);
+      const fixed = String(e.fixed ?? '').trim();
+      const suggest = String(e.suggestion ?? '').trim();
+      const replacement = fixed || suggest;
+      return {
+        id: e.id ?? `error-${i}`,
+        type,
+        original: e.original ?? e.word ?? e.text ?? '',
+        fixed: replacement,
+        suggestion: replacement,
+        explanation: String(e.explanation ?? e.impact ?? '').trim(),
+      };
+    });
+  }, [feedback.errors, corrections]);
   const lexicalUpgrade = Array.isArray(feedback.lexical_upgrade) ? feedback.lexical_upgrade : [];
   const suggestedRewrite = feedback.suggested_rewrite || '';
   const audioRef = useRef(null);
@@ -328,7 +408,9 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     });
     return set;
   }, [lexicalUpgrade]);
-  const useWordLevelRendering = viewMode === 'feedback' && wordLevelsMap && wordLevelsMap.size > 0;
+  const useTypedErrorHighlight = viewMode === 'feedback' && errors.length > 0;
+  const useWordLevelRendering =
+    viewMode === 'feedback' && wordLevelsMap && wordLevelsMap.size > 0 && !useTypedErrorHighlight;
 
   const formatTime = useCallback((seconds) => {
     const s = Number.isFinite(Number(seconds)) ? Math.max(0, Math.floor(seconds)) : 0;
@@ -338,14 +420,34 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
   }, []);
 
   const feedItems = useMemo(() => {
+    const fromErrors = errors.map((e) => ({
+      id: e.id,
+      type: e.type,
+      label: ERROR_TYPE_BADGE_LABEL[e.type] || FEED_LABEL[e.type] || e.type,
+      text: e.original,
+      suggestion: e.explanation,
+      fixed: e.fixed,
+      impact: 'medium',
+      kind: 'error',
+    }));
+    if (fromErrors.length > 0) return fromErrors;
     const list = [];
-    highlights.forEach((h, i) => list.push({ id: `h-${i}`, type: h.type || 'grammar', label: FEED_LABEL[h.type] || h.type, text: h.text, suggestion: h.suggestion, kind: 'highlight' }));
+    highlights.forEach((h, i) =>
+      list.push({
+        id: `h-${i}`,
+        type: normalizeClientErrorType(h.type),
+        label: FEED_LABEL[h.type] || h.type,
+        text: h.text,
+        suggestion: h.suggestion,
+        kind: 'highlight',
+      })
+    );
     corrections.forEach((c, i) => {
-      const type = (c.category || '').toLowerCase().includes('lexical') || (c.category || '').toLowerCase().includes('vocab') ? 'lexical' : 'grammar';
+      const type = normalizeClientErrorType(c.category);
       list.push({
         id: `c-${i}`,
         type,
-        label: c.category || type,
+        label: c.category || ERROR_TYPE_BADGE_LABEL[type],
         text: c.original,
         suggestion: c.explanation,
         fixed: c.fixed,
@@ -354,7 +456,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
       });
     });
     return list;
-  }, [highlights, corrections]);
+  }, [errors, highlights, corrections]);
 
   /** Build bullet lists and quick-fix per criterion for the feedback dashboard. */
   const feedbackCards = useMemo(() => {
@@ -368,7 +470,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     };
     const grammarItems = feedItems.filter((i) => i.type === 'grammar');
     const lexicalItems = feedItems.filter((i) => i.type === 'lexical');
-    const cohesionItems = feedItems.filter((i) => i.type === 'cohesion');
+    const cohesionItems = feedItems.filter((i) => i.type === 'cohesion' || i.type === 'logic');
     const pickQuickFix = (items) => {
       const high = items.find((i) => i.impact === 'high');
       return high?.suggestion || (items[0] && (items[0].suggestion || (items[0].fixed ? `Use "${items[0].fixed}"` : null))) || null;
@@ -562,12 +664,20 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, []);
 
-  const getErrorCardLocation = useCallback((errorId) => {
+  /** Open the tab that lists this error and scroll the main page so the matching card is in view. */
+  const scrollToErrorCard = useCallback((errorId, errorType) => {
     if (errorId == null) return;
+    const type = normalizeClientErrorType(errorType);
+    setRightPanelTab(type === 'grammar' ? 'grammar' : 'vocabulary');
     setFocusedId(errorId);
-    requestAnimationFrame(() => {
+    const runScroll = () => {
       const el = errorCardRefs.current[errorId];
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      }
+    };
+    requestAnimationFrame(() => {
+      requestAnimationFrame(runScroll);
     });
   }, []);
 
@@ -700,45 +810,16 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                 </button>
               </div>
             </div>
-            {viewMode === 'feedback' && (
-              <div className="flex flex-wrap items-center gap-3 mb-4">
-                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">vocabulary distribution</span>
-                <div className="flex flex-wrap items-center gap-3">
-                  {CEFR_LEVELS.map((l) => (
-                    <span key={l.id} className="inline-flex items-center text-[11px] text-slate-600 dark:text-slate-300">
-                      <span className="inline-block w-2 h-2 rounded-full mr-1 shrink-0" style={{ backgroundColor: CEFR_COLORS[l.id] }} aria-hidden />
-                      {l.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
             <div className="text-slate-800 dark:text-slate-200 text-base leading-relaxed whitespace-pre-wrap break-words transition-all duration-200" spellCheck={false}>
               {viewMode === 'original'
                 ? userText
                 : useWordLevelRendering
                   ? renderTextWithWordLevels(userText, wordLevelsMap, errorWordsSet, () => setRightPanelTab('vocabulary'), weakWordsSet)
-                  : errorSegments.map((seg, i) =>
-                      seg.kind === 'error' ? (
-                        <span
-                          key={`${seg.id}-${i}`}
-                          className="line-through decoration-red-500 decoration-2 cursor-pointer hover:bg-red-50 dark:hover:bg-red-900/20 bg-yellow-100 border-b-2 border-orange-400 dark:bg-yellow-500/20 dark:border-orange-400 rounded px-0.5 transition-all duration-200 relative group"
-                          onClick={() => {
-                            if (setUserText && seg.fixed) {
-                              handleAutoFix(seg.text, seg.fixed);
-                            } else {
-                              setRightPanelTab('vocabulary');
-                              getErrorCardLocation(seg.id);
-                            }
-                          }}
-                          title={seg.fixed ? `Click to apply: ${seg.fixed}` : seg.suggestion}
-                        >
-                          {seg.text}
-                        </span>
-                      ) : (
-                        <span key={i}>{seg.text}</span>
-                      )
-                    )}
+                  : renderHighlighterSpans(errorSegments, {
+                      handleAutoFix,
+                      setUserText,
+                      scrollToErrorCard,
+                    })}
             </div>
           </div>
 
@@ -844,6 +925,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
             {suggestedRewrite && (
               <div className="w-full lg:w-fit min-w-0">
                 <SuggestedRewriteKaraoke
+                  bandScore={band != null ? String(band) : undefined}
                   suggestedRewrite={suggestedRewrite}
                   audioRef={audioRef}
                   audioUrl={audioUrl}
@@ -939,49 +1021,79 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">
       Errors & corrections
     </h3>
-    {errors.map((err, idx) => (
+    {errors.map((err, idx) => {
+      const applyText = err.fixed || err.suggestion;
+      const canApply =
+        applyText &&
+        String(applyText).trim().length > 0 &&
+        String(applyText).trim().toLowerCase() !== String(err.original).trim().toLowerCase();
+      const badgeCls = ERROR_TYPE_BADGE_CLASS[err.type] || ERROR_TYPE_BADGE_CLASS.grammar;
+      const badgeLabel = ERROR_TYPE_BADGE_LABEL[err.type] || err.type;
+      return (
       <div
         key={err.id || idx}
         ref={(el) => { if (errorCardRefs.current) errorCardRefs.current[err.id] = el; }}
         className="group relative rounded-2xl border border-slate-100 dark:border-white/5 p-4 bg-slate-50/50 dark:bg-white/5 hover:border-emerald-200 dark:hover:border-emerald-500/30 transition-all duration-300"
       >
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${badgeCls}`}>
+            {badgeLabel}
+          </span>
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-          <div className="flex items-center gap-2">
-            {/* Старый текст (зачеркнутый) */}
-            <span className="text-red-500 dark:text-red-400 line-through text-sm font-medium">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            <span className="text-red-500 dark:text-red-400 line-through text-sm font-medium break-words">
               {err.original}
             </span>
-            <span className="text-slate-400" aria-hidden>→</span>
-            
-            {/* Новое слово — теперь это КНОПКА */}
-            <button 
-              onClick={() => onReplaceWord(err.original, err.suggestion || err.fixed, (err.occurrenceIndex || 1), idx)}
-              className="text-emerald-600 dark:text-emerald-400 font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-500/20 px-2 py-0.5 rounded-lg transition-colors border border-emerald-100 dark:border-emerald-500/20"
-              title="Click to apply this fix"
-            >
-              {err.suggestion || err.fixed || '—'}
-            </button>
+            <span className="text-slate-400 shrink-0" aria-hidden>→</span>
+            {canApply ? (
+              <button
+                type="button"
+                onClick={() => onReplaceWord(err.original, applyText, (err.occurrenceIndex || 1), idx)}
+                className="text-emerald-600 dark:text-emerald-400 font-bold text-sm hover:bg-emerald-100 dark:hover:bg-emerald-500/20 px-2 py-0.5 rounded-lg transition-colors border border-emerald-100 dark:border-emerald-500/20 text-left break-words"
+                title="Click to apply this fix"
+              >
+                {applyText}
+              </button>
+            ) : (
+              <span className="text-sm text-slate-500 dark:text-slate-400 italic">
+                No one-click fix — revise using the explanation below.
+              </span>
+            )}
           </div>
 
-          {/* Кнопка "Применить" с иконкой галочки */}
-          <button 
-            onClick={() => onReplaceWord(err.original, err.suggestion || err.fixed, (err.occurrenceIndex || 1), idx)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg shadow-emerald-600/20"
-          >
-            <svg xmlns="http://www.w3.org" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
-              <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-            </svg>
-            Apply
-          </button>
+          {canApply && (
+            <button
+              type="button"
+              onClick={() => onReplaceWord(err.original, applyText, (err.occurrenceIndex || 1), idx)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-all active:scale-95 shadow-lg shadow-emerald-600/20 shrink-0"
+            >
+              <svg xmlns="http://www.w3.org" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
+                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+              </svg>
+              Apply
+            </button>
+          )}
         </div>
 
-        {(err.explanation || err.suggestion) && (
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-            <span className="font-bold text-slate-700 dark:text-slate-300">Why?</span> {err.explanation || err.suggestion}
+        {err.explanation ? (
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+            <span className={`font-bold ${err.type === 'logic' ? 'text-sky-600 dark:text-sky-300' : 'text-slate-800 dark:text-slate-200'}`}>
+              Why?
+            </span>{' '}
+            <span
+              className={`font-semibold ${
+                err.type === 'logic' ? 'text-sky-600 dark:text-sky-300' : 'text-indigo-900 dark:text-indigo-200'
+              }`}
+            >
+              {err.type === 'logic' ? '⚠️ ' : null}
+              {err.explanation}
+            </span>
           </p>
-        )}
+        ) : null}
       </div>
-    ))}
+    );
+    })}
   </div>
 )}    
  </div>
@@ -993,25 +1105,62 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                     <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{gra != null ? gra.toFixed(1) : '—'}</span>
                   </div>
                   <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{criteria.Grammatical_Range_and_Accuracy?.comment || 'No specific feedback for this criterion.'}</p>
-                  {errors.length > 0 && (
+                  {errors.some((e) => e.type === 'grammar') && (
                     <div className="space-y-3 mt-4">
-                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">Corrections</h3>
-                      {errors.map((err, idx) => (
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">Grammar corrections</h3>
+                      {errors.filter((e) => e.type === 'grammar').map((err, idx) => {
+                        const applyText = err.fixed || err.suggestion;
+                        const canApply =
+                          applyText &&
+                          String(applyText).trim().length > 0 &&
+                          String(applyText).trim().toLowerCase() !== String(err.original).trim().toLowerCase();
+                        const badgeCls = ERROR_TYPE_BADGE_CLASS.grammar;
+                        return (
                         <div
                           key={err.id}
                           ref={(el) => { if (errorCardRefs.current) errorCardRefs.current[err.id] = el; }}
                           className="rounded-2xl border border-slate-100 dark:border-white/5 p-4 bg-slate-50/50 dark:bg-white/5"
                         >
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2 ${badgeCls}`}>
+                            Grammar
+                          </span>
                           <div className="flex flex-wrap items-center gap-2 mb-1">
                             <span className="text-red-500 dark:text-red-400 line-through text-sm font-medium">{err.original}</span>
                             <span className="text-slate-400" aria-hidden>→</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-semibold text-sm">{err.suggestion || err.fixed || '—'}</span>
+                            {canApply ? (
+                              <button
+                                type="button"
+                                onClick={() => onReplaceWord(err.original, applyText, (err.occurrenceIndex || 1), idx)}
+                                className="text-emerald-600 dark:text-emerald-400 font-semibold text-sm hover:underline text-left"
+                              >
+                                {applyText}
+                              </button>
+                            ) : (
+                              <span className="text-sm text-slate-500 dark:text-slate-400">—</span>
+                            )}
                           </div>
-                          {(err.explanation || err.suggestion) && (
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1"><span className="font-semibold">Why?</span> {err.explanation || err.suggestion}</p>
-                          )}
+                          {err.explanation ? (
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                              <span
+                                className={`font-semibold ${
+                                  err.type === 'logic' ? 'text-sky-600 dark:text-sky-300' : 'text-slate-800 dark:text-slate-200'
+                                }`}
+                              >
+                                Why?
+                              </span>{' '}
+                              <span
+                                className={`font-semibold ${
+                                  err.type === 'logic' ? 'text-sky-600 dark:text-sky-300' : 'text-indigo-900 dark:text-indigo-200'
+                                }`}
+                              >
+                                {err.type === 'logic' ? '⚠️ ' : null}
+                                {err.explanation}
+                              </span>
+                            </p>
+                          ) : null}
                         </div>
-                      ))}
+                      );
+                      })}
                     </div>
                   )}
                 </div>

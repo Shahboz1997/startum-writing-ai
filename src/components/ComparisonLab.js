@@ -372,6 +372,7 @@ export default function ComparisonLab({
               {/* Karaoke pinned at bottom of Suggested Rewrite column */}
               <div className="mt-4 flex-shrink-0">
                 <SuggestedRewriteKaraoke
+                  bandScore="8.5+"
                   suggestedRewrite={suggestedRewrite}
                   audioRef={audioRef}
                   audioUrl={audioUrl}
