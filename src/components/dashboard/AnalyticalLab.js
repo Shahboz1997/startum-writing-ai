@@ -21,6 +21,46 @@ const ERROR_TYPE_BADGE_CLASS = {
 
 const ERROR_TYPE_BADGE_LABEL = { grammar: 'Grammar', logic: 'Logic', lexical: 'Vocabulary' };
 
+/** Минималистичная легенда подсветки типов ошибок (точка + короткая подпись). */
+function ErrorHighlightLegend({ className = '' }) {
+  const items = [
+    {
+      dot: 'bg-rose-500',
+      label: 'Grammar',
+      title: 'Красный: Грамматика (Grammar)',
+    },
+    {
+      dot: 'bg-sky-500',
+      label: 'Logic & TA',
+      title: 'Синий: Логика и данные (Logic & Task Achievement)',
+    },
+    {
+      dot: 'bg-purple-500',
+      label: 'Vocabulary',
+      title: 'Фиолетовый: Словарный запас (Vocabulary)',
+    },
+  ];
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${className}`}
+      role="list"
+      aria-label="Легенда цветов подсветки: грамматика, логика и данные, словарь"
+    >
+      {items.map((it) => (
+        <div
+          key={it.label}
+          role="listitem"
+          className="inline-flex items-center gap-1.5 text-[10px] text-slate-600 dark:text-slate-400"
+          title={it.title}
+        >
+          <span className={`h-2 w-2 rounded-full shrink-0 ${it.dot}`} aria-hidden />
+          <span className="font-medium text-slate-700 dark:text-slate-300 tracking-tight">{it.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function normalizeClientErrorType(t) {
   const s = String(t || '')
     .toLowerCase()
@@ -345,6 +385,8 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
   const [viewMode, setViewMode] = useState('feedback');
   const [rightPanelTab, setRightPanelTab] = useState('task');
   const [focusedId, setFocusedId] = useState(null);
+  /** Краткая подсветка карточки после клика по подсветке в тексте (click-to-focus). */
+  const [flashErrorCardId, setFlashErrorCardId] = useState(null);
   const [accordionOpen, setAccordionOpen] = useState(null);
   const errorCardRefs = useRef({});
   const [isAudioLoading, setIsAudioLoading] = useState(false);
@@ -657,6 +699,12 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     };
   }, [audioUrl]);
 
+  useEffect(() => {
+    if (flashErrorCardId == null) return;
+    const t = window.setTimeout(() => setFlashErrorCardId(null), 1000);
+    return () => window.clearTimeout(t);
+  }, [flashErrorCardId]);
+
   const cardRefs = React.useRef({});
   const scrollToCard = useCallback((id) => {
     setFocusedId(id);
@@ -670,6 +718,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     const type = normalizeClientErrorType(errorType);
     setRightPanelTab(type === 'grammar' ? 'grammar' : 'vocabulary');
     setFocusedId(errorId);
+    setFlashErrorCardId(errorId);
     const runScroll = () => {
       const el = errorCardRefs.current[errorId];
       if (el) {
@@ -677,9 +726,26 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
       }
     };
     requestAnimationFrame(() => {
-      requestAnimationFrame(runScroll);
+      requestAnimationFrame(() => {
+        runScroll();
+        window.setTimeout(runScroll, 100);
+        window.setTimeout(runScroll, 280);
+      });
     });
   }, []);
+
+  const errorCardShellClass = (errId) =>
+    [
+      'scroll-mt-28 transition-all duration-300',
+      flashErrorCardId === errId
+        ? 'ring-2 ring-indigo-500/60 dark:ring-indigo-400/55 ring-offset-2 ring-offset-white dark:ring-offset-slate-950 shadow-lg shadow-indigo-500/15 z-[1] motion-safe:animate-pulse'
+        : '',
+      focusedId === errId && flashErrorCardId !== errId
+        ? 'ring-1 ring-indigo-200/70 dark:ring-indigo-500/35'
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
 
   /** Single feedback card content (shared by desktop card and accordion body) */
   const renderFeedbackCardContent = (card) => {
@@ -810,6 +876,11 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                 </button>
               </div>
             </div>
+            {viewMode === 'feedback' && useTypedErrorHighlight && (
+              <div className="mb-3 pb-3 border-b border-slate-100 dark:border-white/5">
+                <ErrorHighlightLegend />
+              </div>
+            )}
             <div className="text-slate-800 dark:text-slate-200 text-base leading-relaxed whitespace-pre-wrap break-words transition-all duration-200" spellCheck={false}>
               {viewMode === 'original'
                 ? userText
@@ -1018,9 +1089,12 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                 <div className="space-y-4">
                   {errors.length > 0 && (
   <div className="space-y-3">
-    <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">
-      Errors & corrections
-    </h3>
+    <div className="flex flex-col gap-2 mb-1">
+      <h3 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight">
+        Errors & corrections
+      </h3>
+      <ErrorHighlightLegend className="opacity-90" />
+    </div>
     {errors.map((err, idx) => {
       const applyText = err.fixed || err.suggestion;
       const canApply =
@@ -1033,7 +1107,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
       <div
         key={err.id || idx}
         ref={(el) => { if (errorCardRefs.current) errorCardRefs.current[err.id] = el; }}
-        className="group relative rounded-2xl border border-slate-100 dark:border-white/5 p-4 bg-slate-50/50 dark:bg-white/5 hover:border-emerald-200 dark:hover:border-emerald-500/30 transition-all duration-300"
+        className={`group relative rounded-2xl border border-slate-100 dark:border-white/5 p-4 bg-slate-50/50 dark:bg-white/5 hover:border-emerald-200 dark:hover:border-emerald-500/30 ${errorCardShellClass(err.id)}`}
       >
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${badgeCls}`}>
@@ -1119,7 +1193,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                         <div
                           key={err.id}
                           ref={(el) => { if (errorCardRefs.current) errorCardRefs.current[err.id] = el; }}
-                          className="rounded-2xl border border-slate-100 dark:border-white/5 p-4 bg-slate-50/50 dark:bg-white/5"
+                          className={`rounded-2xl border border-slate-100 dark:border-white/5 p-4 bg-slate-50/50 dark:bg-white/5 ${errorCardShellClass(err.id)}`}
                         >
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-2 ${badgeCls}`}>
                             Grammar

@@ -367,6 +367,8 @@ import 'react-medium-image-zoom/dist/styles.css';
           classes += " text-indigo-500";
         } else if (level === "C1" || level === "C2") {
           classes += " text-orange-500 font-bold";
+        } else {
+          classes += darkMode ? " text-slate-100" : " text-slate-900";
         }
       }
 
@@ -2026,21 +2028,20 @@ const insertLinkingWord = (word) => {
       }`} style={{ width: `${Math.min(100, (currentWordCount / targetWords) * 100)}%` }}
     />
   </div>
-  {/* --- 1. СЛОЙ ВИЗУАЛИЗАЦИИ (Подложка) --- */}
+  {/* --- 1. СЛОЙ ВИЗУАЛИЗАЦИИ (Подложка): тот же текст, что в textarea; видимые цвета — здесь, textarea сверху с color: transparent --- */}
   <div
     ref={highlightRef}
-    className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden"
+    className={`absolute inset-0 z-0 pointer-events-none select-none overflow-hidden text-slate-900 dark:text-slate-100 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
+      darkMode ? '[color-scheme:dark]' : ''
+    }`}
     style={{
       ...sharedStyles,
-      color: 'transparent',
       width: '100%',
       minHeight: '320px',
-      // КРИТИЧЕСКИЕ ПРАВКИ ДЛЯ СИНХРОНИЗАЦИИ:
       display: 'block',
-      // Должно быть 1:1 как в textarea
-      border: '1px solid transparent', // Имитирует невидимую рамку textarea
-      fontVariantLigatures: 'none', // Отключает слияние букв (fi, fl)
-      letterSpacing: 'normal', // Убирает микро-сдвиги шрифта
+      border: '1px solid transparent',
+      fontVariantLigatures: 'none',
+      letterSpacing: 'normal',
       WebkitFontSmoothing: 'antialiased',
     }}
   >
@@ -2078,7 +2079,7 @@ const insertLinkingWord = (word) => {
     
     spellCheck="false"
     placeholder="Begin your essay..."
-    className={`relative z-10 w-full min-h-[320px] bg-transparent outline-none resize-none overflow-hidden transition-colors duration-200
+    className={`relative z-10 w-full min-h-[320px] bg-transparent outline-none resize-none overflow-hidden transition-colors duration-200 placeholder:text-slate-400 dark:placeholder:text-slate-500
       ${darkMode 
         ? 'caret-indigo-400 selection:bg-indigo-500/30' 
         : 'caret-indigo-600 selection:bg-indigo-200/50'}`}
