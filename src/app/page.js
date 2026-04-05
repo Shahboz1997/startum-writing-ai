@@ -4,22 +4,83 @@ import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import AnimatedScore from '../components/AnimatedScore';
 import Navbar from '../components/Navbar';
 import AuthModal from '../components/AuthModal';
 import LandingPage from '../components/LandingPage';
+import GlowFollow from '../components/GlowFollow';
 import { LoadingState, EmptyState, ErrorState, SuccessState } from '../components/stratum';
 import axios from 'axios';
+import toast from 'react-hot-toast';
+
+/** Readable message + metadata when /api/check fails (empty JSON `{}`, HTML, network, etc.). */
+function interpretAnalyzeFailure(err) {
+  const fallback = { status: undefined, dataError: undefined, message: 'Analysis failed.' };
+
+  if (!axios.isAxiosError(err)) {
+    const m = err && typeof err.message === 'string' ? err.message : '';
+    return { ...fallback, message: m || fallback.message };
+  }
+
+  const status = err.response?.status;
+  const raw = err.response?.data;
+  let dataError;
+
+  if (raw == null || raw === '') {
+    dataError = undefined;
+  } else if (typeof raw === 'string') {
+    const stripped = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    dataError = stripped.length > 0 ? stripped.slice(0, 280) : undefined;
+  } else if (typeof raw === 'object') {
+    const keys = Object.keys(raw);
+    if (keys.length === 0) {
+      dataError = undefined;
+    } else {
+      if (typeof raw.error === 'string' && raw.error) dataError = raw.error;
+      else if (typeof raw.message === 'string' && raw.message) dataError = raw.message;
+    }
+  }
+
+  let message = dataError;
+
+  if (!message) {
+    if (status === 413) {
+      message = 'Request payload too large. Try a shorter essay or a smaller image.';
+    } else if (status === 403) {
+      message = 'You have run out of credits. Please refill to continue.';
+    } else if (status === 401) {
+      message = 'Please sign in to ANALYZE STRATUM DATA.';
+    } else if (status === 503 || status === 502) {
+      message = 'Service temporarily unavailable. Check OPENAI_API_KEY and try again.';
+    } else if (status === 504) {
+      message = 'The analysis request timed out. Please try again.';
+    } else if (status === 500) {
+      message = 'Server error while analyzing. Please try again in a moment.';
+    } else if (status === 400) {
+      message = 'Invalid request (e.g. text too short). Check your input and try again.';
+    } else if (!err.response) {
+      message =
+        err.code === 'ECONNABORTED'
+          ? 'Request timed out. Please try again.'
+          : err.message || 'Network error. Check your connection and try again.';
+    } else {
+      message = `Request failed${status != null ? ` (${status})` : ''}. Please try again.`;
+    }
+  }
+
+  return { status, dataError, message };
+}
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronUp, Send, Download, Search, Check, Sparkles, Share2, Clock, ChevronDown, Trash2,
   Loader2, FileText, CheckCircle, FlaskConical, Zap, BarChart3, Play, Pause, Globe, MessageCircle,
   GraduationCap, Users, Building2, Briefcase, Heart, Scale, Bookmark, Sun, Moon, Image as ImageIcon, BookOpen,
   Menu, X, Volume2, Star,
-  EyeOff, Crown, Filter, Type, LayoutGrid, RefreshCw, AlignLeft, Shield, Target, AlertCircle,
+  Eye, Crown, Filter, LayoutGrid, RefreshCw, Shield, Target, AlertCircle,
 } from 'lucide-react';
 import { TASK1_TIPS, TASK2_TIPS, getChecklistStatus } from '@/lib/ieltsGuidelines';
 import ComparisonLab from '../components/ComparisonLab';
+import SuggestedRewriteKaraoke from '../components/dashboard/SuggestedRewriteKaraoke';
+import { useSuggestedRewriteAudio } from '../components/dashboard/useSuggestedRewriteAudio';
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import Zoom from 'react-medium-image-zoom';
@@ -194,7 +255,9 @@ import 'react-medium-image-zoom/dist/styles.css';
   const [activeTab, setActiveTab] = useState('Topics');
   const [currentTopic, setCurrentTopic] = useState(null);
   const [essayT1, setEssayT1] = useState('');
-  const [isSaved, setIsSaved] = useState(false);
+  const [archiveSavedT1, setArchiveSavedT1] = useState(false);
+  const [archiveSavedT2, setArchiveSavedT2] = useState(false);
+  const [isSavingArchive, setIsSavingArchive] = useState(false);
   const [appliedCorrections, setAppliedCorrections] = useState([]);
   const [customKeyword, setCustomKeyword] = useState('');
   const [isPromptOpen, setIsPromptOpen] = useState(true); // Состояние для открытия/закрытия
@@ -468,10 +531,22 @@ import 'react-medium-image-zoom/dist/styles.css';
      }
      };
   const activeResult = activeTab === 'Task 1' ? activeResultT1 : activeResultT2;
+  const isSaved =
+    activeTab === 'Task 1'
+      ? archiveSavedT1
+      : activeTab === 'Task 2'
+        ? archiveSavedT2
+        : false;
   const [highlightedWord, setHighlightedWord] = useState(null);
   const editorRef = useRef(null); // Реф для текстового поля
   const { data: session, status: sessionStatus, update } = useSession();
   const router = useRouter();
+
+  const karaokeSuggestedRewrite =
+    activeTab === 'Task 1' || activeTab === 'Task 2' ? (activeResult?.suggested_rewrite || '') : '';
+  const karaokeFilenameBase =
+    activeTab === 'Task 1' ? 'Stratum_Task1_Rewrite' : 'Stratum_Task2_Rewrite';
+  const karaokeAudio = useSuggestedRewriteAudio(karaokeSuggestedRewrite, karaokeFilenameBase);
 
   // Sync session to local auth state and credits for Navbar
   useEffect(() => {
@@ -483,6 +558,14 @@ import 'react-medium-image-zoom/dist/styles.css';
       setCredits(0);
     }
   }, [sessionStatus, session?.user?.credits]);
+
+  useEffect(() => {
+    setArchiveSavedT1(false);
+  }, [activeResultT1]);
+
+  useEffect(() => {
+    setArchiveSavedT2(false);
+  }, [activeResultT2]);
 
   // После Google OAuth редирект иногда приходит с ?error=OAuthAccountNotLinked, хотя связка аккаунта и сессия уже созданы — обновляем сессию и убираем ошибку из URL
   useEffect(() => {
@@ -521,21 +604,40 @@ import 'react-medium-image-zoom/dist/styles.css';
         router.push('/history/' + res.data.savedId);
         return;
       }
-      if (mode === 'task1') setResultT1(res.data);
-      else setResultT2(res.data);
+      if (mode === 'task1') setResultT1({ ...res.data, text: essayT1 });
+      else setResultT2({ ...res.data, text: essayT2 });
       if (typeof playSuccessSound === 'function') playSuccessSound();
     } catch (err) {
-      console.error("Server Response Error:", err.response?.data);
-      const status = err.response?.status;
-      const dataError = err.response?.data?.error;
-      let msg = err.response?.data?.error || err.message || 'Analysis failed.';
+      if (axios.isAxiosError(err)) {
+        console.error('Analysis API error:', {
+          status: err.response?.status,
+          statusText: err.response?.statusText,
+          data: err.response?.data,
+          message: err.message,
+          code: err.code,
+        });
+      } else {
+        console.error('Analysis error:', err);
+      }
+
+      const { status, dataError, message: baseMsg } = interpretAnalyzeFailure(err);
+      let msg = baseMsg;
+
       if (status === 401) {
         setErrorIs401(true);
-        msg = (dataError === 'INVALID_API_KEY' || dataError === 'Server Configuration Error: Missing API Key' || dataError === 'Environment variable NOT LOADED')
-          ? 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.'
-          : 'Please sign in to ANALYZE STRATUM DATA.';
-      } else if (status === 503) msg = 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.';
-      else if (status === 403) msg = 'You have run out of credits. Please refill to continue.';
+        msg =
+          dataError === 'INVALID_API_KEY' ||
+          dataError === 'Server Configuration Error: Missing API Key' ||
+          dataError === 'Environment variable NOT LOADED' ||
+          dataError === 'Missing API Key'
+            ? 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.'
+            : 'Please sign in to ANALYZE STRATUM DATA.';
+      } else if (status === 503) {
+        msg = 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.';
+      } else if (status === 403) {
+        msg = 'You have run out of credits. Please refill to continue.';
+      }
+
       setError(msg);
     } finally {
       setCurLoading(false);
@@ -1236,42 +1338,69 @@ const renderHighlightedText = (text, highlights, searchState) => { // Добав
     }
   };
   // Исправленная функция генерации, которая теперь ВИДИТ handleImageUpload
-  const saveCurrentToArchive = () => {
-    // 1. Сначала определяем данные
-  const currentEssay = activeTab === 'Task 1' ? essayT1 : essayT2;
-  const currentPrompt = activeTab === 'Task 1' ? promptT1 : promptT2;
-  const currentResult = activeTab === 'Task 1' ? activeResultT1 : activeResultT2;
-    // 2. Проверка на пустоту
-    if (!currentEssay || currentEssay.trim().length < 10) {
-      alert("Essay is too short to save!");
+  const saveCurrentToArchive = async () => {
+    if (activeTab !== 'Task 1' && activeTab !== 'Task 2') return;
+
+    const currentEssay = activeTab === 'Task 1' ? essayT1 : essayT2;
+    const currentPrompt = activeTab === 'Task 1' ? promptT1 : promptT2;
+    const currentResult = activeTab === 'Task 1' ? activeResultT1 : activeResultT2;
+
+    if (!currentResult) {
+      toast.error('Nothing to save. Run an analysis first.');
+      return;
+    }
+    if (!currentEssay?.trim()) {
+      toast.error('Essay is empty.');
+      return;
+    }
+    if (sessionStatus !== 'authenticated' || !session?.user) {
+      toast.error('Sign in to save checks to your archive.');
       return;
     }
 
-    // 3. ОБЪЯВЛЯЕМ объект ПЕРЕД использованием (важно для избежания ошибки ReferenceError)
-  const newEntry = {
-    id: Date.now(),
-    date: new Date().toLocaleString(),
-    taskType: activeTab,
-    essay: currentEssay,
-    question: currentPrompt || "No prompt provided",
-    image: activeTab === 'Task 1' ? image : null,
-    fullData: currentResult || null
-  };
-  try {
-      // 4. Обновляем стейт и локальное хранилище
-  const updated = [newEntry, ...archive];
-  setArchive(updated);
-  localStorage.setItem('ielts_archive_v5', JSON.stringify(updated));
+    setIsSavingArchive(true);
+    try {
+      const res = await fetch('/api/archive/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: activeTab === 'Task 1' ? 'TASK_1' : 'TASK_2',
+          content: currentEssay,
+          score: currentResult.overall_band,
+          feedback: JSON.stringify({ ...currentResult, text: currentEssay }),
+        }),
+      });
 
-  // 5. Визуальный эффект "Saved!"
-  setIsSaved(true);
-  setTimeout(() => setIsSaved(false), 2000); 
-  
-  console.log("Saved to archive successfully:", newEntry.id);
-} catch (e) {
-  console.error("Save error:", e);
-  alert("Error saving to archive.");
-}
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Could not save to archive.');
+        return;
+      }
+
+      if (activeTab === 'Task 1') setArchiveSavedT1(true);
+      else setArchiveSavedT2(true);
+
+      toast.success('Saved to archive');
+
+      const newEntry = {
+        id: data.id || Date.now(),
+        date: new Date().toLocaleString(),
+        taskType: activeTab,
+        essay: currentEssay,
+        question: currentPrompt || 'No prompt provided',
+        image: activeTab === 'Task 1' ? image : null,
+        fullData: { ...currentResult, text: currentEssay },
+      };
+      const updated = [newEntry, ...archive];
+      setArchive(updated);
+      localStorage.setItem('ielts_archive_v5', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Save error:', e);
+      toast.error('Error saving to archive.');
+    } finally {
+      setIsSavingArchive(false);
+    }
   };
   const generateTask1Data = async () => {
     setIsGenLoadingT1(true);
@@ -1596,31 +1725,36 @@ const insertLinkingWord = (word) => {
   // Render landing when unauthenticated (after all hooks to avoid "fewer hooks" error)
   if (sessionStatus === 'unauthenticated') {
     return (
-      <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300">
-        <LandingPage
-          onLoginClick={() => setIsAuthOpen(true)}
-          onFullAnalysisClick={() => {
-            setAuthModalMessage('Sign up to see your Band Score');
-            setIsAuthOpen(true);
-          }}
-          isLoggedIn={false}
-        />
-        <AnimatePresence>
-          {isAuthOpen && (
-            <AuthModal
-              isOpen={isAuthOpen}
-              onClose={() => { setIsAuthOpen(false); setAuthModalMessage(null); }}
-              onLoginSuccess={() => { setIsAuthOpen(false); setAuthModalMessage(null); }}
-              message={authModalMessage}
-            />
-          )}
-        </AnimatePresence>
+      <div className="relative min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300">
+        <GlowFollow />
+        <div className="relative z-0 min-h-screen">
+          <LandingPage
+            onLoginClick={() => setIsAuthOpen(true)}
+            onFullAnalysisClick={() => {
+              setAuthModalMessage('Sign up to see your Band Score');
+              setIsAuthOpen(true);
+            }}
+            isLoggedIn={false}
+          />
+          <AnimatePresence>
+            {isAuthOpen && (
+              <AuthModal
+                isOpen={isAuthOpen}
+                onClose={() => { setIsAuthOpen(false); setAuthModalMessage(null); }}
+                onLoginSuccess={() => { setIsAuthOpen(false); setAuthModalMessage(null); }}
+                message={authModalMessage}
+              />
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     );
   }
 
   return (
-      <div className="min-h-screen flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto transition-colors duration-300">
+      <div className="relative min-h-screen flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto transition-colors duration-300">
+        <GlowFollow />
+        <div className="relative z-0 flex flex-col flex-1 min-h-screen">
         <Navbar 
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -1691,12 +1825,22 @@ const insertLinkingWord = (word) => {
       darkMode ? "bg-slate-900 border-slate-700" : "bg-indigo-50/40 border-indigo-100"
     }`}
   >
-    <div className="bg-white dark:bg-slate-800 p-4 md:p-5 rounded-2xl md:rounded-3xl shadow-sm transition-transform">
-      {isGenLoadingT1 ? (
-        <Loader2 className="w-10 h-10 md:w-12 md:h-12 animate-spin text-indigo-600" />
-      ) : (
-        <BarChart3 className="w-10 h-10 md:w-12 md:h-12 text-indigo-600" />
-      )}
+    <div className="relative flex flex-col items-center mt-1">
+      <motion.span
+        aria-hidden
+        animate={{ y: [0, -3, 0] }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute -top-2 left-1/2 z-10 -translate-x-1/2 text-[9px] font-extrabold uppercase tracking-wider text-white px-1.5 py-0.5 rounded-md whitespace-nowrap bg-gradient-to-r from-red-500 via-rose-500 to-red-600 shadow-[0_0_14px_rgba(239,68,68,0.45)] ring-1 ring-white/25"
+      >
+        HOT
+      </motion.span>
+      <div className="bg-white dark:bg-slate-800 p-4 md:p-5 rounded-2xl md:rounded-3xl shadow-sm transition-transform">
+        {isGenLoadingT1 ? (
+          <Loader2 className="w-10 h-10 md:w-12 md:h-12 animate-spin text-indigo-600" />
+        ) : (
+          <BarChart3 className="w-10 h-10 md:w-12 md:h-12 text-indigo-600" />
+        )}
+      </div>
     </div>
     <div className="text-center">
       <h3 className="font-extrabold text-lg md:text-xl tracking-tight min-h-[1.5em] text-slate-900 dark:text-slate-100">
@@ -1731,12 +1875,22 @@ const insertLinkingWord = (word) => {
             darkMode ? "bg-slate-900 border-slate-700" : "bg-indigo-50/40 border-indigo-100"
           }`}
         >
-          <div className="bg-white dark:bg-slate-800 p-4 md:p-5 rounded-2xl md:rounded-3xl shadow-sm">
-            {genLoading ? (
-              <Loader2 className="w-10 h-10 md:w-12 md:h-12 animate-spin text-indigo-600" />
-            ) : (
-              <Sparkles className="w-10 h-10 md:w-12 md:h-12 text-indigo-600" />
-            )}
+          <div className="relative flex flex-col items-center mt-1">
+            <motion.span
+              aria-hidden
+              animate={{ y: [0, -3, 0] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 0.35 }}
+              className="absolute -top-2 left-1/2 z-10 -translate-x-1/2 text-[9px] font-extrabold uppercase tracking-wider text-white px-1.5 py-0.5 rounded-md whitespace-nowrap bg-gradient-to-r from-teal-400 to-cyan-500 shadow-[0_0_12px_rgba(20,184,166,0.4)] ring-1 ring-white/20"
+            >
+              NEW
+            </motion.span>
+            <div className="bg-white dark:bg-slate-800 p-4 md:p-5 rounded-2xl md:rounded-3xl shadow-sm">
+              {genLoading ? (
+                <Loader2 className="w-10 h-10 md:w-12 md:h-12 animate-spin text-indigo-600" />
+              ) : (
+                <Sparkles className="w-10 h-10 md:w-12 md:h-12 text-indigo-600" />
+              )}
+            </div>
           </div>
           <div className="text-center space-y-4 w-full">
             <div>
@@ -1810,8 +1964,9 @@ const insertLinkingWord = (word) => {
                 </div>
     )}
     {(activeTab === 'Task 1' || activeTab === 'Task 2') && (
+      <>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 space-y-6">
+        <div className="order-1 space-y-6 lg:order-none lg:col-span-8">
           <div className="p-6 sm:p-8 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             
             <div className="flex flex-col gap-6 mb-8">
@@ -2123,8 +2278,8 @@ const insertLinkingWord = (word) => {
                     </span>
                     {(activeTab === 'Task 1' ? TASK1_TIPS : TASK2_TIPS).map((tip, i) => {
                       const IconMap = activeTab === 'Task 1'
-                        ? { EyeOff, Crown, Filter, Type, LayoutGrid }
-                        : { RefreshCw, AlignLeft, Shield, Target, Zap };
+                        ? { Eye, Target, Shield, Filter, Zap }
+                        : { RefreshCw, LayoutGrid, Crown, Shield, Target };
                       const Icon = IconMap[tip.icon];
                       return (
                         <motion.div
@@ -2144,7 +2299,303 @@ const insertLinkingWord = (word) => {
               )}
             </AnimatePresence>
           </div>
+          </div>
+        </div>
+        {/* Aside: loading skeleton or result — order-2 on mobile so stats follow Comparison Lab */}
+         <aside
+          className="order-2 flex h-auto flex-col gap-6 lg:order-none lg:col-span-4 lg:justify-between"
+          ref={activeResultsRef}
+        >
+      {(activeTab === 'Task 1' ? loadingT1 : loadingT2) ? (
+        <div className={`rounded-3xl border border-dashed border-white/5 p-8 ${darkMode ? 'bg-slate-900/40' : 'bg-indigo-50/20'}`}>
+          <LoadingState />
+        </div>
+      ) : !activeResult ? (
+        <div className={`min-h-80 border border-dashed border-white/5 rounded-3xl transition-all ${darkMode ? 'bg-slate-900/20' : 'bg-slate-50/80'}`}>
+          <EmptyState
+            message="Submit your essay to receive instant AI feedback and band score."
+            className="text-slate-500 dark:text-slate-400"
+          />
+        </div>
+      ) : (
+             <div
+        className="flex h-auto flex-1 flex-col justify-between gap-6 overflow-visible lg:pr-2"
+        >
+          <div className="relative group overflow-hidden bg-slate-950 rounded-[3rem] p-1 shadow-2xl shadow-indigo-900/30">
+  <div className="group relative z-10 rounded-[2rem] sm:rounded-[2.8rem] bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-800 p-5 sm:p-8 text-white shadow-2xl shadow-indigo-900/20">
+    
+    {/* Эффект блеска при наведении */}
+    <div className="pointer-events-none absolute inset-0 translate-x-[-150%] bg-gradient-to-tr from-white/0 via-white/20 to-white/0 transition-transform duration-1000 group-hover:translate-x-[150%]" />
+
+    <div className="relative z-20 flex flex-col gap-6">
+      {/* ВЕРХНЯЯ ЧАСТЬ: Балл и Версия ИИ */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
+            <p className="text-[8px] font-extrabold uppercase tracking-[0.3em] text-white/80 sm:text-[9px] sm:tracking-[0.4em]">
+              Performance Index
+            </p>
+          </div>
+          <h4 className="flex items-baseline font-extrabold leading-none tracking-tighter text-[18vw] sm:text-7xl md:text-8xl">
+            {activeResult.overall_band}
+            <span className="ml-2 text-lg font-light opacity-30 sm:text-xl">/ 9.0</span>
+          </h4>
+        </div>
+
+        <div className="shrink-0 rounded-xl border border-white/10 bg-slate-950/30 px-3 py-2 text-right backdrop-blur-md sm:px-4">
+          <p className="text-[7px] font-extrabold uppercase tracking-widest text-indigo-200 dark:text-indigo-300 sm:text-[8px]">AI Engine</p>
+          <p className="text-[9px] font-bold sm:text-[10px]">v4.2 PRO</p>
+        </div>
+      </div>
+      {/* НИЖНЯЯ ЧАСТЬ: Кнопки управления */}
+      <div className="flex flex-row items-stretch gap-2 mt-2">
+        <button 
+          onClick={() => downloadReport()}
+          className="group/btn flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 dark:bg-slate-950 px-4 py-4 text-xs font-extrabold tracking-tight text-white transition-all hover:bg-slate-800 dark:hover:bg-slate-900 hover:shadow-xl active:scale-[0.97] sm:gap-3 sm:rounded-[1.8rem] sm:py-5"
+        >
+          <Download className="h-4 w-4 text-indigo-400 transition-transform group-hover/btn:translate-y-0.5 sm:h-5 sm:w-5" /> 
+          <span className="whitespace-nowrap">Official PDF</span>
+        </button>
+
+        <button 
+          onClick={() => shareReport(activeResult)} 
+          className="flex aspect-square w-12 items-center justify-center rounded-2xl bg-white/10 text-white transition-all hover:bg-white/20 active:scale-90 sm:w-auto sm:px-5"
+          title="Share Analysis"
+        >
+          <Share2 className="h-5 w-5" /> 
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {/* Background Decor */}
+  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-400/10 blur-[100px] rounded-full -mr-20 -mt-20 pointer-events-none" />
 </div>
+
+          {/* EXAMINER'S CHECKLIST — Expert tips status */}
+          {(() => {
+            const checklistTips = activeTab === 'Task 1' ? TASK1_TIPS : TASK2_TIPS;
+            const status = getChecklistStatus(activeTab, activeTab === 'Task 1' ? essayT1 : essayT2, activeResult);
+            const IconMapT1 = { Eye, Target, Shield, Filter, Zap };
+            const IconMapT2 = { RefreshCw, LayoutGrid, Crown, Shield, Target };
+            const IconMap = activeTab === 'Task 1' ? IconMapT1 : IconMapT2;
+          })()}
+
+          {/* --- 3. DEEP LINGUISTIC ANALYSIS --- */}
+          <div className={`p-8 rounded-[3rem] border shadow-sm h-auto overflow-visible ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 dark:border-slate-800'}`}>
+    <h5 className="text-xs font-extrabold mb-6 tracking-tight text-slate-800 dark:text-slate-100 pb-2">
+        Linguistic Insights
+    </h5>
+            <div className="space-y-6">
+              
+              {/* Linking Words Section */}
+                <div className="space-y-5">
+  {/* ЗАГОЛОВОК И БАЛЛ */}
+  <div className="flex justify-between items-end border-b-[3px] border-blue-500/20 pb-2">
+    <div className="flex items-center gap-2">
+      <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+      <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">Linking Words</span>
+    </div>
+    <span className="text-[11px] font-black text-blue-600 bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 rounded-md italic">
+      Score: {activeResult.analysis?.linking_words?.score}/9.0
+    </span>
+  </div>
+
+  {/* СПИСОК НАЙДЕННЫХ СЛОВ */}
+  <div className="flex flex-wrap gap-2">
+    {activeResult.analysis?.linking_words?.found?.map((w, i) => (
+      <button 
+        key={i}
+        onClick={() => triggerHighlight(w)}
+        className={`group flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-xl font-bold transition-all active:scale-95
+          ${darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+      >
+        {/* ИСПРАВЛЕНО: Теперь линия — это жирное подчеркивание текста, а не граница кнопки */}
+        <span className="underline underline-offset-[4px] decoration-transparent group-hover:decoration-blue-500 decoration-[3px] transition-all">
+          {w}
+        </span>
+        <Search className="w-3 h-3 opacity-0 group-hover:opacity-100 text-blue-500 transition-all transform group-hover:scale-110" />
+      </button>
+    ))}
+  </div>
+
+  {/* БЛОК ПРЕДЛОЖЕНИЙ */}
+    <div className="p-5 rounded-[2.5rem] bg-blue-50/50 dark:bg-blue-950/20 border-2 border-blue-100 dark:border-blue-900/30">
+  <p className="text-[9px] font-black uppercase text-blue-600 mb-4 tracking-[0.2em] flex items-center gap-2">
+    <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+    <span className="underline underline-offset-[6px] decoration-blue-500/40 decoration-[3px]">
+      Suggested Additions
+    </span>
+  </p>  
+  <div className="flex flex-wrap gap-2">
+  {(() => {
+    const suggestions = activeResult.analysis?.linking_words?.suggestions;
+    const hasSuggestions = suggestions && suggestions.length > 0;
+
+    if (!hasSuggestions) {
+      return (
+        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 italic py-1 px-2">
+          Great flow! No extra suggestions needed.
+        </span>
+      );
+    }
+
+    return suggestions.map((s, i) => (
+      <button 
+        key={i} 
+        onClick={() => insertLinkingWord(s)}
+        className="group relative text-[9px] bg-white dark:bg-slate-800 text-blue-600 px-3 py-2.5 rounded-xl font-black shadow-sm border border-blue-100 dark:border-blue-800 hover:border-blue-500 hover:shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+        title={`Click to insert "${s}"`}
+      >
+        <span className="opacity-40 group-hover:text-blue-500 group-hover:opacity-100 transition-all font-bold">+</span>
+        <span className="underline underline-offset-[2px] decoration-transparent group-hover:decoration-blue-500/50 decoration-2 transition-all">
+          {s}
+        </span>
+      </button>
+    ));
+  })()}
+</div>
+
+    </div>
+
+</div>
+
+
+              {/* Repetitions List */}
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+                <span className="text-[10px] font-extrabold uppercase block mb-4 text-slate-800 dark:text-slate-100">Frequency Alert</span>
+                  <div className="space-y-2">
+    {activeResult?.analysis?.word_repetition?.map((item, i) => {
+      const wordText = typeof item === 'object' ? item.word : item;
+      const count = typeof item === 'object' ? item.count : 0;
+      const synonyms = item.alternatives || []; 
+
+      return (
+        <div
+          key={wordText + i}
+          className={`w-full p-4 rounded-2xl border transition-all mb-3 ${
+            darkMode ? 'bg-slate-900/40 border-slate-800 shadow-none' : 'bg-white border-red-50 shadow-sm'
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            {/* ИНФОРМАЦИЯ О СЛОВЕ */}
+            <div className="flex items-center gap-2">
+              <span className={`text-sm font-extrabold uppercase tracking-tight text-slate-900 dark:text-slate-100`}>
+                "{wordText}"
+              </span>
+              <span className="text-[10px] text-red-500 font-bold bg-red-100/20 px-2 py-0.5 rounded-full border border-red-500/10">
+                {count}x repeated
+              </span>
+            </div>
+
+            {/* ПОИСК ВХОЖДЕНИЙ */}
+              <div className="flex items-center gap-3">
+  <button 
+    onClick={(e) => {
+      e.preventDefault();
+      if (typeof playClickSound === 'function') playClickSound();
+      
+      // 1. Запускаем вашу логику поиска
+      triggerHighlight(wordText);
+
+      // 2. Добавляем плавный скролл (с небольшой задержкой, чтобы DOM успел обновиться)
+      setTimeout(() => {
+        const matches = document.querySelectorAll('.search-match');
+        if (matches.length > 0) {
+          // Скроллим к текущему индексу (current) или к первому, если только начали
+          const targetIndex = searchState.word === wordText.toLowerCase().trim() 
+            ? (searchState.current + 1) % matches.length 
+            : 0;
+
+          matches[targetIndex].scrollIntoView({
+            behavior: 'smooth',
+            block: 'center', // Чтобы слово было в центре экрана, а не сверху
+          });
+        }
+      }, 50); 
+    }}
+    className="group relative flex items-center gap-2 cursor-pointer select-none outline-none active:scale-95 transition-all py-1"
+  >
+    <div className="flex items-baseline gap-1">
+      <span className={`
+        text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200
+        pb-0.5 border-b-[3px] 
+        ${searchState.word === wordText.toLowerCase().trim() 
+          ? 'text-red-600 border-red-600' 
+          : 'text-slate-600 dark:text-slate-400 border-transparent group-hover:text-red-600 group-hover:border-red-600/50'}
+      `}>
+        Find
+      </span>
+
+      {searchState.word === wordText.toLowerCase().trim() && searchState.count > 0 && (
+        <span className="ml-1 text-[10px] font-black tabular-nums text-red-600 animate-in fade-in zoom-in duration-300">
+          {searchState.current + 1}
+          <span className="mx-0.5 opacity-40">/</span>
+          {searchState.count}
+        </span>
+      )}
+    </div>
+
+    <Search className={`
+      w-3.5 h-3.5 transition-colors duration-200
+      ${searchState.word === wordText.toLowerCase().trim() 
+        ? 'text-red-600' 
+        : 'text-slate-600 dark:text-slate-400 group-hover:text-red-600'}
+    `} />
+  </button>
+</div>
+
+          </div>
+
+          {/* СЕКЦИЯ СИНОНИМОВ (UPGRADES) */}
+          {synonyms.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+              <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-400 mb-2 tracking-widest flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-emerald-500" />
+                Band 8.0+ Replacements:
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {synonyms.map((syn) => (
+                  <button
+                    key={syn}
+                    onClick={() => replaceNext(wordText, syn)}
+                    className={`flex items-center gap-1.5 text-[10px] px-3 py-1.5 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 border ${
+                      darkMode 
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 shadow-none' 
+                        : 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100 shadow-sm'
+                    }`}
+                  >
+                    + {syn}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    })}
+</div>
+  </div>
+              {/* Integrity Badge */}
+              {activeResult.plagiarism && (
+                <div className={`mt-6 p-4 rounded-2xl border-l-4 ${activeResult.plagiarism.score > 30 ? 'bg-red-50 border-red-500' : 'bg-emerald-50 border-emerald-500'}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] font-extrabold uppercase text-slate-800 dark:text-slate-100">Plagiarism Check</span>
+                    <span className="text-[9px] font-extrabold text-slate-900 dark:text-white">{activeResult.plagiarism.score}%</span>
+                  </div>
+                  <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">{activeResult.plagiarism.status}</p>
+                </div>
+              )}
+
+            </div>
+          </div>
+
+        </div>
+      )}
+      </aside>
+
+        <div className="order-3 space-y-6 lg:order-none lg:col-span-12">
     {activeResult && !loading && (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
       
@@ -2316,67 +2767,18 @@ const insertLinkingWord = (word) => {
   </AnimatePresence>
      </div>
      </div>
-      {/* 4. Comparison Lab — Draft vs Suggested Rewrite (Task 1 & Task 2) + Karaoke */}
-      {activeResult.suggested_rewrite && (
-        <div className="relative mt-6">
-          <h4 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+     {activeResult && !loading && activeResult.suggested_rewrite && (
+      <div className="relative mt-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 sm:mt-12">
+        <div className="mb-6 flex w-full items-center gap-3">
+          <CheckCircle className="h-5 w-5 shrink-0 text-green-600 dark:text-green-400" strokeWidth={1.5} />
+          <h4 className="shrink-0 text-sm font-extrabold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100 sm:text-base">
             Comparison Lab
           </h4>
-          <ComparisonLab
-            activeTab={activeTab}
-            draftText={activeTab === 'Task 1' ? essayT1 : essayT2}
-            suggestedRewrite={activeResult.suggested_rewrite}
-            darkMode={darkMode}
-          />
-    {false && (
-    <div style={{ display: 'none' }} aria-hidden="true">
-      <div
-        onClick={() => setIsRewriteOpen(!isRewriteOpen)}
-        className="flex items-center justify-between cursor-pointer group/header"
-      >
-        <h4 className={`font-extrabold tracking-tight flex items-center gap-3 transition-all duration-500 ${
-          isRewriteOpen ? 'text-sm text-green-700 dark:text-green-400 mb-8' : 'text-xs text-slate-600 dark:text-slate-400 mb-0'
-        }`}>
-          <div className={`transition-all duration-500 ${
-            isRewriteOpen ? 'p-2 bg-green-600 rounded-xl shadow-lg shadow-green-600/30' : 'p-1 bg-slate-200 dark:bg-slate-800 rounded-md shadow-none'
-          }`}>
-            <CheckCircle className={`transition-all ${isRewriteOpen ? 'w-5 h-5 text-white' : 'w-3 h-3 text-green-800'}`} />
-          </div>
-          Suggested Rewrite
-        </h4>
-        
-        <ChevronDown className={`w-4 h-4 text-slate-600 dark:text-slate-400 transition-transform duration-500 ${
-          isRewriteOpen ? 'rotate-0' : '-rotate-180'
-        }`} />
-      </div>
-
-      {/* АНИМИРОВАННЫЙ КОНТЕНТ */}
-      <div className={`grid transition-all duration-500 ease-in-out ${
-        isRewriteOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-      }`}>
-        <div className="overflow-hidden">
-          <div className="relative px-2">
-            <span className="absolute -left-6 -top-4 text-6xl text-green-500/20 dark:text-green-500/10 font-serif select-none">
-              “
-            </span>
-            
-            <p className="text-[16px] md:text-[17px] leading-[1.9] text-slate-800 dark:text-slate-100 font-semibold tracking-tight">
-              {activeResult.suggested_rewrite}
-            </p>
-            
-            <div className="mt-6 flex justify-end">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-green-600/50 dark:text-green-400/50">
-                Perfected by AI Expert
-              </span>
-            </div>
-          </div>
+          <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-700" aria-hidden />
         </div>
+        <ComparisonLab activeTab={activeTab} activeResult={activeResult} darkMode={darkMode} />
       </div>
-    </div>
     )}
-        </div>
-      )}
     </div>
       )}
     <div className="mt-8 flex flex-col gap-6">
@@ -2391,14 +2793,19 @@ const insertLinkingWord = (word) => {
         <div className="w-full sm:w-auto">
           <button 
             onClick={saveCurrentToArchive}
-            disabled={isSaved}
+            disabled={!activeResult || isSaved || isSavingArchive}
             className={`w-full sm:w-auto group flex items-center justify-center gap-2 px-6 py-4 sm:py-3 text-sm font-extrabold tracking-tight transition-all duration-300 rounded-2xl shadow-sm active:scale-95 disabled:opacity-50 ${
               isSaved 
                 ? 'bg-green-600 text-white' 
                 : 'bg-slate-900 dark:bg-slate-800 text-white hover:bg-slate-800 dark:hover:bg-slate-700'
             }`}
           >
-            {isSaved ? (
+            {isSavingArchive ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Saving…</span>
+              </>
+            ) : isSaved ? (
               <>
                 <CheckCircle className="w-4 h-4 animate-bounce" />
                 <span>Saved!</span>
@@ -2436,343 +2843,27 @@ const insertLinkingWord = (word) => {
 
       </div>
         </div>
-        {/* Aside: loading skeleton or result */}
-         <aside className="lg:col-span-4 space-y-6" ref={activeResultsRef}>
-      {(activeTab === 'Task 1' ? loadingT1 : loadingT2) ? (
-        <div className={`rounded-3xl border border-dashed border-white/5 p-8 ${darkMode ? 'bg-slate-900/40' : 'bg-indigo-50/20'}`}>
-          <LoadingState />
-        </div>
-      ) : !activeResult ? (
-        <div className={`min-h-80 border border-dashed border-white/5 rounded-3xl transition-all ${darkMode ? 'bg-slate-900/20' : 'bg-slate-50/80'}`}>
-          <EmptyState
-            message="Submit your essay to receive instant AI feedback and band score."
-            className="text-slate-500 dark:text-slate-400"
-          />
-        </div>
-      ) : (
-             <motion.div
-        initial={{ opacity: 0, y: 20 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        className="space-y-6 lg:sticky lg:top-24 max-h-[calc(100vh-120px)] pr-2 custom-scrollbar no-scrollbar"
-        >
-          <div className="relative group overflow-hidden bg-slate-950 rounded-[3rem] p-1 shadow-2xl shadow-indigo-900/30">
-  <div className="group relative z-10 rounded-[2rem] sm:rounded-[2.8rem] bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-800 p-5 sm:p-8 text-white shadow-2xl shadow-indigo-900/20">
-    
-    {/* Эффект блеска при наведении */}
-    <div className="pointer-events-none absolute inset-0 translate-x-[-150%] bg-gradient-to-tr from-white/0 via-white/20 to-white/0 transition-transform duration-1000 group-hover:translate-x-[150%]" />
-
-    <div className="relative z-20 flex flex-col gap-6">
-      {/* ВЕРХНЯЯ ЧАСТЬ: Балл и Версия ИИ */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
-            <p className="text-[8px] font-extrabold uppercase tracking-[0.3em] text-white/80 sm:text-[9px] sm:tracking-[0.4em]">
-              Performance Index
-            </p>
-          </div>
-          <h4 className="flex items-baseline font-extrabold leading-none tracking-tighter text-[18vw] sm:text-7xl md:text-8xl">
-            <AnimatedScore value={activeResult.overall_band} />
-            <span className="ml-2 text-lg font-light opacity-30 sm:text-xl">/ 9.0</span>
-          </h4>
-        </div>
-
-        <div className="shrink-0 rounded-xl border border-white/10 bg-slate-950/30 px-3 py-2 text-right backdrop-blur-md sm:px-4">
-          <p className="text-[7px] font-extrabold uppercase tracking-widest text-indigo-200 dark:text-indigo-300 sm:text-[8px]">AI Engine</p>
-          <p className="text-[9px] font-bold sm:text-[10px]">v4.2 PRO</p>
-        </div>
       </div>
-      {/* НИЖНЯЯ ЧАСТЬ: Кнопки управления */}
-      <div className="flex flex-row items-stretch gap-2 mt-2">
-        <button 
-          onClick={() => downloadReport()}
-          className="group/btn flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 dark:bg-slate-950 px-4 py-4 text-xs font-extrabold tracking-tight text-white transition-all hover:bg-slate-800 dark:hover:bg-slate-900 hover:shadow-xl active:scale-[0.97] sm:gap-3 sm:rounded-[1.8rem] sm:py-5"
-        >
-          <Download className="h-4 w-4 text-indigo-400 transition-transform group-hover/btn:translate-y-0.5 sm:h-5 sm:w-5" /> 
-          <span className="whitespace-nowrap">Official PDF</span>
-        </button>
-
-        <button 
-          onClick={() => shareReport(activeResult)} 
-          className="flex aspect-square w-12 items-center justify-center rounded-2xl bg-white/10 text-white transition-all hover:bg-white/20 active:scale-90 sm:w-auto sm:px-5"
-          title="Share Analysis"
-        >
-          <Share2 className="h-5 w-5" /> 
-        </button>
-      </div>
-    </div>
-  </div>
-
-  {/* Background Decor */}
-  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-400/10 blur-[100px] rounded-full -mr-20 -mt-20 pointer-events-none" />
-</div>
-
-          {/* EXAMINER'S CHECKLIST — Expert tips status */}
-          {(() => {
-            const checklistTips = activeTab === 'Task 1' ? TASK1_TIPS : TASK2_TIPS;
-            const status = getChecklistStatus(activeTab, activeTab === 'Task 1' ? essayT1 : essayT2, activeResult);
-            const IconMapT1 = { EyeOff, Crown, Filter, Type, LayoutGrid };
-            const IconMapT2 = { RefreshCw, AlignLeft, Shield, Target, Zap };
-            const IconMap = activeTab === 'Task 1' ? IconMapT1 : IconMapT2;
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className={`p-5 rounded-[2rem] border shadow-sm ${darkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white/80 border-slate-200'}`}
-              >
-                <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-4">
-                  Examiner&apos;s Checklist
-                </h5>
-                <ul className="space-y-3">
-                  {checklistTips.map((tip, i) => {
-                    const followed = status[tip.id] === true;
-                    const Icon = IconMap[tip.icon];
-                    return (
-                      <motion.li
-                        key={tip.id}
-                        initial={{ opacity: 0, x: -6 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.05 * i }}
-                        className="flex items-center gap-2.5 text-sm"
-                      >
-                        {followed ? (
-                          <Check className="w-4 h-4 shrink-0 text-emerald-500 dark:text-emerald-400" strokeWidth={1.5} />
-                        ) : (
-                          <AlertCircle className="w-4 h-4 shrink-0 text-amber-500 dark:text-amber-400" strokeWidth={1.5} />
-                        )}
-                        {Icon && <Icon className="w-4 h-4 shrink-0 text-slate-500 dark:text-slate-400" strokeWidth={1.5} />}
-                        <span className={followed ? 'text-slate-700 dark:text-slate-200' : 'text-slate-600 dark:text-slate-300'}>
-                          {tip.label}
-                        </span>
-                      </motion.li>
-                    );
-                  })}
-                </ul>
-              </motion.div>
-            );
-          })()}
-
-          {/* --- 3. DEEP LINGUISTIC ANALYSIS --- */}
-          <div className={`p-8 rounded-[3rem] border shadow-sm max-h-[600px] overflow-y-auto scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
- ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 dark:border-slate-800'}`}>
-    <h5 className="text-xs font-extrabold mb-6 tracking-tight text-slate-800 dark:text-slate-100 sticky top-0 bg-inherit z-10 pb-2">
-        Linguistic Insights
-    </h5>
-            <div className="space-y-6">
-              
-              {/* Linking Words Section */}
-                <div className="space-y-5">
-  {/* ЗАГОЛОВОК И БАЛЛ */}
-  <div className="flex justify-between items-end border-b-[3px] border-blue-500/20 pb-2">
-    <div className="flex items-center gap-2">
-      <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-      <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">Linking Words</span>
-    </div>
-    <span className="text-[11px] font-black text-blue-600 bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 rounded-md italic">
-      Score: {activeResult.analysis?.linking_words?.score}/9.0
-    </span>
-  </div>
-
-  {/* СПИСОК НАЙДЕННЫХ СЛОВ */}
-  <div className="flex flex-wrap gap-2">
-    {activeResult.analysis?.linking_words?.found?.map((w, i) => (
-      <button 
-        key={i}
-        onClick={() => triggerHighlight(w)}
-        className={`group flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-xl font-bold transition-all active:scale-95
-          ${darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
-      >
-        {/* ИСПРАВЛЕНО: Теперь линия — это жирное подчеркивание текста, а не граница кнопки */}
-        <span className="underline underline-offset-[4px] decoration-transparent group-hover:decoration-blue-500 decoration-[3px] transition-all">
-          {w}
-        </span>
-        <Search className="w-3 h-3 opacity-0 group-hover:opacity-100 text-blue-500 transition-all transform group-hover:scale-110" />
-      </button>
-    ))}
-  </div>
-
-  {/* БЛОК ПРЕДЛОЖЕНИЙ */}
-    <div className="p-5 rounded-[2.5rem] bg-blue-50/50 dark:bg-blue-950/20 border-2 border-blue-100 dark:border-blue-900/30">
-  <p className="text-[9px] font-black uppercase text-blue-600 mb-4 tracking-[0.2em] flex items-center gap-2">
-    <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-    <span className="underline underline-offset-[6px] decoration-blue-500/40 decoration-[3px]">
-      Suggested Additions
-    </span>
-  </p>  
-  <div className="flex flex-wrap gap-2">
-  {(() => {
-    const suggestions = activeResult.analysis?.linking_words?.suggestions;
-    const hasSuggestions = suggestions && suggestions.length > 0;
-
-    if (!hasSuggestions) {
-      return (
-        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 italic py-1 px-2">
-          Great flow! No extra suggestions needed.
-        </span>
-      );
-    }
-
-    return suggestions.map((s, i) => (
-      <button 
-        key={i} 
-        onClick={() => insertLinkingWord(s)}
-        className="group relative text-[9px] bg-white dark:bg-slate-800 text-blue-600 px-3 py-2.5 rounded-xl font-black shadow-sm border border-blue-100 dark:border-blue-800 hover:border-blue-500 hover:shadow-md active:scale-95 transition-all flex items-center gap-1.5"
-        title={`Click to insert "${s}"`}
-      >
-        <span className="opacity-40 group-hover:text-blue-500 group-hover:opacity-100 transition-all font-bold">+</span>
-        <span className="underline underline-offset-[2px] decoration-transparent group-hover:decoration-blue-500/50 decoration-2 transition-all">
-          {s}
-        </span>
-      </button>
-    ));
-  })()}
-</div>
-
-    </div>
-
-</div>
-
-
-              {/* Repetitions List */}
-              <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-                <span className="text-[10px] font-extrabold uppercase block mb-4 text-slate-800 dark:text-slate-100">Frequency Alert</span>
-                  <div className="space-y-2">
-  <AnimatePresence mode="popLayout">
-    {activeResult?.analysis?.word_repetition?.map((item, i) => {
-      const wordText = typeof item === 'object' ? item.word : item;
-      const count = typeof item === 'object' ? item.count : 0;
-      const synonyms = item.alternatives || []; 
-
-      return (
-        <motion.div
-          key={wordText + i}
-          layout
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className={`w-full p-4 rounded-2xl border transition-all mb-3 ${
-            darkMode ? 'bg-slate-900/40 border-slate-800 shadow-none' : 'bg-white border-red-50 shadow-sm'
-          }`}
-        >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            {/* ИНФОРМАЦИЯ О СЛОВЕ */}
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-extrabold uppercase tracking-tight text-slate-900 dark:text-slate-100`}>
-                "{wordText}"
-              </span>
-              <span className="text-[10px] text-red-500 font-bold bg-red-100/20 px-2 py-0.5 rounded-full border border-red-500/10">
-                {count}x repeated
-              </span>
-            </div>
-
-            {/* ПОИСК ВХОЖДЕНИЙ */}
-              <div className="flex items-center gap-3">
-  <button 
-    onClick={(e) => {
-      e.preventDefault();
-      if (typeof playClickSound === 'function') playClickSound();
-      
-      // 1. Запускаем вашу логику поиска
-      triggerHighlight(wordText);
-
-      // 2. Добавляем плавный скролл (с небольшой задержкой, чтобы DOM успел обновиться)
-      setTimeout(() => {
-        const matches = document.querySelectorAll('.search-match');
-        if (matches.length > 0) {
-          // Скроллим к текущему индексу (current) или к первому, если только начали
-          const targetIndex = searchState.word === wordText.toLowerCase().trim() 
-            ? (searchState.current + 1) % matches.length 
-            : 0;
-
-          matches[targetIndex].scrollIntoView({
-            behavior: 'smooth',
-            block: 'center', // Чтобы слово было в центре экрана, а не сверху
-          });
-        }
-      }, 50); 
-    }}
-    className="group relative flex items-center gap-2 cursor-pointer select-none outline-none active:scale-95 transition-all py-1"
-  >
-    <div className="flex items-baseline gap-1">
-      <span className={`
-        text-[10px] font-black uppercase tracking-[0.15em] transition-all duration-200
-        pb-0.5 border-b-[3px] 
-        ${searchState.word === wordText.toLowerCase().trim() 
-          ? 'text-red-600 border-red-600' 
-          : 'text-slate-600 dark:text-slate-400 border-transparent group-hover:text-red-600 group-hover:border-red-600/50'}
-      `}>
-        Find
-      </span>
-
-      {searchState.word === wordText.toLowerCase().trim() && searchState.count > 0 && (
-        <span className="ml-1 text-[10px] font-black tabular-nums text-red-600 animate-in fade-in zoom-in duration-300">
-          {searchState.current + 1}
-          <span className="mx-0.5 opacity-40">/</span>
-          {searchState.count}
-        </span>
+      {activeResult && !loading && activeResult.suggested_rewrite && (
+        <SuggestedRewriteKaraoke
+          fullBleedLayout
+          bandScore="8.5+"
+          suggestedRewrite={activeResult.suggested_rewrite}
+          audioRef={karaokeAudio.audioRef}
+          audioUrl={karaokeAudio.audioUrl}
+          audioDuration={karaokeAudio.audioDuration}
+          isAudioLoading={karaokeAudio.isAudioLoading}
+          isPlaying={karaokeAudio.isPlaying}
+          audioProgress={karaokeAudio.audioProgress}
+          audioTime={karaokeAudio.audioTime}
+          audioError={karaokeAudio.audioError}
+          onGenerateAudio={karaokeAudio.onGenerateAudio}
+          onTogglePlay={karaokeAudio.onTogglePlay}
+          onSeek={karaokeAudio.onSeek}
+          formatTime={karaokeAudio.formatTime}
+        />
       )}
-    </div>
-
-    <Search className={`
-      w-3.5 h-3.5 transition-colors duration-200
-      ${searchState.word === wordText.toLowerCase().trim() 
-        ? 'text-red-600' 
-        : 'text-slate-600 dark:text-slate-400 group-hover:text-red-600'}
-    `} />
-  </button>
-</div>
-
-          </div>
-
-          {/* СЕКЦИЯ СИНОНИМОВ (UPGRADES) */}
-          {synonyms.length > 0 && (
-            <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
-              <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-400 mb-2 tracking-widest flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-emerald-500" />
-                Band 8.0+ Replacements:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {synonyms.map((syn) => (
-                  <button
-                    key={syn}
-                    onClick={() => replaceNext(wordText, syn)}
-                    className={`flex items-center gap-1.5 text-[10px] px-3 py-1.5 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 border ${
-                      darkMode 
-                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 shadow-none' 
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100 shadow-sm'
-                    }`}
-                  >
-                    + {syn}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </motion.div>
-      );
-    })}
-  </AnimatePresence>
-</div>
-  </div>
-              {/* Integrity Badge */}
-              {activeResult.plagiarism && (
-                <div className={`mt-6 p-4 rounded-2xl border-l-4 ${activeResult.plagiarism.score > 30 ? 'bg-red-50 border-red-500' : 'bg-emerald-50 border-emerald-500'}`}>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[9px] font-extrabold uppercase text-slate-800 dark:text-slate-100">Plagiarism Check</span>
-                    <span className="text-[9px] font-extrabold text-slate-900 dark:text-white">{activeResult.plagiarism.score}%</span>
-                  </div>
-                  <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">{activeResult.plagiarism.status}</p>
-                </div>
-              )}
-
-            </div>
-          </div>
-
-        </motion.div>
-      )}
-      </aside>  
-      </div>
+      </>
     )}
       {activeTab === 'Archive' && (
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-2 sm:px-0">
@@ -2854,14 +2945,20 @@ const insertLinkingWord = (word) => {
             <button 
               onClick={() => {
                 if (entry.taskType === 'Task 1') {
-                  setResultT1(entry.fullData); 
-                  setEssayT1(entry.essay); 
-                  if (entry.question) setPromptT1(entry.question); 
+                  setResultT1({
+                    ...(entry.fullData || {}),
+                    text: entry.essay || entry.fullData?.text || '',
+                  });
+                  setEssayT1(entry.essay);
+                  if (entry.question) setPromptT1(entry.question);
                   setActiveTab('Task 1');
                 } else {
-                  setResultT2(entry.fullData); 
-                  setEssayT2(entry.essay); 
-                  if (entry.question) setPromptT2(entry.question); 
+                  setResultT2({
+                    ...(entry.fullData || {}),
+                    text: entry.essay || entry.fullData?.text || '',
+                  });
+                  setEssayT2(entry.essay);
+                  if (entry.question) setPromptT2(entry.question);
                   setActiveTab('Task 2');
                 }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3022,6 +3119,7 @@ const insertLinkingWord = (word) => {
 
 {/* КНОПКА НАВЕРХ */}
 
+        </div>
       </div>
     );
   }

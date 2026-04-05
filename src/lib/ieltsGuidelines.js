@@ -3,19 +3,19 @@
  * Icons (Lucide React) are mapped in components. Used on Landing, Dashboard (Cheat Sheet), and Analysis (Examiner's Checklist).
  */
 export const TASK1_TIPS = [
-  { id: 'no-opinion', label: 'No Personal Opinion', icon: 'EyeOff' },
-  { id: 'overview', label: 'The Overview is King', icon: 'Crown' },
-  { id: 'no-dump', label: 'Avoid Data Dumping', icon: 'Filter' },
-  { id: 'vocabulary', label: 'Vary Your Vocabulary', icon: 'Type' },
-  { id: 'group-data', label: 'Group Your Data', icon: 'LayoutGrid' },
+  { id: 'overview-included', label: 'Overview Included', icon: 'Eye' },
+  { id: 'data-accuracy', label: 'Data Accuracy', icon: 'Target' },
+  { id: 'no-personal-opinion', label: 'No Personal Opinion', icon: 'Shield' },
+  { id: 'comparisons-made', label: 'Comparisons Made', icon: 'Filter' },
+  { id: 'complex-sentences', label: 'Complex Sentences', icon: 'Zap' },
 ];
 
 export const TASK2_TIPS = [
-  { id: 'paraphrase', label: 'Paraphrase the Prompt', icon: 'RefreshCw' },
-  { id: 'one-idea', label: 'One Idea, One Paragraph', icon: 'AlignLeft' },
-  { id: 'formal', label: 'Formal Tone Only', icon: 'Shield' },
-  { id: 'thesis', label: 'The Thesis Statement', icon: 'Target' },
-  { id: 'complex', label: 'Complex Structures', icon: 'Zap' },
+  { id: 'clear-thesis', label: 'Clear Thesis Statement', icon: 'Target' },
+  { id: 'paragraph-unity', label: 'Paragraph Unity', icon: 'LayoutGrid' },
+  { id: 'main-ideas-supported', label: 'Main Ideas Supported', icon: 'Crown' },
+  { id: 'academic-register', label: 'Academic Register', icon: 'Shield' },
+  { id: 'logical-conclusion', label: 'Logical Conclusion', icon: 'RefreshCw' },
 ];
 
 
@@ -27,42 +27,113 @@ export const TASK2_TIPS = [
  * @returns { Record<string, boolean> } tipId -> true if followed, false if missed
  */
 export function getChecklistStatus(taskType, essayText, result) {
-  const text = (essayText || '').toLowerCase();
+  const essay = String(essayText || '');
+  const text = essay.toLowerCase();
+
   const comments = result?.criteria
-    ? Object.values(result.criteria).map((c) => (c?.comment || '').toLowerCase()).join(' ')
+    ? Object.values(result.criteria)
+      .map((c) => (c?.comment || '').toLowerCase())
+      .join(' ')
     : '';
-  const corrections = (result?.corrections || []).map((c) => (c?.original || '').toLowerCase()).join(' ');
+  const corrections = (result?.corrections || [])
+    .map((c) => (c?.original || '').toLowerCase())
+    .join(' ');
+
+  // Includes "original/explanation/type" from the examiner pass, not just the criteria comments.
+  const errorsText = Array.isArray(result?.errors)
+    ? result.errors
+        .map((e) => `${e?.type || ''} ${e?.original || ''} ${e?.explanation || ''}`)
+        .join(' ')
+        .toLowerCase()
+    : '';
+
+  const checklist = result?.checklist || null;
+  const getChecklistBool = (key) => {
+    if (!checklist || !Object.prototype.hasOwnProperty.call(checklist, key)) return undefined;
+    const v = checklist[key];
+    if (v === true) return true;
+    if (v === false) return false;
+    if (typeof v === 'number') return v === 1;
+    if (typeof v === 'string') {
+      const s = v.trim().toLowerCase();
+      if (s === 'true' || s === '1' || s === 'yes') return true;
+      if (s === 'false' || s === '0' || s === 'no') return false;
+    }
+    return undefined;
+  };
 
   if (taskType === 'Task 1') {
     const hasFirstPerson = /\b(i|my|we|our|me)\b/.test(text);
-    const overviewMention = /overview|summaris(e|ing)|main (feature|trend)/.test(comments);
-    const dataDumpWarning = /(data dump|list|listing|every (detail|number)|too much detail)/.test(comments);
-    const vocabMention = /(variety|vocabulary|repetition|repetitive|vary)/.test(comments);
-    const groupingMention = /(group|organi(z|s)ation|logical|clear (structure|paragraph))/.test(comments);
+
+    const overviewRegex = /(overall|in general|to summarize|in summary|main (features|trends|points))/i;
+    const overviewMention = overviewRegex.test(essay) || /overview|summaris(e|ing)|main (feature|trend)/.test(comments);
+
+    const comparisonsRegex =
+      /(compared to|compared with|in contrast|while|whereas|however|on the other hand|more than|less than|the (highest|lowest|greatest|smallest)|surpass(ed|es)?|outnumber(ed|s)?)/i;
+    const comparisonsMade = comparisonsRegex.test(essay);
+
+    const complexRegex =
+      /(because|although|whereas|while|since|which|that |who |whom |when |where |if |unless |despite|moreover|nevertheless|consequently)/i ||
+      /;/.test(essay) ||
+      (essay.split(/\n+/).join(' ').match(/,\s*\w+/g)?.length || 0) >= 3;
+    const complexSentences = Boolean(complexRegex);
+
+    // If the examiner found logic errors that indicate factual mismatch/contradiction, assume data accuracy is weak.
+    const dataAccuracyIssues = /(contradict|contradiction|inconsistent|inaccurate|wrong trend|does not match|mismatch|incorrect|unsupported)/i.test(
+      [comments, corrections, errorsText].join(' ')
+    );
+    const dataAccuracy = !dataAccuracyIssues;
+
+    const noPersonalOpinion = !hasFirstPerson;
 
     return {
-      'no-opinion': !hasFirstPerson,
-      overview: overviewMention === false || /overview|clear (overview|summary)/.test(comments),
-      'no-dump': !dataDumpWarning,
-      vocabulary: !/repetition|repetitive/.test(comments) || vocabMention,
-      'group-data': groupingMention || !/disorgani(z|s)ed|no (clear )?structure/.test(comments),
+      'overview-included': getChecklistBool('overview_included') ?? overviewMention,
+      'data-accuracy': getChecklistBool('data_accuracy') ?? dataAccuracy,
+      'no-personal-opinion': getChecklistBool('no_personal_opinion') ?? noPersonalOpinion,
+      'comparisons-made': getChecklistBool('comparisons_made') ?? comparisonsMade,
+      'complex-sentences': getChecklistBool('complex_sentences') ?? complexSentences,
     };
   }
 
   if (taskType === 'Task 2') {
-    const hasParaphrase = text.length > 50 && (/(it is (often |widely )?(argued|believed|said)|many people|some argue|the (topic|issue|question))/i.test(text) || !/^(in (this )?essay|this essay (will|discuss))/i.test(text));
-    const informal = /\b(gonna|wanna|gotta|yeah|stuff|thing|lots of|a lot of|kind of|sort of)\b/.test(text) || /\b(i think|i believe|in my opinion)\b/.test(text);
-    const hasThesis = text.length > 80 && (/(this essay (will|aims)|(will|shall) (argue|discuss|examine)|(the (main )?argument|thesis))/i.test(text) || text.split(/\n/).length >= 2);
-    const complexMention = /(complex (sentence|structure)|subordination|compound|variety of (structure|sentence))/.test(comments) || !/(simple (only|sentence)|lack of (complexity|variety))/.test(comments);
+    const paragraphs = essay
+      .trim()
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const clearThesisRegex =
+      /(this essay (will|aims|discuss)|in this essay (will|i will)|the (main )?(argument|thesis)|i (agree|disagree)|i believe|i would argue|it is argued|it is believed)/i;
+    const clearThesisStatement = clearThesisRegex.test(essay);
+
+    const academicRegisterIssues = /\b(gonna|wanna|gotta|yeah|stuff|thing|lots of|a lot of|kind of|sort of|kinda|sorta|like)\b/i.test(essay) ||
+      /\b(can't|won't|don't|isn't|aren't|i'm|it's|they're|we're|he's|she's)\b/i.test(essay);
+    const academicRegister = !academicRegisterIssues;
+
+    const paragraphUnityIssues = /(off topic|irrelevant|lack of (unity|focus)|paragraph (shift|switch)|unclear structure)/i.test(
+      [comments, corrections, errorsText].join(' ')
+    );
+    const paragraphUnity = !paragraphUnityIssues && paragraphs.length >= 2;
+
+    const supportedIdeas =
+      /(for example|for instance|such as|e\.g\.|because\s|since\s|therefore\s|as a result\s|this means\s)/i.test(essay) &&
+      essay.trim().length > 200;
+
+    const mainIdeasSupported = supportedIdeas;
+
+    const logicalConclusionRegex =
+      /(in conclusion|to conclude|overall|to sum up|finally|therefore|thus)\b/i;
+    const logicalConclusion = logicalConclusionRegex.test(essay) && paragraphs.length >= 2;
 
     return {
-      paraphrase: hasParaphrase,
-      'one-idea': !/(multiple ideas in one paragraph|one paragraph (with|has) (many|several))/i.test(comments),
-      formal: !informal,
-      thesis: hasThesis,
-      complex: complexMention,
+      'clear-thesis': getChecklistBool('clear_thesis_statement') ?? clearThesisStatement,
+      'paragraph-unity': getChecklistBool('paragraph_unity') ?? paragraphUnity,
+      'main-ideas-supported': getChecklistBool('main_ideas_supported') ?? mainIdeasSupported,
+      'academic-register': getChecklistBool('academic_register') ?? academicRegister,
+      'logical-conclusion': getChecklistBool('logical_conclusion') ?? logicalConclusion,
     };
   }
 
   return {};
+
 }

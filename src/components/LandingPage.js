@@ -20,6 +20,7 @@ import {
   Download,
   Plus,
   Minus,
+  Eye,
   EyeOff,
   Crown,
   Filter,
@@ -696,7 +697,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               </h3>
               <ul className="space-y-4">
                 {TASK1_TIPS.map((tip, i) => {
-                  const Icon = { EyeOff, Crown, Filter, Type, LayoutGrid }[tip.icon];
+                  const Icon = { Eye, Target, Shield, Filter, Zap }[tip.icon];
                   return (
                     <motion.li
                       key={tip.id}
@@ -723,7 +724,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               </h3>
               <ul className="space-y-4">
                 {TASK2_TIPS.map((tip, i) => {
-                  const Icon = { RefreshCw, AlignLeft, Shield, Target, Zap }[tip.icon];
+                  const Icon = { Target, LayoutGrid, Crown, Shield, RefreshCw }[tip.icon];
                   return (
                     <motion.li
                       key={tip.id}

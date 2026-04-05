@@ -1,6 +1,7 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
+import { Toaster } from "react-hot-toast";
 import { BillingProvider } from "@/components/BillingContext";
 
 export function Providers({ children }) {
@@ -9,6 +10,7 @@ export function Providers({ children }) {
       refetchInterval={5 * 60}
       refetchOnWindowFocus={false}
     >
+      <Toaster position="top-center" />
       <BillingProvider>
         {children}
       </BillingProvider>

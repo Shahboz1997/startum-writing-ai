@@ -1,112 +1,210 @@
 'use client';
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import SuggestedRewriteKaraoke from './dashboard/SuggestedRewriteKaraoke';
+import { Check } from 'lucide-react';
 
-// ─── Dynamic content by activeTab ─────────────────────────────────────────────
-const LABELS = {
-  'Task 1': {
-    left: 'OBSERVATIONAL DRAFT — BAND 5.0',
-    right: 'ACADEMIC DATA REPORT — BAND 8.5+',
-    insights: [
-      '✓ Precise data mapping',
-      "✓ Objective tone (no 'I/me')",
-      '✓ Trend vocabulary used',
-    ],
-  },
-  'Task 2': {
-    left: 'ARGUMENTATIVE DRAFT — BAND 5.5',
-    right: 'ACADEMIC ESSAY — BAND 8.5+',
-    insights: [
-      '✓ Strong thesis statement',
-      '✓ Complex nominalization',
-      '✓ Advanced logical connectors',
-    ],
-  },
+function normalizeErrorType(t) {
+  const s = String(t || '')
+    .toLowerCase()
+    .trim();
+  if (s === 'vocabulary' || s === 'lexical') return 'lexical';
+  if (s === 'logical' || s === 'task' || s === 'cohesion' || s === 'coherence') return 'logic';
+  if (s === 'grammar' || s === 'logic' || s === 'lexical') return s;
+  return 'grammar';
+}
+
+const ERROR_SPAN_CLASS = {
+  grammar: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-b-2 border-rose-500/50',
+  lexical: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-b-2 border-purple-500/50',
+  logic: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-b-2 border-sky-500/50',
 };
 
-// Task 1 draft: Red = inaccurate data / subjective, Blue = simple trend verbs, Indigo = comparison (longer phrases first)
-const T1_DRAFT_HIGHLIGHTS = [
-  { text: 'In contrast to', type: 'indigo' },
-  { text: 'In contrast', type: 'indigo' },
-  { text: 'Compared with', type: 'indigo' },
-  { text: 'Compared to', type: 'indigo' },
-  { text: 'By comparison', type: 'indigo' },
-  { text: 'went up', type: 'blue', suggestion: '→ rose / increased / climbed' },
-  { text: 'went down', type: 'blue', suggestion: '→ fell / declined / dropped' },
-  { text: 'go up', type: 'blue' },
-  { text: 'go down', type: 'blue' },
-  { text: 'a lot', type: 'blue', suggestion: '→ significantly / substantially' },
-  { text: 'I think', type: 'red' },
-  { text: ' I ', type: 'red' },
-  { text: ' I.', type: 'red' },
-  { text: 'I ', type: 'red', suggestion: '→ Remove first person; use passive or "The chart shows"' },
-  { text: ' me ', type: 'red' },
-  { text: ' my ', type: 'red' },
-  { text: ' we ', type: 'red' },
-  { text: ' our ', type: 'red' },
-];
+/** When the essay has no blank-line breaks, split before these discourse markers. */
+const CONNECTOR_SPLIT_RE =
+  /(?=\s*(?:On the one hand|On the other hand|In conclusion)\b)/gi;
 
-// Task 2 draft: Red = grammar / personal pronouns, Blue = low-level vocab
-const T2_DRAFT_HIGHLIGHTS = [
-  { text: 'I think', type: 'red', suggestion: '→ It is widely argued that' },
-  { text: 'good', type: 'blue', suggestion: '→ beneficial / positive' },
-  { text: 'easy', type: 'blue', suggestion: '→ straightforward / readily' },
-  { text: 'bad', type: 'blue', suggestion: '→ detrimental / counterproductive' },
-  { text: 'lazy', type: 'blue', suggestion: '→ intellectually passive' },
-  { text: "don't need", type: 'red', suggestion: '→ need not / are no longer required to' },
-  { text: 'In the end', type: 'red', suggestion: '→ Ultimately' },
-  { text: 'very helpful', type: 'blue', suggestion: '→ highly beneficial / indispensable' },
-  { text: ' things ', type: 'blue', suggestion: '→ aspects / factors' },
-  { text: 'big', type: 'blue', suggestion: '→ substantial / significant' },
-];
+const collapseInnerNewlines = (s) =>
+  s
+    .trim()
+    .replace(/\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-// Task 2 rewrite: Gold = academic verbs & advanced nouns, Indigo = connectors (Purple optional for verbs)
-const T2_REWRITE_PHRASES = [
-  { type: 'connector', phrases: ['It is widely argued that', 'While', 'Furthermore', 'Ultimately', 'Moreover', 'Conversely', 'Nevertheless'] },
-  { type: 'verb', phrases: ['revolutionized', 'induce', 'assert', 'foster', 'maintain', 'enhances', 'transition'] },
-  { type: 'noun', phrases: ['intellectual passivity', 'information repositories', 'pedagogical roles', 'learning environment', 'digital literacy', 'research efficiency'] },
-];
+/**
+ * 1) Split on `\n\n` into paragraphs.
+ * 2) If that yields a single block (no paragraph breaks in source), split before key connectors.
+ */
+function splitEssayIntoParagraphs(raw) {
+  if (!raw || typeof raw !== 'string') return [];
+  const normalized = raw.replace(/\r\n/g, '\n').trim();
+  if (!normalized) return [];
 
-// Task 1 rewrite: Indigo = comparison, Blue = trend vocabulary
-const T1_REWRITE_PHRASES = [
-  { type: 'indigo', phrases: ['In contrast', 'Compared to', 'By comparison', 'Whereas', 'While'] },
-  { type: 'blue', phrases: ['significantly', 'substantially', 'steadily', 'gradually', 'peaked', 'plateaued', 'fluctuated'] },
-];
+  const hasDoubleBreak = /\n\n/.test(normalized);
+  let parts = normalized.split(/\n\n/).map(collapseInnerNewlines).filter(Boolean);
 
-function getDraftSegments(text, activeTab) {
-  if (!text || !text.trim()) return [{ text: text || '', type: null, suggestion: null }];
-  const list = activeTab === 'Task 1' ? T1_DRAFT_HIGHLIGHTS : T2_DRAFT_HIGHLIGHTS;
-  const segments = [];
-  const lower = text.toLowerCase();
-  let i = 0;
-  let normalBuf = '';
-  while (i < text.length) {
-    let matched = false;
-    for (const h of list) {
-      const phrase = h.text;
-      const phraseLower = phrase.toLowerCase();
-      const restLower = lower.substring(i);
-      if (restLower.startsWith(phraseLower)) {
-        if (normalBuf.length) {
-          segments.push({ text: normalBuf, type: null, suggestion: null });
-          normalBuf = '';
-        }
-        segments.push({ text: text.slice(i, i + phrase.length), type: h.type, suggestion: h.suggestion || null });
-        i += phrase.length;
-        matched = true;
-        break;
-      }
-    }
-    if (!matched) {
-      normalBuf += text[i];
-      i += 1;
-    }
+  if (!hasDoubleBreak && parts.length === 1) {
+    const subs = parts[0].split(CONNECTOR_SPLIT_RE).map(collapseInnerNewlines).filter(Boolean);
+    if (subs.length > 1) parts = subs;
   }
-  if (normalBuf.length) segments.push({ text: normalBuf, type: null, suggestion: null });
-  return segments.length ? segments : [{ text: text, type: null, suggestion: null }];
+
+  return parts.length ? parts : [collapseInnerNewlines(normalized)];
 }
+
+function isConclusionParagraph(text) {
+  return /^\s*In conclusion\b/i.test(String(text || ''));
+}
+
+/** Build non-overlapping segments from one paragraph + examiner errors. */
+function buildDraftErrorSegments(content, errors) {
+  if (!content) return [{ kind: 'text', text: '' }];
+  const items = (Array.isArray(errors) ? errors : [])
+    .map((e, i) => {
+      const original = (e.original ?? e.word ?? e.text ?? '').toString();
+      return {
+        id: e.id ?? `err-${i}`,
+        original,
+        originalLen: original.length,
+        errorType: normalizeErrorType(e.type ?? e.category),
+        explanation: (e.explanation || e.impact || '').toString(),
+        suggestion: (e.suggestion || e.fixed || e.correction || '').toString(),
+      };
+    })
+    .filter((e) => e.original.trim());
+
+  if (!items.length) return [{ kind: 'text', text: content }];
+
+  const withPos = items
+    .map((it) => {
+      const pos = content.toLowerCase().indexOf(it.original.toLowerCase());
+      return { ...it, pos };
+    })
+    .filter((it) => it.pos !== -1)
+    .sort((a, b) => a.pos - b.pos);
+
+  const chosen = [];
+  let boundary = 0;
+  for (const it of withPos) {
+    if (it.pos < boundary) continue;
+    chosen.push(it);
+    boundary = it.pos + it.originalLen;
+  }
+
+  const segments = [];
+  let lastEnd = 0;
+  for (const it of chosen) {
+    if (it.pos > lastEnd) segments.push({ kind: 'text', text: content.slice(lastEnd, it.pos) });
+    segments.push({
+      kind: 'error',
+      id: it.id,
+      errorType: it.errorType,
+      text: content.slice(it.pos, it.pos + it.originalLen),
+      explanation: it.explanation,
+      suggestion: it.suggestion,
+    });
+    lastEnd = it.pos + it.originalLen;
+  }
+  if (lastEnd < content.length) segments.push({ kind: 'text', text: content.slice(lastEnd) });
+  return segments.length ? segments : [{ kind: 'text', text: content }];
+}
+
+/** Error highlighting inside a single paragraph (draft). */
+function highlightDraft(paragraphText, errors, { setTooltip, keyPrefix = 'd' }) {
+  const segments = buildDraftErrorSegments(paragraphText || '', errors);
+  return segments.map((seg, i) => {
+    if (seg.kind !== 'error') {
+      return <span key={`${keyPrefix}-t-${i}`}>{seg.text}</span>;
+    }
+    const cls = ERROR_SPAN_CLASS[seg.errorType] || ERROR_SPAN_CLASS.grammar;
+    const tip = [seg.explanation, seg.suggestion].filter(Boolean).join(' — ');
+    return (
+      <span
+        key={`${keyPrefix}-${seg.id}-${i}`}
+        className={`rounded-sm ${cls}`}
+        title={tip || undefined}
+        onMouseEnter={(e) => {
+          if (!tip) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          setTooltip({
+            show: true,
+            text: tip,
+            x: rect.left + rect.width / 2,
+            y: rect.top,
+          });
+        }}
+        onMouseLeave={() => setTooltip((t) => ({ ...t, show: false }))}
+      >
+        {seg.text}
+      </span>
+    );
+  });
+}
+
+const T2_REWRITE_PHRASES = [
+  {
+    type: 'connector',
+    phrases: [
+      'It is widely argued that',
+      'While',
+      'Furthermore',
+      'Ultimately',
+      'Moreover',
+      'Conversely',
+      'Nevertheless',
+    ],
+  },
+  {
+    type: 'verb',
+    phrases: [
+      'revolutionized',
+      'induce',
+      'assert',
+      'foster',
+      'maintain',
+      'enhances',
+      'transition',
+    ],
+  },
+  {
+    type: 'noun',
+    phrases: [
+      'intellectual passivity',
+      'information repositories',
+      'pedagogical roles',
+      'learning environment',
+      'digital literacy',
+      'research efficiency',
+    ],
+  },
+];
+
+const T1_REWRITE_PHRASES = [
+  {
+    type: 'connector',
+    phrases: ['In contrast', 'Compared to', 'By comparison', 'Whereas', 'While'],
+  },
+  {
+    type: 'noun',
+    phrases: [
+      'significantly',
+      'substantially',
+      'steadily',
+      'gradually',
+      'peaked',
+      'plateaued',
+      'fluctuated',
+    ],
+  },
+];
+
+const REWRITE_SPAN_CLASS = {
+  connector:
+    'rounded-sm bg-sky-500/10 font-semibold text-sky-950 underline decoration-sky-600/60 decoration-2 underline-offset-2 dark:bg-sky-500/10 dark:text-sky-100 dark:decoration-sky-400/60',
+  verb:
+    'rounded-sm bg-purple-500/10 font-semibold text-purple-950 underline decoration-purple-600/60 decoration-2 underline-offset-2 dark:bg-purple-500/10 dark:text-purple-100 dark:decoration-purple-400/60',
+  noun:
+    'rounded-sm bg-yellow-400/10 font-semibold text-yellow-950 underline decoration-yellow-600/60 decoration-2 underline-offset-2 dark:bg-yellow-400/10 dark:text-yellow-100 dark:decoration-yellow-400/60',
+};
 
 function getRewriteSegments(text, activeTab) {
   if (!text || !text.trim()) return [{ text: text || '', type: null }];
@@ -117,7 +215,7 @@ function getRewriteSegments(text, activeTab) {
       let pos = 0;
       let idx;
       while ((idx = text.indexOf(phrase, pos)) !== -1) {
-        byStart.push({ start: idx, end: idx + phrase.length, type, text: phrase });
+        byStart.push({ start: idx, end: idx + phrase.length, type, phrase });
         pos = idx + 1;
       }
     });
@@ -130,335 +228,246 @@ function getRewriteSegments(text, activeTab) {
   });
   const segments = [];
   let last = 0;
-  merged.forEach(({ start, end, type, text: phrase }) => {
+  merged.forEach(({ start, end, type, phrase }) => {
     if (start > last) segments.push({ text: text.slice(last, start), type: null });
     segments.push({ text: phrase, type });
     last = end;
   });
   if (last < text.length) segments.push({ text: text.slice(last), type: null });
-  return segments.length ? segments : [{ text: text, type: null }];
+  return segments.length ? segments : [{ text, type: null }];
 }
 
-const DRAFT_STYLES = {
-  red: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded px-0.5 border-b-2 border-red-400 dark:border-red-500/80',
-  blue: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 rounded px-0.5 border-b-2 border-blue-400 dark:border-blue-500/80',
-  indigo: 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200 rounded px-0.5 border-b-2 border-indigo-400 dark:border-indigo-500/80',
-};
-
-const REWRITE_STYLES_T1 = {
-  indigo: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100',
-  blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100',
-};
-
-const REWRITE_STYLES_T2 = {
-  connector: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-100',
-  verb: 'bg-violet-100 dark:bg-violet-900/30 text-violet-900 dark:text-violet-100',
-  noun: 'bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100',
-};
-
-function base64ToBlob(base64, mimeType) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: mimeType || 'audio/mpeg' });
-}
-
-async function fetchTtsWithTimestamps({ text, filenameBase }) {
-  const response = await fetch('/api/tts', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, filename: filenameBase }),
+/** Connector / lexical lift highlighting inside one rewrite paragraph. */
+function highlightRewrite(paragraphText, activeTab, keyPrefix = 'r') {
+  const segs = getRewriteSegments(paragraphText || '', activeTab);
+  return segs.map((seg, i) => {
+    if (!seg.type || !REWRITE_SPAN_CLASS[seg.type]) {
+      return <span key={`${keyPrefix}-t-${i}`}>{seg.text}</span>;
+    }
+    return (
+      <span key={`${keyPrefix}-h-${i}`} className={REWRITE_SPAN_CLASS[seg.type]}>
+        {seg.text}
+      </span>
+    );
   });
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({}));
-    throw new Error(data?.error || 'TTS failed');
-  }
-  const data = await response.json();
-  const blob = data.audioBase64 ? base64ToBlob(data.audioBase64) : null;
-  return { blob };
 }
 
-export default function ComparisonLab({
-  activeTab,
-  draftText,
-  suggestedRewrite,
-  darkMode,
-  className = '',
-}) {
+/** Longform essay body — premium editorial rhythm */
+const PARA_ESSAY =
+  'mb-8 text-justify font-serif text-lg font-normal leading-[1.9] last:mb-0 text-slate-800 dark:text-slate-200';
+
+/** Drop cap: first letter of suggested rewrite, desktop only */
+const DROP_CAP_CLASS =
+  'md:first-letter:float-left md:first-letter:mr-3 md:first-letter:leading-none md:first-letter:font-black md:first-letter:text-5xl md:first-letter:text-indigo-600 dark:md:first-letter:text-indigo-400';
+
+const LEGEND_ITEMS = [
+  { key: 'grammar', label: 'Grammar', dot: 'bg-rose-500' },
+  { key: 'vocab', label: 'Vocabulary', dot: 'bg-purple-500' },
+  { key: 'logic', label: 'Logic/Data', dot: 'bg-blue-600' },
+  { key: 'connectors', label: 'Connectors', dot: 'bg-sky-400' },
+];
+
+function buildInsightsLines(activeResult, activeTab) {
+  const raw = activeResult?.insights;
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw
+      .map((x) =>
+        typeof x === 'string' ? x : (x?.text ?? x?.label ?? x?.title ?? String(x ?? ''))
+      )
+      .filter(Boolean);
+  }
+
+  const criteria = activeResult?.criteria || {};
+  const taskKey = activeTab === 'Task 1' ? 'Task_Achievement' : 'Task_Response';
+  const lines = [];
+
+  const pushComment = (label, block) => {
+    if (!block) return;
+    const c = block.comment;
+    if (typeof c === 'string' && c.trim()) {
+      const t = c.trim();
+      lines.push(`${label}: ${t.slice(0, 140)}${t.length > 140 ? '…' : ''}`);
+    } else if (block.score != null && block.score !== '') {
+      lines.push(`${label}: ${Number(block.score).toFixed(1)}`);
+    }
+  };
+
+  pushComment(activeTab === 'Task 1' ? 'Task achievement' : 'Task response', criteria[taskKey]);
+  pushComment('Coherence & cohesion', criteria.Coherence_and_Cohesion);
+  pushComment('Lexical resource', criteria.Lexical_Resource);
+  pushComment('Grammar', criteria.Grammatical_Range_and_Accuracy);
+
+  if (lines.length) return lines.slice(0, 6);
+
+  return [
+    'Academic register and objective tone',
+    'Clear logical progression',
+    'Strong lexical precision',
+  ];
+}
+
+export default function ComparisonLab({ activeTab, activeResult, darkMode, className = '' }) {
   const [tooltip, setTooltip] = useState({ show: false, text: '', x: 0, y: 0 });
-  const [isAudioLoading, setIsAudioLoading] = useState(false);
-  const [audioUrl, setAudioUrl] = useState(null);
-  const [audioBlob, setAudioBlob] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioProgress, setAudioProgress] = useState(0);
-  const [audioTime, setAudioTime] = useState(0);
-  const [audioDuration, setAudioDuration] = useState(0);
-  const [audioError, setAudioError] = useState('');
-  const audioRef = useRef(null);
 
-  const labels = LABELS[activeTab] || LABELS['Task 2'];
-  const draftSegments = useMemo(() => getDraftSegments(draftText || '', activeTab), [draftText, activeTab]);
-  const rewriteSegments = useMemo(() => getRewriteSegments(suggestedRewrite || '', activeTab), [suggestedRewrite, activeTab]);
-  const rewriteStyles = activeTab === 'Task 1' ? REWRITE_STYLES_T1 : REWRITE_STYLES_T2;
+  const draftText =
+    (typeof activeResult?.text === 'string' && activeResult.text) ||
+    (typeof activeResult?.content === 'string' && activeResult.content) ||
+    '';
 
-  const formatTime = useCallback((s) => {
-    const n = Number.isFinite(Number(s)) ? Math.max(0, Math.floor(s)) : 0;
-    return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
-  }, []);
+  const suggestedRewrite = activeResult?.suggested_rewrite || '';
+  const errors = Array.isArray(activeResult?.errors) ? activeResult.errors : [];
 
-  const audioFilenameBase = activeTab === 'Task 1' ? 'Stratum_Task1_Comparison' : 'Stratum_Task2_Comparison';
+  const draftParagraphs = useMemo(() => splitEssayIntoParagraphs(draftText), [draftText]);
+  const rewriteParagraphs = useMemo(() => splitEssayIntoParagraphs(suggestedRewrite), [suggestedRewrite]);
 
-  const handleGenerateAudio = useCallback(async () => {
-    if (!suggestedRewrite || isAudioLoading) return;
-    setIsAudioLoading(true);
-    setAudioError('');
-    try {
-      const { blob } = await fetchTtsWithTimestamps({ text: suggestedRewrite, filenameBase: audioFilenameBase });
-      const url = window.URL.createObjectURL(blob);
-      setAudioBlob(blob);
-      setAudioUrl((prev) => {
-        if (prev) window.URL.revokeObjectURL(prev);
-        return url;
-      });
-      setIsPlaying(false);
-      setAudioProgress(0);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-    } catch (e) {
-      setAudioError(e?.message || 'Unable to generate audio.');
-    } finally {
-      setIsAudioLoading(false);
-    }
-  }, [suggestedRewrite, audioFilenameBase, isAudioLoading]);
+  const insightsLines = useMemo(
+    () => buildInsightsLines(activeResult, activeTab),
+    [activeResult, activeTab]
+  );
 
-  const handleTogglePlay = useCallback(async () => {
-    if (!audioRef.current || !audioUrl || isAudioLoading) return;
-    if (audioRef.current.paused) {
-      await audioRef.current.play();
-      setIsPlaying(true);
-    } else {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    }
-  }, [audioUrl, isAudioLoading]);
+  const draftBandLabel = useMemo(() => {
+    const b = activeResult?.overall_band;
+    if (b != null && b !== '' && Number.isFinite(Number(b))) return `Band ${Number(b).toFixed(1)}`;
+    return activeTab === 'Task 1' ? 'Band 5.0' : 'Band 5.5';
+  }, [activeResult?.overall_band, activeTab]);
 
-  const handleSeek = useCallback((e) => {
-    if (!audioRef.current?.duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    audioRef.current.currentTime = ratio * audioRef.current.duration;
-  }, []);
+  const rewriteBandLabel = 'Band 8.5+';
 
-  useEffect(() => {
-    const el = audioRef.current;
-    if (!el) return;
-    const onTimeUpdate = () => {
-      const d = el.duration || 0;
-      const c = el.currentTime || 0;
-      setAudioProgress(d > 0 ? c / d : 0);
-      setAudioTime(c);
-      setAudioDuration(d);
-    };
-    const onLoaded = () => setAudioDuration(el.duration || 0);
-    const onEnded = () => setIsPlaying(false);
-    el.addEventListener('timeupdate', onTimeUpdate);
-    el.addEventListener('loadedmetadata', onLoaded);
-    el.addEventListener('ended', onEnded);
-    return () => {
-      el.removeEventListener('timeupdate', onTimeUpdate);
-      el.removeEventListener('loadedmetadata', onLoaded);
-      el.removeEventListener('ended', onEnded);
-    };
-  }, [audioUrl]);
-
-  useEffect(() => {
-    return () => { if (audioUrl) window.URL.revokeObjectURL(audioUrl); };
-  }, [audioUrl]);
-
-  const container = {
-    initial: { opacity: 0 },
-    animate: { opacity: 1 },
-    transition: { duration: 0.4 },
-  };
-  const leftPanel = {
-    initial: { opacity: 0, x: -16 },
-    animate: { opacity: 1, x: 0 },
-    transition: { duration: 0.35, delay: 0.05 },
-  };
-  const rightPanel = {
-    initial: { opacity: 0, x: 16 },
-    animate: { opacity: 1, x: 0 },
-    transition: { duration: 0.35, delay: 0.1 },
-  };
-
-  const bandLeft = activeTab === 'Task 1' ? 'Band 5.0' : 'Band 5.5';
-  const bandRight = 'Band 8.5+';
+  const borderTone = darkMode ? 'border-slate-800' : 'border-slate-200';
 
   return (
-    <motion.div {...container} className={`relative rounded-[2.5rem] bg-white/5 backdrop-blur-3xl border border-white/10 overflow-hidden ${className}`}>
-      {/* VS badge */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 pointer-events-none">
-        <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-200/90 dark:bg-slate-600/90 text-slate-700 dark:text-slate-200 text-xs font-bold shadow-sm backdrop-blur-sm">
-          vs
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-white/10 relative">
-        {/* Left — Draft */}
-        <motion.div
-          {...leftPanel}
-          className="relative p-5 sm:p-6 lg:p-8 min-h-[180px] flex flex-col bg-white/[0.02] dark:bg-white/[0.02]"
-        >
-          <div className="mb-3">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-              {labels.left}
-            </span>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className={`overflow-hidden rounded-[3rem] border ${borderTone} bg-white dark:bg-slate-950 ${className}`}
+    >
+      <div className="p-8 sm:p-12">
+        <div className="mb-10 mt-8 w-full">
+          <div className="mb-5 flex items-center gap-3">
+            <p className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              AI Insights & Improvements
+            </p>
+            <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-800" />
           </div>
-          <p className="text-base sm:text-lg leading-relaxed text-slate-600 dark:text-slate-400 font-serif flex-1">
-            &ldquo;
-            {draftSegments.map((seg, i) =>
-              seg.type ? (
-                <span
-                  key={i}
-                  className={`cursor-default ${DRAFT_STYLES[seg.type] || DRAFT_STYLES.blue} pointer-events-auto inline`}
-                  onMouseEnter={(e) => {
-                    if (seg.suggestion) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setTooltip({ show: true, text: seg.suggestion, x: rect.left + rect.width / 2, y: rect.top });
-                    }
-                  }}
-                  onMouseLeave={() => setTooltip((t) => ({ ...t, show: false }))}
-                >
-                  {seg.text}
+
+          <ul className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {insightsLines.map((line, i) => (
+              <li
+                key={i}
+                className="flex items-start gap-3 rounded-2xl border border-slate-200/60 bg-white/50 p-4 shadow-sm transition-all hover:shadow-md dark:border-slate-700/60 dark:bg-slate-800/40"
+              >
+                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
+                </div>
+                <span className="text-[13px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
+                  {line}
                 </span>
-              ) : (
-                <span key={i}>{seg.text}</span>
-              )
-            )}
-            &rdquo;
-          </p>
-          <div className="mt-3 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-            {bandLeft}
-          </div>
-        </motion.div>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-        {/* Right — Suggested Rewrite + Karaoke */}
-        <motion.div
-          {...rightPanel}
-          className="relative p-5 sm:p-6 lg:p-8 min-h-[180px] flex flex-col bg-white/[0.02] dark:bg-white/[0.02]"
-        >
-          <div className="mb-3">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-              {labels.right}
+        <div className="relative">
+          <div
+            className="pointer-events-none absolute bottom-8 left-1/2 top-12 z-0 hidden w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-slate-300/90 via-50% to-transparent md:block dark:from-transparent dark:via-slate-600/85 dark:to-transparent"
+            aria-hidden
+          />
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 hidden -translate-x-1/2 -translate-y-1/2 md:flex">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-black tracking-[0.2em] text-slate-600 shadow-md dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+              VS
             </span>
           </div>
-          <div className="flex gap-4 flex-1 min-h-0">
-            <div className="flex-1 min-w-0 flex flex-col">
-              <p className="text-base sm:text-lg leading-relaxed text-slate-800 dark:text-slate-200 font-serif">
-                &ldquo;
-                {rewriteSegments.map((seg, i) =>
-                  seg.type ? (
-                    <span key={i} className={`rounded-sm px-0.5 ${rewriteStyles[seg.type] ?? ''}`}>
-                      {seg.text}
-                    </span>
-                  ) : (
-                    <span key={i}>{seg.text}</span>
-                  )
-                )}
-                &rdquo;
+
+          <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-x-0 md:items-start">
+            {/* DRAFT */}
+            <div className="relative z-10 flex min-h-[12rem] flex-col md:pr-10">
+              <p className="mb-4 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+                DRAFT ORIGINAL
               </p>
-              {/* Karaoke pinned at bottom of Suggested Rewrite column */}
-              <div className="mt-4 flex-shrink-0">
-                <SuggestedRewriteKaraoke
-                  bandScore="8.5+"
-                  suggestedRewrite={suggestedRewrite}
-                  audioRef={audioRef}
-                  audioUrl={audioUrl}
-                  audioDuration={audioDuration}
-                  isAudioLoading={isAudioLoading}
-                  isPlaying={isPlaying}
-                  audioProgress={audioProgress}
-                  audioTime={audioTime}
-                  audioError={audioError}
-                  onGenerateAudio={handleGenerateAudio}
-                  onTogglePlay={handleTogglePlay}
-                  onSeek={handleSeek}
-                  formatTime={formatTime}
-                />
+              <div className="flex flex-1 flex-col">
+                {draftParagraphs.length === 0 ? (
+                  <p className={PARA_ESSAY} />
+                ) : (
+                  draftParagraphs.map((para, i) => {
+                    const conclusion = isConclusionParagraph(para);
+                    return (
+                      <p
+                        key={`draft-p-${i}`}
+                        className={`${PARA_ESSAY} ${conclusion ? 'mt-10 italic' : ''}`}
+                      >
+                        {highlightDraft(para, errors, { setTooltip, keyPrefix: `d-${i}` })}
+                      </p>
+                    );
+                  })
+                )}
               </div>
+              <p className="mt-6 text-xs font-semibold tracking-tight text-slate-400 dark:text-slate-500">
+                {draftBandLabel}
+              </p>
             </div>
-            <div className="hidden sm:flex flex-col w-36 shrink-0 pl-4 border-l border-white/10">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-2">
-                Insights
-              </span>
-              <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
-                {labels.insights.map((item, i) => (
-                  <li key={i} className="flex items-start gap-1.5">
-                    <span className="text-emerald-500 dark:text-emerald-400 mt-0.5 shrink-0">✓</span>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <div className="mt-3 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-            {bandRight}
-          </div>
-          <div className="sm:hidden mt-3 pt-3 border-t border-white/10">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-2">Insights</span>
-            <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
-              {labels.insights.map((item, i) => (
-                <li key={i} className="flex items-start gap-1.5">
-                  <span className="text-emerald-500 dark:text-emerald-400 shrink-0">✓</span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </motion.div>
-      </div>
 
-      {/* Legend */}
-      <div className="px-5 sm:px-6 lg:px-8 py-3 border-t border-white/10 bg-white/5 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs">
-        <span className="font-semibold text-slate-500 dark:text-slate-400">Legend:</span>
-        {activeTab === 'Task 1' ? (
-          <>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-red-300 dark:bg-red-600" /> Inaccurate / Subjective
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-blue-300 dark:bg-blue-600" /> Simple trend verbs
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-indigo-300 dark:bg-indigo-600" /> Comparison structures
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-red-300 dark:bg-red-600" /> Grammar / Personal pronouns
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-blue-300 dark:bg-blue-600" /> Low-level vocab
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-indigo-300 dark:bg-indigo-600" /> Connectors
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-violet-300 dark:bg-violet-600" /> Academic Verbs
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-amber-300 dark:bg-amber-600" /> Advanced Nouns
-            </span>
-          </>
-        )}
+            <div className="flex items-center gap-4 md:hidden">
+              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-[9px] font-black tracking-widest text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                VS
+              </span>
+              <div className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+            </div>
+
+            {/* ACADEMIC REWRITE */}
+            <div className="relative z-10 flex min-h-[12rem] flex-col md:col-start-2 md:row-start-1 md:border-l md:border-slate-200/60 md:pl-8 md:pl-10 dark:md:border-slate-700/60">
+              <p className="mb-4 text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
+                ACADEMIC SUGGESTED REWRITE
+              </p>
+              <div className="flex min-w-0 flex-1 flex-col">
+                {rewriteParagraphs.length === 0 ? (
+                  <p className={PARA_ESSAY} />
+                ) : (
+                  rewriteParagraphs.map((para, i) => {
+                    const conclusion = isConclusionParagraph(para);
+                    const isFirstBody = i === 0;
+                    return (
+                      <p
+                        key={`rewrite-p-${i}`}
+                        className={`${PARA_ESSAY} ${isFirstBody ? DROP_CAP_CLASS : ''} ${
+                          conclusion ? 'mt-10 italic' : ''
+                        }`}
+                      >
+                        {highlightRewrite(para, activeTab, `r-${i}`)}
+                      </p>
+                    );
+                  })
+                )}
+              </div>
+              <p className="mt-6 text-xs font-semibold text-emerald-600 dark:text-emerald-400 lg:mt-4">
+                {rewriteBandLabel}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-10 flex flex-col gap-4 border-t border-slate-200 pt-8 dark:border-slate-700 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-8 sm:gap-y-3">
+          <span className="text-[11px] font-black uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">
+            Legend:
+          </span>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {LEGEND_ITEMS.map(({ key, label, dot }) => (
+              <span
+                key={key}
+                className="flex items-center gap-2 text-[11px] font-semibold text-slate-600 dark:text-slate-400"
+              >
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} aria-hidden />
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
       {tooltip.show && tooltip.text && (
         <div
-          className="fixed z-50 px-3 py-2 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-xs font-medium shadow-xl border border-slate-700 pointer-events-none -translate-x-1/2 -translate-y-full"
+          className="pointer-events-none fixed z-50 max-w-xs -translate-x-1/2 -translate-y-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-medium text-white shadow-xl dark:bg-slate-800"
           style={{ left: tooltip.x, top: tooltip.y - 8 }}
           role="tooltip"
         >

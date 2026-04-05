@@ -5,6 +5,9 @@ export const fetchCache = 'force-no-store';
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import nodemailer from 'nodemailer';
+import https from 'https';
+import http from 'http';
+import { URL as NodeURL } from 'url';
 
 const API_KEY_ERROR_MSG = 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.';
 
@@ -44,6 +47,33 @@ let _openaiKeyLogged = false;
 //   });
 //   return { openai: client };
 // }
+/** Retries transient Undici/Node "fetch failed" / connection drops when calling OpenAI. */
+async function resilientFetch(input, init) {
+  const max = 4;
+  let lastErr;
+  for (let attempt = 0; attempt < max; attempt++) {
+    try {
+      return await fetch(input, init);
+    } catch (err) {
+      lastErr = err;
+      const msg = String(err?.message || err?.cause?.message || '').toLowerCase();
+      const code = err?.cause?.code || err?.code;
+      const retryable =
+        msg.includes('fetch failed') ||
+        msg.includes('econnreset') ||
+        msg.includes('etimedout') ||
+        msg.includes('epipe') ||
+        msg.includes('socket') ||
+        code === 'ECONNRESET' ||
+        code === 'ETIMEDOUT' ||
+        code === 'ECONNREFUSED';
+      if (!retryable || attempt === max - 1) throw err;
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 function getOpenAIClient() {
   const apiKey = (process.env.OPENAI_API_KEY || '').trim();
   
@@ -56,8 +86,10 @@ function getOpenAIClient() {
   
   const client = new OpenAI({
     apiKey,
-    // Временно убери organization и project, чтобы исключить конфликт ID
     baseURL: getOpenAIBaseURL(),
+    maxRetries: 4,
+    timeout: 600_000,
+    fetch: resilientFetch,
   });
   
   return { openai: client };
@@ -68,6 +100,37 @@ function isOpenAIAuthError(err) {
   const code = err.code ?? err.error?.code;
   const msg = (err.message || err.error?.message || '').toLowerCase();
   return status === 401 || code === 'invalid_api_key' || code === 'authentication_error' || msg.includes('api key') || msg.includes('incorrect api key');
+}
+
+/** Model sometimes wraps JSON in ```json ... ``` despite instructions. */
+function stripMarkdownJsonFence(text) {
+  if (typeof text !== 'string') return '';
+  let s = text.trim();
+  const m = /^```(?:json)?\s*([\s\S]*?)```\s*$/im.exec(s);
+  if (m) return m[1].trim();
+  return s;
+}
+
+/**
+ * Parse examiner JSON; avoids throwing into outer handler (SyntaxError → opaque 500 / empty axios data).
+ * Truncation at max_tokens often yields "Unterminated string in JSON".
+ */
+function parseExaminerJson(content) {
+  const raw = stripMarkdownJsonFence(typeof content === 'string' ? content : '');
+  if (!raw) {
+    return { ok: false, error: 'Empty model response' };
+  }
+  try {
+    return { ok: true, data: JSON.parse(raw) };
+  } catch (e) {
+    const msg = e?.message || 'Invalid JSON';
+    console.error('[/api/check] Examiner JSON parse error:', msg, {
+      length: raw.length,
+      head: raw.slice(0, 160),
+      tail: raw.slice(-160),
+    });
+    return { ok: false, error: msg };
+  }
 }
 
 const ERROR_TYPES_ALLOWED = new Set(['grammar', 'logic', 'lexical']);
@@ -230,7 +293,39 @@ Return a Band 9–style "suggested_rewrite" with paragraphs separated by \\n\\n;
 
   const taskBlock = isT1 ? task1Rules : task2Rules;
 
+  const checklistInstruction = isT1
+    ? `CHECKLIST: Return booleans by evaluating the examiner tips against the student essay.
+- overview_included: contains an overview sentence summarizing the main features/trends (Task 1 only).
+- data_accuracy: no contradictions with the chart/table data (no wrong numbers/trends/claims).
+- no_personal_opinion: no personal opinion / no first-person evaluation (Task 1 only).
+- comparisons_made: includes explicit comparisons between categories/trends (higher/lower, more/less, etc.).
+- complex_sentences: uses complex structures (subordination/relative clauses) rather than only simple sentences.`
+    : `CHECKLIST: Return booleans by evaluating the examiner tips against the student essay.
+- clear_thesis_statement: introduction clearly states the position/main argument addressing the prompt.
+- paragraph_unity: each paragraph stays focused on one main idea (no mixing/off-topic drift).
+- main_ideas_supported: main ideas are supported with reasons and/or specific examples.
+- academic_register: formal academic tone (no slang/contractions/informal phrases).
+- logical_conclusion: conclusion logically restates key points and answers the prompt.`;
+
+  const checklistOutputExample = isT1
+    ? `"checklist": {
+    "overview_included": false,
+    "data_accuracy": false,
+    "no_personal_opinion": false,
+    "comparisons_made": false,
+    "complex_sentences": false
+  },`
+    : `"checklist": {
+    "clear_thesis_statement": false,
+    "paragraph_unity": false,
+    "main_ideas_supported": false,
+    "academic_register": false,
+    "logical_conclusion": false
+  },`;
+
   return `${taskBlock}
+
+${checklistInstruction}
 
 OUTPUT: Return **ONLY** valid JSON (no markdown fences). Shape:
 {
@@ -261,10 +356,11 @@ OUTPUT: Return **ONLY** valid JSON (no markdown fences). Shape:
     "linking_words": { "score": 0, "found": [], "suggestions": [] },
     "word_repetition": [{ "word": "string", "count": 0, "alternatives": [] }]
   },
+  ${checklistOutputExample}
   "suggested_rewrite": "Intro...\\n\\nBody...\\n\\nClosing..."
 }
 
-Rules: Whenever the essay has issues, list them in **errors** with **type** ∈ { grammar, logic, lexical }. Use [] only if the essay is genuinely flawless. You may leave **logical_errors**, **highlights**, and **corrections** as empty arrays — the app merges legacy fields if present. Be rigorous; scores must match official descriptor limits.`; 
+Rules: Whenever the essay has issues, list them in **errors** with **type** ∈ { grammar, logic, lexical }. Use [] only if the essay is genuinely flawless. You MUST also return the **checklist** object with ALL required boolean keys (no missing keys, no nulls, no strings). You may leave **logical_errors**, **highlights**, and **corrections** as empty arrays — the app merges legacy fields if present. Be rigorous; scores must match official descriptor limits.`; 
 }
 
 /** Legacy compact API shape → full app shape */
@@ -312,25 +408,125 @@ function normalizeSimplifiedCheckResult(raw, taskCriteriaName, userText) {
   };
 }
 
-async function imageUrlToBase64(url) {
-  try {
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
-    
-    if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
-    
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.startsWith('image/')) {
-      throw new Error(`Invalid MIME type: ${contentType}. Expected an image.`);
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+
+/** Prefer Node http(s) — global fetch/Undici often throws "fetch failed" for some CDNs on Windows. */
+function downloadImageAsDataUrl(imageUrl, redirectCount = 0) {
+  if (redirectCount > 10) {
+    return Promise.reject(new Error('Too many redirects while fetching image'));
+  }
+
+  return new Promise((resolve, reject) => {
+    let parsed;
+    try {
+      parsed = new NodeURL(imageUrl);
+    } catch {
+      reject(new Error('Invalid image URL'));
+      return;
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    return `data:${contentType};base64,${buffer.toString('base64')}`;
-  } catch (error) {
-    console.error("Proxy Error:", error.message);
-    throw error;
+    const lib = parsed.protocol === 'https:' ? https : parsed.protocol === 'http:' ? http : null;
+    if (!lib) {
+      reject(new Error('Only http(s) image URLs are supported'));
+      return;
+    }
+
+    const req = lib.request(
+      imageUrl,
+      {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; StratumIELTS/1.0)',
+          Accept: 'image/*,*/*;q=0.8',
+        },
+        timeout: 60_000,
+      },
+      (res) => {
+        const loc = res.headers.location;
+        if (res.statusCode >= 300 && res.statusCode < 400 && loc) {
+          res.resume();
+          const nextUrl = new NodeURL(loc, imageUrl).href;
+          downloadImageAsDataUrl(nextUrl, redirectCount + 1).then(resolve).catch(reject);
+          return;
+        }
+
+        if (res.statusCode !== 200) {
+          res.resume();
+          reject(new Error(`Failed to fetch image: HTTP ${res.statusCode}`));
+          return;
+        }
+
+        const rawType = (res.headers['content-type'] || '').split(';')[0].trim();
+        const chunks = [];
+        let total = 0;
+
+        res.on('data', (chunk) => {
+          total += chunk.length;
+          if (total > MAX_IMAGE_BYTES) {
+            res.destroy();
+            reject(new Error('Image is too large'));
+            return;
+          }
+          chunks.push(chunk);
+        });
+
+        res.on('end', () => {
+          try {
+            const buffer = Buffer.concat(chunks);
+            let contentType =
+              rawType && rawType.startsWith('image/') ? rawType : '';
+            if (!contentType) {
+              const b0 = buffer[0];
+              const b1 = buffer[1];
+              if (b0 === 0xff && b1 === 0xd8) contentType = 'image/jpeg';
+              else if (b0 === 0x89 && buffer.toString('ascii', 1, 4) === 'PNG') contentType = 'image/png';
+              else if (b0 === 0x47 && b1 === 0x49) contentType = 'image/gif';
+              else if (b0 === 0x52 && b1 === 0x49) contentType = 'image/webp';
+              else contentType = 'application/octet-stream';
+            }
+            resolve(`data:${contentType};base64,${buffer.toString('base64')}`);
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+    );
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Image fetch timeout'));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+async function imageUrlToBase64(url) {
+  try {
+    return await downloadImageAsDataUrl(url);
+  } catch (nodeErr) {
+    console.warn('[/api/check] imageUrlToBase64: Node http(s) failed, trying fetch:', nodeErr?.message);
+    try {
+      const response = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StratumIELTS/1.0)' },
+      });
+
+      if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
+
+      const contentType = response.headers.get('content-type');
+      const ct = contentType ? contentType.split(';')[0].trim() : '';
+      if (!ct || !ct.startsWith('image/')) {
+        throw new Error(`Invalid MIME type: ${contentType || '(none)'}. Expected an image.`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      if (buffer.length > MAX_IMAGE_BYTES) throw new Error('Image is too large');
+      return `data:${ct};base64,${buffer.toString('base64')}`;
+    } catch (fetchErr) {
+      console.error('[/api/check] imageUrlToBase64: fetch failed:', fetchErr?.message);
+      throw fetchErr;
+    }
   }
 }
 
@@ -416,32 +612,67 @@ await transporter.sendMail({
       const clientResult = getOpenAIClient();
       if (clientResult.error) return clientResult.error;
       const openai = clientResult.openai;
+      const describeMessages = (imageUrlForApi) => [
+        {
+          role: "system",
+          content:
+            "You are an IELTS Task 1 Expert. Describe this chart in detail. Identify the exact chart type, years, and categories. Return ONLY the question text.",
+        },
+        {
+          role: "user",
+          content: [{ type: "image_url", image_url: { url: imageUrlForApi } }],
+        },
+      ];
       try {
-        let finalImage;
-        if (body.image.startsWith('http')) {
-          finalImage = await imageUrlToBase64(body.image);
-        } else {
-          finalImage = body.image;
-        }
+        const rawImage = typeof body.image === "string" ? body.image.trim() : "";
+        const isPublicHttp = /^https?:\/\//i.test(rawImage);
 
-        // gpt-4o supports vision (image inputs). Do not use gpt-4o-mini or older models for image processing.
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
+        let response;
+        // Let OpenAI fetch public URLs first (avoids our server download + huge base64); fallback if it fails.
+        if (isPublicHttp) {
+          try {
+            response = await openai.chat.completions.create(
+              {
+                model: "gpt-4o",
+                messages: describeMessages(rawImage),
+                max_tokens: 900,
+              },
+              { timeout: 180_000 }
+            );
+          } catch (directErr) {
+            console.warn(
+              "[/api/check] describeImage: vision with public URL failed, trying downloaded image:",
+              directErr?.message || directErr
+            );
+            const finalImage = await imageUrlToBase64(rawImage);
+            response = await openai.chat.completions.create(
+              {
+                model: "gpt-4o",
+                messages: describeMessages(finalImage),
+                max_tokens: 900,
+              },
+              { timeout: 180_000 }
+            );
+          }
+        } else {
+          response = await openai.chat.completions.create(
             {
-              role: "system",
-              content: "You are an IELTS Task 1 Expert. Describe this chart in detail. Identify the exact chart type, years, and categories. Return ONLY the question text."
+              model: "gpt-4o",
+              messages: describeMessages(body.image),
+              max_tokens: 900,
             },
-            {
-              role: "user",
-              content: [{ type: "image_url", image_url: { url: finalImage } }]
-            }
-          ],
-        });
+            { timeout: 180_000 }
+          );
+        }
 
         return NextResponse.json({ question: response.choices[0].message.content });
       } catch (error) {
-        console.error("OpenAI error (describeImage):", error?.response ?? error?.error ?? error?.message, "response?.data:", error?.response?.data ?? error?.error);
+        console.error(
+          "OpenAI error (describeImage):",
+          error?.response ?? error?.error ?? error?.message,
+          "response?.data:",
+          error?.response?.data ?? error?.error
+        );
         if (isOpenAIAuthError(error)) {
           return NextResponse.json({ error: "INVALID_API_KEY" }, { status: 401 });
         }
@@ -529,11 +760,31 @@ await transporter.sendMail({
     const userId = session?.user?.id || null;
     const prisma = userId ? getPrisma() : null;
 
-    // Do NOT require auth for analysis. If signed in, we can save + decrement credits.
+    /**
+     * Persist check + decrement credits only when the DB user exists and has credits.
+     * - Missing user row (stale session): still run analysis, do not 403.
+     * - Out of credits in production: 403 (charge model).
+     * - Out of credits in development: still run analysis, skip save/decrement (local testing).
+     */
+    let persistAfterCheck = false;
     if (userId && prisma) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (!user || (user.credits != null && user.credits < 1)) {
-        return NextResponse.json({ error: "You have run out of credits. Please refill to continue." }, { status: 403 });
+      if (!user) {
+        console.warn('[/api/check] Session user not in DB; running analysis without save.', { userId });
+      } else {
+        const hasCredits = user.credits == null || user.credits >= 1;
+        if (!hasCredits) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[/api/check] Dev: zero credits — analysis allowed; history/credits unchanged.');
+          } else {
+            return NextResponse.json(
+              { error: 'You have run out of credits. Please refill to continue.' },
+              { status: 403 }
+            );
+          }
+        } else {
+          persistAfterCheck = true;
+        }
       }
     }
     const clientResult = getOpenAIClient();
@@ -547,7 +798,8 @@ await transporter.sendMail({
       response = await openai.chat.completions.create({
         model: "gpt-4o",
         temperature: 0.2,
-        max_tokens: 1400,
+        // Full rubric + errors[] easily exceeds 1400 tokens; truncation breaks JSON mid-string.
+        max_tokens: 8192,
         messages: [
           { role: "system", content: examinerSystemPrompt },
           {
@@ -568,7 +820,32 @@ await transporter.sendMail({
       throw err;
     }
 
-    let result = JSON.parse(response.choices[0].message.content);
+    const choice0 = response?.choices?.[0];
+    const finishReason = choice0?.finish_reason;
+    const rawContent = choice0?.message?.content;
+
+    if (finishReason === 'length') {
+      return NextResponse.json(
+        {
+          error:
+            'The analysis hit the output limit and was cut off. Please click Analyze again, or shorten a very long essay.',
+        },
+        { status: 502 }
+      );
+    }
+
+    const parsed = parseExaminerJson(rawContent);
+    if (!parsed.ok) {
+      return NextResponse.json(
+        {
+          error:
+            'The examiner returned incomplete or invalid data (often after a truncated response). Please run Analyze again, or try a slightly shorter essay.',
+        },
+        { status: 502 }
+      );
+    }
+
+    let result = parsed.data;
     if (isSimplifiedCheckResult(result)) {
       result = normalizeSimplifiedCheckResult(result, taskCriteriaName, userText);
     }
@@ -609,7 +886,7 @@ await transporter.sendMail({
 
     // Run create and update separately to avoid transaction timeout (e.g. "Unable to start a transaction in the given time").
     // Ensure DATABASE_URL / DIRECT_URL in .env.local is correct and reachable (VPN/network).
-    if (userId && prisma) {
+    if (persistAfterCheck && userId && prisma) {
       const savedCheck = await prisma.check.create({
         data: {
           type: typeValue,
@@ -627,7 +904,7 @@ await transporter.sendMail({
       return NextResponse.json({ ...result, savedId: savedCheck.id });
     }
 
-    // Guest mode: return analysis without saving to DB / decrementing credits.
+    // Guest or dev zero-credits: return analysis without saving to DB / decrementing credits.
     return NextResponse.json({ ...result, savedId: null });
   } catch (error) {
     console.error("API ERROR:", error);
