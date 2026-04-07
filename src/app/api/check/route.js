@@ -270,7 +270,7 @@ ${errorsSpec}
 
 Keep "analysis.word_repetition" and "lexical_upgrade" as before.
 
-Return a Band 9–style "suggested_rewrite" with paragraphs separated by \\n\\n; no bullets or markdown inside the essay body.`;
+Return a Band 9.0–level "suggested_rewrite" with paragraphs separated by \\n\\n; no bullets or markdown inside the essay body. Rewrite the essay to Band 9.0 level. Wrap every improved phrase, advanced word, or structural change in <mark>...</mark> tags (lowercase only) so the UI can highlight them; do not use any other HTML or markdown inside the essay.`;
 
   const task2Rules = `You are a strict universal IELTS Writing expert (British Council / IDP style).
 The student wrote **Task 2** (opinion / discussion essay). There is **no chart image**.
@@ -289,7 +289,7 @@ ${errorsSpec}
 
 Keep "analysis.word_repetition" and "lexical_upgrade" as before.
 
-Return a Band 9–style "suggested_rewrite" with paragraphs separated by \\n\\n; no bullets or markdown inside the essay body.`;
+Return a Band 9.0–level "suggested_rewrite" with paragraphs separated by \\n\\n; no bullets or markdown inside the essay body. Rewrite the essay to Band 9.0 level. Wrap every improved phrase, advanced word, or structural change in <mark>...</mark> tags (lowercase only) so the UI can highlight them; do not use any other HTML or markdown inside the essay.`;
 
   const taskBlock = isT1 ? task1Rules : task2Rules;
 
@@ -357,7 +357,7 @@ OUTPUT: Return **ONLY** valid JSON (no markdown fences). Shape:
     "word_repetition": [{ "word": "string", "count": 0, "alternatives": [] }]
   },
   ${checklistOutputExample}
-  "suggested_rewrite": "Intro...\\n\\nBody...\\n\\nClosing..."
+  "suggested_rewrite": "Intro with <mark>improved phrasing</mark>.\\n\\nBody...\\n\\nClosing..."
 }
 
 Rules: Whenever the essay has issues, list them in **errors** with **type** ∈ { grammar, logic, lexical }. Use [] only if the essay is genuinely flawless. You MUST also return the **checklist** object with ALL required boolean keys (no missing keys, no nulls, no strings). You may leave **logical_errors**, **highlights**, and **corrections** as empty arrays — the app merges legacy fields if present. Be rigorous; scores must match official descriptor limits.`; 

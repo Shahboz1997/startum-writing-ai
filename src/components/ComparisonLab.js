@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
@@ -51,8 +50,12 @@ function splitEssayIntoParagraphs(raw) {
   return parts.length ? parts : [collapseInnerNewlines(normalized)];
 }
 
+function stripMarkTags(text) {
+  return String(text || '').replace(/<\/?mark>/gi, '');
+}
+
 function isConclusionParagraph(text) {
-  return /^\s*In conclusion\b/i.test(String(text || ''));
+  return /^\s*In conclusion\b/i.test(stripMarkTags(text));
 }
 
 /** Build non-overlapping segments from one paragraph + examiner errors. */
@@ -140,131 +143,69 @@ function highlightDraft(paragraphText, errors, { setTooltip, keyPrefix = 'd' }) 
   });
 }
 
-const T2_REWRITE_PHRASES = [
-  {
-    type: 'connector',
-    phrases: [
-      'It is widely argued that',
-      'While',
-      'Furthermore',
-      'Ultimately',
-      'Moreover',
-      'Conversely',
-      'Nevertheless',
-    ],
-  },
-  {
-    type: 'verb',
-    phrases: [
-      'revolutionized',
-      'induce',
-      'assert',
-      'foster',
-      'maintain',
-      'enhances',
-      'transition',
-    ],
-  },
-  {
-    type: 'noun',
-    phrases: [
-      'intellectual passivity',
-      'information repositories',
-      'pedagogical roles',
-      'learning environment',
-      'digital literacy',
-      'research efficiency',
-    ],
-  },
-];
+/** AI wraps upgrades in <mark>...</mark>; parsed without innerHTML. */
+const MARK_PAIR_RE = /<mark>([\s\S]*?)<\/mark>/gi;
 
-const T1_REWRITE_PHRASES = [
-  {
-    type: 'connector',
-    phrases: ['In contrast', 'Compared to', 'By comparison', 'Whereas', 'While'],
-  },
-  {
-    type: 'noun',
-    phrases: [
-      'significantly',
-      'substantially',
-      'steadily',
-      'gradually',
-      'peaked',
-      'plateaued',
-      'fluctuated',
-    ],
-  },
-];
+const MARK_HIGHLIGHT_CLASS_TASK2 =
+  'bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded-sm border-b-2 border-amber-300 font-medium dark:bg-amber-900/40 dark:text-amber-100';
 
-const REWRITE_SPAN_CLASS = {
-  connector:
-    'rounded-sm bg-sky-500/10 font-semibold text-sky-950 underline decoration-sky-600/60 decoration-2 underline-offset-2 dark:bg-sky-500/10 dark:text-sky-100 dark:decoration-sky-400/60',
-  verb:
-    'rounded-sm bg-purple-500/10 font-semibold text-purple-950 underline decoration-purple-600/60 decoration-2 underline-offset-2 dark:bg-purple-500/10 dark:text-purple-100 dark:decoration-purple-400/60',
-  noun:
-    'rounded-sm bg-yellow-400/10 font-semibold text-yellow-950 underline decoration-yellow-600/60 decoration-2 underline-offset-2 dark:bg-yellow-400/10 dark:text-yellow-100 dark:decoration-yellow-400/60',
-};
+const MARK_HIGHLIGHT_CLASS_TASK1 =
+  'bg-emerald-50 text-emerald-900 px-1.5 py-0.5 rounded-sm border-b-2 border-emerald-200 font-medium dark:bg-emerald-900/40 dark:text-emerald-100';
 
-function getRewriteSegments(text, activeTab) {
-  if (!text || !text.trim()) return [{ text: text || '', type: null }];
-  const byStart = [];
-  const source = activeTab === 'Task 1' ? T1_REWRITE_PHRASES : T2_REWRITE_PHRASES;
-  source.forEach(({ type, phrases }) => {
-    phrases.forEach((phrase) => {
-      let pos = 0;
-      let idx;
-      while ((idx = text.indexOf(phrase, pos)) !== -1) {
-        byStart.push({ start: idx, end: idx + phrase.length, type, phrase });
-        pos = idx + 1;
-      }
-    });
-  });
-  byStart.sort((a, b) => a.start - b.start);
-  const merged = [];
-  byStart.forEach((h) => {
-    const overlap = merged.some((m) => h.start < m.end && h.end > m.start);
-    if (!overlap) merged.push(h);
-  });
-  const segments = [];
+/**
+ * Split rewrite text on <mark>...</mark> and return JSX fragments.
+ * Unclosed or stray tags are left as plain text (no HTML injection).
+ */
+function renderHighlightedText(paragraphText, activeTab, keyPrefix = 'r') {
+  const raw = paragraphText == null ? '' : String(paragraphText);
+  if (!raw) {
+    return [<span key={`${keyPrefix}-e`} />];
+  }
+
+  const markClass =
+    activeTab === 'Task 1' ? MARK_HIGHLIGHT_CLASS_TASK1 : MARK_HIGHLIGHT_CLASS_TASK2;
+  const out = [];
   let last = 0;
-  merged.forEach(({ start, end, type, phrase }) => {
-    if (start > last) segments.push({ text: text.slice(last, start), type: null });
-    segments.push({ text: phrase, type });
-    last = end;
-  });
-  if (last < text.length) segments.push({ text: text.slice(last), type: null });
-  return segments.length ? segments : [{ text, type: null }];
-}
-
-/** Connector / lexical lift highlighting inside one rewrite paragraph. */
-function highlightRewrite(paragraphText, activeTab, keyPrefix = 'r') {
-  const segs = getRewriteSegments(paragraphText || '', activeTab);
-  return segs.map((seg, i) => {
-    if (!seg.type || !REWRITE_SPAN_CLASS[seg.type]) {
-      return <span key={`${keyPrefix}-t-${i}`}>{seg.text}</span>;
+  let m;
+  let i = 0;
+  const re = new RegExp(MARK_PAIR_RE.source, MARK_PAIR_RE.flags);
+  while ((m = re.exec(raw)) !== null) {
+    if (m.index > last) {
+      out.push(
+        <span key={`${keyPrefix}-t-${i++}`}>{raw.slice(last, m.index)}</span>
+      );
     }
-    return (
-      <span key={`${keyPrefix}-h-${i}`} className={REWRITE_SPAN_CLASS[seg.type]}>
-        {seg.text}
-      </span>
+    out.push(
+      <mark key={`${keyPrefix}-m-${i++}`} className={markClass}>
+        {m[1]}
+      </mark>
     );
-  });
+    last = re.lastIndex;
+  }
+  if (last < raw.length) {
+    out.push(<span key={`${keyPrefix}-t-${i++}`}>{raw.slice(last)}</span>);
+  }
+  return out.length ? out : [<span key={`${keyPrefix}-t-0`}>{raw}</span>];
 }
 
 /** Longform essay body — premium editorial rhythm */
 const PARA_ESSAY =
   'mb-8 text-justify font-serif text-lg font-normal leading-[1.9] last:mb-0 text-slate-800 dark:text-slate-200';
 
-/** Drop cap: first letter of suggested rewrite, desktop only */
+/** Right-column rewrite: magazine-style longform (left-aligned, no justified rivers) */
+const PARA_ESSAY_REWRITE =
+  'mb-8 font-serif text-[1.125rem] leading-[1.9] text-left text-slate-800 dark:text-slate-200 last:mb-0';
+
+/** Drop cap: first paragraph only — full text stays in DOM; styling via ::first-letter */
 const DROP_CAP_CLASS =
-  'md:first-letter:float-left md:first-letter:mr-3 md:first-letter:leading-none md:first-letter:font-black md:first-letter:text-5xl md:first-letter:text-indigo-600 dark:md:first-letter:text-indigo-400';
+  'md:first-letter:text-6xl md:first-letter:font-black md:first-letter:text-indigo-600 md:first-letter:float-left md:first-letter:mr-3 md:first-letter:leading-[0.8] md:first-letter:mt-2';
 
 const LEGEND_ITEMS = [
   { key: 'grammar', label: 'Grammar', dot: 'bg-rose-500' },
   { key: 'vocab', label: 'Vocabulary', dot: 'bg-purple-500' },
   { key: 'logic', label: 'Logic/Data', dot: 'bg-blue-600' },
   { key: 'connectors', label: 'Connectors', dot: 'bg-sky-400' },
+  { key: 'rewrite_mark', label: 'Rewrite highlights (<mark>)', dot: 'bg-amber-400' },
 ];
 
 function buildInsightsLines(activeResult, activeTab) {
@@ -343,37 +284,12 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
       className={`overflow-hidden rounded-[3rem] border ${borderTone} bg-white dark:bg-slate-950 ${className}`}
     >
       <div className="p-8 sm:p-12">
-        <div className="mb-10 mt-8 w-full">
-          <div className="mb-5 flex items-center gap-3">
-            <p className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-              AI Insights & Improvements
-            </p>
-            <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-800" />
-          </div>
-
-          <ul className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {insightsLines.map((line, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-3 rounded-2xl border border-slate-200/60 bg-white/50 p-4 shadow-sm transition-all hover:shadow-md dark:border-slate-700/60 dark:bg-slate-800/40"
-              >
-                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                  <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
-                </div>
-                <span className="text-[13px] font-semibold leading-snug text-slate-700 dark:text-slate-200">
-                  {line}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
         <div className="relative">
           <div
-            className="pointer-events-none absolute bottom-8 left-1/2 top-12 z-0 hidden w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-slate-300/90 via-50% to-transparent md:block dark:from-transparent dark:via-slate-600/85 dark:to-transparent"
+            className="pointer-events-none absolute bottom-0 left-1/2 top-0 z-0 hidden w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-slate-200/90 via-80% to-transparent md:block dark:from-transparent dark:via-slate-600/85 dark:to-transparent"
             aria-hidden
           />
-          <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 hidden -translate-x-1/2 -translate-y-1/2 md:flex">
+          <div className="pointer-events-none absolute left-1/2 top-32 z-20 hidden -translate-x-1/2 md:flex">
             <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-slate-100 text-[10px] font-black tracking-[0.2em] text-slate-600 shadow-md dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
               VS
             </span>
@@ -416,13 +332,13 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
             </div>
 
             {/* ACADEMIC REWRITE */}
-            <div className="relative z-10 flex min-h-[12rem] flex-col md:col-start-2 md:row-start-1 md:border-l md:border-slate-200/60 md:pl-8 md:pl-10 dark:md:border-slate-700/60">
+            <div className="relative z-10 flex min-h-[12rem] flex-col md:col-start-2 md:row-start-1 md:pl-10">
               <p className="mb-4 text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
                 ACADEMIC SUGGESTED REWRITE
               </p>
               <div className="flex min-w-0 flex-1 flex-col">
                 {rewriteParagraphs.length === 0 ? (
-                  <p className={PARA_ESSAY} />
+                  <p className={PARA_ESSAY_REWRITE} />
                 ) : (
                   rewriteParagraphs.map((para, i) => {
                     const conclusion = isConclusionParagraph(para);
@@ -430,11 +346,11 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
                     return (
                       <p
                         key={`rewrite-p-${i}`}
-                        className={`${PARA_ESSAY} ${isFirstBody ? DROP_CAP_CLASS : ''} ${
-                          conclusion ? 'mt-10 italic' : ''
+                        className={`${PARA_ESSAY_REWRITE} ${isFirstBody ? DROP_CAP_CLASS : ''} ${
+                          conclusion ? 'mt-12 italic border-t border-slate-100 pt-6 dark:border-slate-800' : ''
                         }`}
                       >
-                        {highlightRewrite(para, activeTab, `r-${i}`)}
+                        {renderHighlightedText(para, activeTab, `r-${i}`)}
                       </p>
                     );
                   })

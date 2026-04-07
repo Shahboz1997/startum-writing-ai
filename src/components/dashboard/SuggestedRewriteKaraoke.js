@@ -249,30 +249,7 @@ export default function SuggestedRewriteKaraoke({
 
   const inner = (
     <>
-      <header
-        className={`w-full border-b border-slate-100 bg-gradient-to-r from-indigo-50/80 via-white to-violet-50/50 dark:border-slate-800/50 dark:from-indigo-950/40 dark:via-slate-900/80 dark:to-violet-950/30 ${
-          fullBleedLayout ? 'px-6 py-7 sm:px-10 sm:py-9' : 'px-6 py-5 sm:px-8'
-        }`}
-      >
-        <h2
-          className={`w-full font-black uppercase tracking-[0.22em] text-slate-900 dark:text-slate-50 ${
-            fullBleedLayout
-              ? 'text-center text-lg sm:text-2xl'
-              : 'text-center text-base sm:text-left sm:text-lg'
-          }`}
-        >
-          IELTS Band Score
-        </h2>
-        <p
-          className={`mt-2 w-full text-[11px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 ${
-            fullBleedLayout ? 'text-center' : 'text-center sm:text-left'
-          }`}
-        >
-          Suggested rewrite · AI voice &amp; karaoke
-        </p>
-      </header>
-
-        <div className="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-white/60 px-6 py-4 dark:border-slate-800/50 dark:bg-slate-900/60 sm:px-8">
+        {/* <div className="flex w-full items-center justify-between gap-4 border-b border-slate-100 bg-white/60 px-6 py-4 dark:border-slate-800/50 dark:bg-slate-900/60 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <div className="shrink-0 rounded-lg bg-indigo-600 px-3 py-1 font-black text-xl tabular-nums text-white shadow-lg shadow-indigo-500/20">
               {bandLabel}
@@ -286,9 +263,9 @@ export default function SuggestedRewriteKaraoke({
               {formatTime(audioTime)} / {formatTime(audioDuration)}
             </span>
           ) : null}
-        </div>
+        </div> */}
 
-        <div className="p-6 sm:p-8">
+        {/* <div className="p-6 sm:p-8">
         <div className="mb-8 bg-slate-900 dark:bg-black/50 rounded-2xl p-3 flex items-center gap-4 border border-white/5">
           <audio ref={audioRef} src={audioUrl || undefined} className="hidden" preload="metadata" />
 
@@ -421,24 +398,24 @@ export default function SuggestedRewriteKaraoke({
             </div>
           )}
         </div>
-        </div>
+        </div> */}
     </>
   );
 
-  if (fullBleedLayout) {
-    return (
-      <div className="w-full px-4 sm:px-6 mt-12 mb-12">
-        <motion.section
-          ref={karaokeScrollRef}
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className={sectionClass}
-        >
-          <div className="mx-auto w-full max-w-6xl">{inner}</div>
-        </motion.section>
-      </div>
-    );
-  }
+  // if (fullBleedLayout) {
+  //   return (
+  //     <div className="w-full px-4 sm:px-6 mt-12 mb-12">
+  //       <motion.section
+  //         ref={karaokeScrollRef}
+  //         initial={{ y: 20, opacity: 0 }}
+  //         animate={{ y: 0, opacity: 1 }}
+  //         className={sectionClass}
+  //       >
+  //         <div className="mx-auto w-full max-w-6xl">{inner}</div>
+  //       </motion.section>
+  //     </div>
+  //   );
+  // }
 
   return (
     <motion.section

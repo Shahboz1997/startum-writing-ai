@@ -77,7 +77,7 @@ import {
   Menu, X, Volume2, Star,
   Eye, Crown, Filter, LayoutGrid, RefreshCw, Shield, Target, AlertCircle,
 } from 'lucide-react';
-import { TASK1_TIPS, TASK2_TIPS, getChecklistStatus } from '@/lib/ieltsGuidelines';
+import { TASK1_TIPS, TASK2_TIPS } from '@/lib/ieltsGuidelines';
 import ComparisonLab from '../components/ComparisonLab';
 import SuggestedRewriteKaraoke from '../components/dashboard/SuggestedRewriteKaraoke';
 import { useSuggestedRewriteAudio } from '../components/dashboard/useSuggestedRewriteAudio';
@@ -839,7 +839,7 @@ const renderHighlightedText = (text, highlights, searchState) => { // Добав
   const resetTask1 = () => {
     if (window.confirm("Delete all Task 1 data? Your essay, chart, and analysis will be lost.")) {
       setEssayT1('');
-      setPromptT1('Summarize the information by selecting and reporting the main features, and make comparisons where relevant.');
+      setPromptT1('Summarize the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.');
       setResultT1(null); // Очищаем результат именно первого задания
       setImage(null);    // Удаляем картинку/график
       // Если есть локальное хранилище для черновиков, можно очистить конкретный ключ
@@ -2252,58 +2252,11 @@ const insertLinkingWord = (word) => {
   />
 
 </div>
-          {/* Quick Cheat Sheet — Expert IELTS Guidelines */}
-          <div className="mt-6 border-t border-slate-200 dark:border-slate-800 pt-4">
-            <button
-              type="button"
-              onClick={() => setShowCheatSheet((v) => !v)}
-              className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-            >
-              <BookOpen className="w-4 h-4" strokeWidth={1.5} />
-              Quick Cheat Sheet
-              <ChevronDown className={`w-4 h-4 transition-transform ${showCheatSheet ? 'rotate-180' : ''}`} strokeWidth={1.5} />
-            </button>
-            <AnimatePresence>
-              {showCheatSheet && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="overflow-hidden"
-                >
-                  <div className={`mt-4 p-4 rounded-2xl border backdrop-blur-md bg-white/60 dark:bg-white/5 border-slate-200/80 dark:border-white/10 sticky bottom-4 space-y-3`}>
-                    <span className="font-black uppercase tracking-[0.2em] text-[10px] text-indigo-600 dark:text-indigo-400 block mb-2">
-                      {activeTab === 'Task 1' ? 'Task 1: Analytical Precision' : 'Task 2: Argumentative Mastery'}
-                    </span>
-                    {(activeTab === 'Task 1' ? TASK1_TIPS : TASK2_TIPS).map((tip, i) => {
-                      const IconMap = activeTab === 'Task 1'
-                        ? { Eye, Target, Shield, Filter, Zap }
-                        : { RefreshCw, LayoutGrid, Crown, Shield, Target };
-                      const Icon = IconMap[tip.icon];
-                      return (
-                        <motion.div
-                          key={tip.id}
-                          initial={{ opacity: 0, x: -8 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.05 }}
-                          className="flex items-center gap-2.5 text-slate-600 dark:text-slate-300 text-sm"
-                        >
-                          {Icon && <Icon className="w-4 h-4 shrink-0 text-indigo-500 dark:text-indigo-400" strokeWidth={1.5} />}
-                          <span>{tip.label}</span>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
           </div>
         </div>
         {/* Aside: loading skeleton or result — order-2 on mobile so stats follow Comparison Lab */}
          <aside
-          className="order-2 flex h-auto flex-col gap-6 lg:order-none lg:col-span-4 lg:justify-between"
+          className="order-2 flex h-auto flex-col gap-6 lg:order-none lg:col-span-4 lg:justify-start"
           ref={activeResultsRef}
         >
       {(activeTab === 'Task 1' ? loadingT1 : loadingT2) ? (
@@ -2319,10 +2272,10 @@ const insertLinkingWord = (word) => {
         </div>
       ) : (
              <div
-        className="flex h-auto flex-1 flex-col justify-between gap-6 overflow-visible lg:pr-2"
+        className="flex h-auto flex-1 flex-col gap-8 overflow-visible lg:pr-2"
         >
-          <div className="relative group overflow-hidden bg-slate-950 rounded-[3rem] p-1 shadow-2xl shadow-indigo-900/30">
-  <div className="group relative z-10 rounded-[2rem] sm:rounded-[2.8rem] bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-800 p-5 sm:p-8 text-white shadow-2xl shadow-indigo-900/20">
+          <div className="relative group overflow-hidden bg-slate-950 rounded-[3rem] p-1 shadow-2xl shadow-slate-950/40">
+  <div className="group relative z-10 rounded-[2.5rem] bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-5 sm:p-8 text-white shadow-xl shadow-black/20">
     
     {/* Эффект блеска при наведении */}
     <div className="pointer-events-none absolute inset-0 translate-x-[-150%] bg-gradient-to-tr from-white/0 via-white/20 to-white/0 transition-transform duration-1000 group-hover:translate-x-[150%]" />
@@ -2337,9 +2290,9 @@ const insertLinkingWord = (word) => {
               Performance Index
             </p>
           </div>
-          <h4 className="flex items-baseline font-extrabold leading-none tracking-tighter text-[18vw] sm:text-7xl md:text-8xl">
+          <h4 className="flex items-baseline font-black leading-none tracking-tighter text-white text-[18vw] sm:text-7xl md:text-8xl">
             {activeResult.overall_band}
-            <span className="ml-2 text-lg font-light opacity-30 sm:text-xl">/ 9.0</span>
+            <span className="ml-2 text-lg font-light text-white/30 sm:text-xl">/ 9.0</span>
           </h4>
         </div>
 
@@ -2352,9 +2305,9 @@ const insertLinkingWord = (word) => {
       <div className="flex flex-row items-stretch gap-2 mt-2">
         <button 
           onClick={() => downloadReport()}
-          className="group/btn flex flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-900 dark:bg-slate-950 px-4 py-4 text-xs font-extrabold tracking-tight text-white transition-all hover:bg-slate-800 dark:hover:bg-slate-900 hover:shadow-xl active:scale-[0.97] sm:gap-3 sm:rounded-[1.8rem] sm:py-5"
+          className="group/btn flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-4 py-4 text-xs font-black uppercase tracking-widest text-slate-900 transition-all hover:bg-slate-100 active:scale-[0.97] sm:gap-3 sm:py-5"
         >
-          <Download className="h-4 w-4 text-indigo-400 transition-transform group-hover/btn:translate-y-0.5 sm:h-5 sm:w-5" /> 
+          <Download className="h-4 w-4 text-slate-700 transition-transform group-hover/btn:translate-y-0.5 sm:h-5 sm:w-5" /> 
           <span className="whitespace-nowrap">Official PDF</span>
         </button>
 
@@ -2370,34 +2323,109 @@ const insertLinkingWord = (word) => {
   </div>
 
   {/* Background Decor */}
-  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-400/10 blur-[100px] rounded-full -mr-20 -mt-20 pointer-events-none" />
+  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] rounded-full -mr-20 -mt-20 pointer-events-none" />
 </div>
 
-          {/* EXAMINER'S CHECKLIST — Expert tips status */}
+          {/* Quick Cheat Sheet — premium guidelines add-on */}
           {(() => {
-            const checklistTips = activeTab === 'Task 1' ? TASK1_TIPS : TASK2_TIPS;
-            const status = getChecklistStatus(activeTab, activeTab === 'Task 1' ? essayT1 : essayT2, activeResult);
+            const cheatTips = activeTab === 'Task 1' ? TASK1_TIPS : TASK2_TIPS;
             const IconMapT1 = { Eye, Target, Shield, Filter, Zap };
             const IconMapT2 = { RefreshCw, LayoutGrid, Crown, Shield, Target };
-            const IconMap = activeTab === 'Task 1' ? IconMapT1 : IconMapT2;
+            const cheatIconMap = activeTab === 'Task 1' ? IconMapT1 : IconMapT2;
+            const cheatSheetListVariants = {
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: { staggerChildren: 0.07, delayChildren: 0.1 },
+              },
+            };
+            const cheatSheetItemVariants = {
+              hidden: { opacity: 0, y: 10 },
+              show: {
+                opacity: 1,
+                y: 0,
+                transition: { type: 'spring', stiffness: 420, damping: 26 },
+              },
+            };
+            return (
+              <div className="w-full">
+                <button
+                  type="button"
+                  onClick={() => setShowCheatSheet((v) => !v)}
+                  aria-expanded={showCheatSheet}
+                  className="w-full bg-slate-100 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-4 py-2.5 rounded-xl transition-all border border-transparent hover:border-indigo-200/50"
+                >
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300">
+                    {showCheatSheet ? 'Hide cheat sheet' : 'Quick cheat sheet'}
+                  </span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {showCheatSheet && (
+                    <motion.div
+                      key="cheat-sheet-panel"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-4 p-6 rounded-[2.5rem] border-2 border-dashed border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/30 dark:bg-indigo-950/10 shadow-inner">
+                        <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-[9px] font-black inline-block mb-4 shadow-lg shadow-indigo-500/20">
+                          {activeTab === 'Task 1' ? 'Task 1' : 'Task 2'}
+                        </span>
+                        <motion.ul
+                          className="list-none space-y-0 p-0 m-0"
+                          variants={cheatSheetListVariants}
+                          initial="hidden"
+                          animate="show"
+                        >
+                          {cheatTips.map((tip) => {
+                            const TipIcon = cheatIconMap[tip.icon] || Target;
+                            return (
+                              <motion.li
+                                key={tip.id}
+                                variants={cheatSheetItemVariants}
+                                className="bg-white/80 dark:bg-slate-900/50 p-3 rounded-2xl border border-white dark:border-slate-800 shadow-sm mb-2 last:mb-0"
+                              >
+                                <div className="flex items-start gap-3">
+                                  <span
+                                    className="shrink-0 text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/40 p-1.5 rounded-lg w-7 h-7 flex items-center justify-center"
+                                    aria-hidden
+                                  >
+                                    <TipIcon className="h-4 w-4" strokeWidth={2} />
+                                  </span>
+                                  <p className="text-[12px] font-bold tracking-tight text-slate-700 dark:text-slate-200 pt-0.5">
+                                    {tip.label}
+                                  </p>
+                                </div>
+                              </motion.li>
+                            );
+                          })}
+                        </motion.ul>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
           })()}
 
           {/* --- 3. DEEP LINGUISTIC ANALYSIS --- */}
           <div className={`p-8 rounded-[3rem] border shadow-sm h-auto overflow-visible ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 dark:border-slate-800'}`}>
-    <h5 className="text-xs font-extrabold mb-6 tracking-tight text-slate-800 dark:text-slate-100 pb-2">
+    <h5 className="text-xs font-extrabold mb-8 tracking-tight text-slate-800 dark:text-slate-100 pb-2">
         Linguistic Insights
     </h5>
-            <div className="space-y-6">
+            <div className="space-y-8">
               
               {/* Linking Words Section */}
-                <div className="space-y-5">
+                <div className="space-y-6">
   {/* ЗАГОЛОВОК И БАЛЛ */}
-  <div className="flex justify-between items-end border-b-[3px] border-blue-500/20 pb-2">
+  <div className="flex justify-between items-end border-b-[3px] border-amber-500/20 pb-2">
     <div className="flex items-center gap-2">
-      <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+      <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
       <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">Linking Words</span>
     </div>
-    <span className="text-[11px] font-black text-blue-600 bg-blue-100 dark:bg-blue-900/40 px-2 py-0.5 rounded-md italic">
+    <span className="text-[11px] font-black italic text-amber-900 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-200 px-2 py-0.5 rounded-md">
       Score: {activeResult.analysis?.linking_words?.score}/9.0
     </span>
   </div>
@@ -2408,23 +2436,21 @@ const insertLinkingWord = (word) => {
       <button 
         key={i}
         onClick={() => triggerHighlight(w)}
-        className={`group flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-xl font-bold transition-all active:scale-95
-          ${darkMode ? 'bg-slate-800 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+        className="group flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-xl font-bold border border-slate-200 bg-white text-slate-800 shadow-sm transition-all hover:border-amber-500 active:scale-95 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-amber-500"
       >
-        {/* ИСПРАВЛЕНО: Теперь линия — это жирное подчеркивание текста, а не граница кнопки */}
-        <span className="underline underline-offset-[4px] decoration-transparent group-hover:decoration-blue-500 decoration-[3px] transition-all">
+        <span className="underline underline-offset-[4px] decoration-transparent decoration-[3px] transition-all group-hover:decoration-amber-500">
           {w}
         </span>
-        <Search className="w-3 h-3 opacity-0 group-hover:opacity-100 text-blue-500 transition-all transform group-hover:scale-110" />
+        <Search className="w-3 h-3 opacity-0 text-amber-600 transition-all group-hover:opacity-100 dark:text-amber-400 transform group-hover:scale-110" />
       </button>
     ))}
   </div>
 
   {/* БЛОК ПРЕДЛОЖЕНИЙ */}
-    <div className="p-5 rounded-[2.5rem] bg-blue-50/50 dark:bg-blue-950/20 border-2 border-blue-100 dark:border-blue-900/30">
-  <p className="text-[9px] font-black uppercase text-blue-600 mb-4 tracking-[0.2em] flex items-center gap-2">
-    <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-    <span className="underline underline-offset-[6px] decoration-blue-500/40 decoration-[3px]">
+    <div className="rounded-[2rem] border-2 border-dashed border-amber-200/50 bg-amber-50/50 p-6 dark:border-amber-800/40 dark:bg-amber-950/10">
+  <p className="mb-4 flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-amber-700 dark:text-amber-400">
+    <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+    <span className="underline underline-offset-[6px] decoration-amber-500/40 decoration-[3px]">
       Suggested Additions
     </span>
   </p>  
@@ -2445,11 +2471,11 @@ const insertLinkingWord = (word) => {
       <button 
         key={i} 
         onClick={() => insertLinkingWord(s)}
-        className="group relative text-[9px] bg-white dark:bg-slate-800 text-blue-600 px-3 py-2.5 rounded-xl font-black shadow-sm border border-blue-100 dark:border-blue-800 hover:border-blue-500 hover:shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+        className="group relative flex items-center gap-1.5 rounded-xl border border-amber-100 bg-white px-3 py-2.5 text-[9px] font-black text-amber-700 shadow-sm transition-all hover:border-amber-500 active:scale-95 dark:border-amber-800/50 dark:bg-slate-800 dark:text-amber-300 dark:hover:border-amber-500"
         title={`Click to insert "${s}"`}
       >
-        <span className="opacity-40 group-hover:text-blue-500 group-hover:opacity-100 transition-all font-bold">+</span>
-        <span className="underline underline-offset-[2px] decoration-transparent group-hover:decoration-blue-500/50 decoration-2 transition-all">
+        <span className="font-bold opacity-40 transition-all group-hover:text-amber-600 group-hover:opacity-100 dark:group-hover:text-amber-400">+</span>
+        <span className="underline underline-offset-[2px] decoration-transparent decoration-2 transition-all group-hover:decoration-amber-500/50">
           {s}
         </span>
       </button>
@@ -2463,7 +2489,7 @@ const insertLinkingWord = (word) => {
 
 
               {/* Repetitions List */}
-              <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+              <div className="border-t border-slate-200 pt-6 dark:border-slate-800">
                 <span className="text-[10px] font-extrabold uppercase block mb-4 text-slate-800 dark:text-slate-100">Frequency Alert</span>
                   <div className="space-y-2">
     {activeResult?.analysis?.word_repetition?.map((item, i) => {
@@ -2474,7 +2500,7 @@ const insertLinkingWord = (word) => {
       return (
         <div
           key={wordText + i}
-          className={`w-full p-4 rounded-2xl border transition-all mb-3 ${
+          className={`mb-3 w-full rounded-[2.5rem] border p-4 transition-all ${
             darkMode ? 'bg-slate-900/40 border-slate-800 shadow-none' : 'bg-white border-red-50 shadow-sm'
           }`}
         >
@@ -2579,7 +2605,7 @@ const insertLinkingWord = (word) => {
   </div>
               {/* Integrity Badge */}
               {activeResult.plagiarism && (
-                <div className={`mt-6 p-4 rounded-2xl border-l-4 ${activeResult.plagiarism.score > 30 ? 'bg-red-50 border-red-500' : 'bg-emerald-50 border-emerald-500'}`}>
+                <div className={`mt-2 rounded-[2.5rem] border-l-4 p-5 ${activeResult.plagiarism.score > 30 ? 'bg-red-50 border-red-500' : 'bg-emerald-50 border-emerald-500'}`}>
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-[9px] font-extrabold uppercase text-slate-800 dark:text-slate-100">Plagiarism Check</span>
                     <span className="text-[9px] font-extrabold text-slate-900 dark:text-white">{activeResult.plagiarism.score}%</span>
@@ -2624,6 +2650,18 @@ const insertLinkingWord = (word) => {
         </div>
       </section>
       {/* 3. Группировка детальных ошибок (Corrections) */}
+      {activeResult && !loading && activeResult.suggested_rewrite && (
+      <div className="relative mt-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 sm:mt-12">
+        <div className="mb-6 flex w-full items-center gap-3">
+          <CheckCircle className="h-5 w-5 shrink-0 text-green-600 dark:text-green-400" strokeWidth={1.5} />
+          <h4 className="shrink-0 text-sm font-extrabold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100 sm:text-base">
+            Comparison Lab
+          </h4>
+          <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-700" aria-hidden />
+        </div>
+        <ComparisonLab activeTab={activeTab} activeResult={activeResult} darkMode={darkMode} />
+      </div>
+    )}
       <div className="space-y-6">
   <h3 className="text-xs font-extrabold tracking-tight text-slate-800 dark:text-slate-100 ml-2">
     Detailed Corrections
@@ -2767,18 +2805,6 @@ const insertLinkingWord = (word) => {
   </AnimatePresence>
      </div>
      </div>
-     {activeResult && !loading && activeResult.suggested_rewrite && (
-      <div className="relative mt-8 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 sm:mt-12">
-        <div className="mb-6 flex w-full items-center gap-3">
-          <CheckCircle className="h-5 w-5 shrink-0 text-green-600 dark:text-green-400" strokeWidth={1.5} />
-          <h4 className="shrink-0 text-sm font-extrabold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100 sm:text-base">
-            Comparison Lab
-          </h4>
-          <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-700" aria-hidden />
-        </div>
-        <ComparisonLab activeTab={activeTab} activeResult={activeResult} darkMode={darkMode} />
-      </div>
-    )}
     </div>
       )}
     <div className="mt-8 flex flex-col gap-6">
@@ -2978,7 +3004,7 @@ const insertLinkingWord = (word) => {
         </div>
       {/* PRICING BLOCK — visible for Stripe compliance */}
       <section id="pricing" className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -2999,7 +3025,7 @@ const insertLinkingWord = (word) => {
               <span className="btn-stratum-text">VIEW PRICING · STRATUM</span>
             </button>
           </motion.div>
-        </div>
+        </div> */}
       </section>
       {/* FOOTER — matches main (Cathoven-style) */}
         <footer className="border-t border-white/5 bg-[#F9FAFB] dark:bg-[#050505] transition-colors">
