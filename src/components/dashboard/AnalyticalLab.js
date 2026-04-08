@@ -158,6 +158,12 @@ function base64ToBlob(base64, mimeType) {
   return new Blob([bytes], { type: mimeType || 'audio/mpeg' });
 }
 
+function sanitizeTextForTts(input) {
+  const s = String(input || '');
+  if (!s) return '';
+  return s.replace(/<\/?mark>/gi, '').replace(/<\/?[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+
 async function fetchTtsWithTimestamps({ text, filenameBase }) {
   const response = await fetch('/api/tts', {
     method: 'POST',
@@ -461,6 +467,8 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     return `${mm}:${ss}`;
   }, []);
 
+  const [suggestedRewriteWordTimestamps, setSuggestedRewriteWordTimestamps] = useState([]);
+
   const feedItems = useMemo(() => {
     const fromErrors = errors.map((e) => ({
       id: e.id,
@@ -553,10 +561,15 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
 
   const handleGenerateAudio = useCallback(async () => {
     if (!suggestedRewrite || isAudioLoading) return;
+    const cleanText = sanitizeTextForTts(suggestedRewrite);
+    if (!cleanText) return;
     setIsAudioLoading(true);
     setAudioError('');
     try {
-      const { blob } = await fetchTtsWithTimestamps({ text: suggestedRewrite, filenameBase: audioFilenameBase });
+      const { blob, wordTimestamps } = await fetchTtsWithTimestamps({
+        text: cleanText,
+        filenameBase: audioFilenameBase,
+      });
       const url = window.URL.createObjectURL(blob);
 
       setAudioBlob(blob);
@@ -564,6 +577,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
         if (prev) window.URL.revokeObjectURL(prev);
         return url;
       });
+      setSuggestedRewriteWordTimestamps(Array.isArray(wordTimestamps) ? wordTimestamps : []);
       setIsPlaying(false);
       setAudioProgress(0);
       if (audioRef.current) {
@@ -998,6 +1012,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                 <SuggestedRewriteKaraoke
                   bandScore={band != null ? String(band) : undefined}
                   suggestedRewrite={suggestedRewrite}
+                  wordTimestamps={suggestedRewriteWordTimestamps}
                   audioRef={audioRef}
                   audioUrl={audioUrl}
                   audioDuration={audioDuration}

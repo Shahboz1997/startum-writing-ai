@@ -2875,6 +2875,7 @@ const insertLinkingWord = (word) => {
           fullBleedLayout
           bandScore="8.5+"
           suggestedRewrite={activeResult.suggested_rewrite}
+          wordTimestamps={karaokeAudio.wordTimestamps}
           audioRef={karaokeAudio.audioRef}
           audioUrl={karaokeAudio.audioUrl}
           audioDuration={karaokeAudio.audioDuration}

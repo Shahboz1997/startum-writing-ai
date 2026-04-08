@@ -84,6 +84,112 @@ function normalizeWordToken(w) {
     .toLowerCase();
 }
 
+function buildLcsPairs(a, b) {
+  const n = a.length;
+  const m = b.length;
+  if (n === 0 || m === 0) return [];
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = 1; i <= n; i++) {
+    const ai = a[i - 1];
+    for (let j = 1; j <= m; j++) {
+      dp[i][j] = ai === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  const pairs = [];
+  let i = n;
+  let j = m;
+  while (i > 0 && j > 0) {
+    if (a[i - 1] === b[j - 1]) {
+      pairs.push([i - 1, j - 1]);
+      i -= 1;
+      j -= 1;
+    } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+      i -= 1;
+    } else {
+      j -= 1;
+    }
+  }
+  pairs.reverse();
+  return pairs;
+}
+
+function deriveAlignedTimingsFromTimestamps(inputTokens, ts) {
+  const inNorm = inputTokens.map(normalizeWordToken);
+  const tsNorm = ts.map((t) => normalizeWordToken(t?.word));
+  const pairs = buildLcsPairs(inNorm, tsNorm).filter(([i, j]) => inNorm[i] && tsNorm[j]);
+  if (pairs.length < Math.max(3, Math.floor(inputTokens.length * 0.35))) return [];
+
+  const aligned = new Array(inputTokens.length).fill(null);
+  for (const [i, j] of pairs) {
+    const start = Number(ts[j]?.start);
+    const end = Number(ts[j]?.end);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue;
+    aligned[i] = { word: inputTokens[i], start, end };
+  }
+
+  const matchedIdx = [];
+  for (let i = 0; i < aligned.length; i++) if (aligned[i]) matchedIdx.push(i);
+  if (matchedIdx.length < Math.max(3, Math.floor(inputTokens.length * 0.35))) return [];
+
+  // Interpolate gaps between matched tokens.
+  for (let mi = 0; mi < matchedIdx.length - 1; mi++) {
+    const a = matchedIdx[mi];
+    const b = matchedIdx[mi + 1];
+    const gap = b - a - 1;
+    if (gap <= 0) continue;
+    const left = aligned[a];
+    const right = aligned[b];
+    const t0 = left.end;
+    const t1 = right.start;
+    if (!Number.isFinite(t0) || !Number.isFinite(t1) || t1 <= t0) continue;
+    const step = (t1 - t0) / (gap + 1);
+    for (let k = 1; k <= gap; k++) {
+      const idx = a + k;
+      const s = t0 + step * (k - 1);
+      const e = t0 + step * k;
+      aligned[idx] = { word: inputTokens[idx], start: s, end: e };
+    }
+  }
+
+  // Fill leading unmatched tokens.
+  const first = matchedIdx[0];
+  if (first > 0) {
+    const right = aligned[first];
+    const span = Math.max(0.08, (right.end - right.start) || 0.2);
+    const step = span / (first + 1);
+    const baseEnd = right.start;
+    for (let i = first - 1; i >= 0; i--) {
+      const e = baseEnd - step * (first - i - 0);
+      const s = e - step;
+      aligned[i] = { word: inputTokens[i], start: Math.max(0, s), end: Math.max(0, e) };
+    }
+  }
+
+  // Fill trailing unmatched tokens.
+  const last = matchedIdx[matchedIdx.length - 1];
+  if (last < aligned.length - 1) {
+    const left = aligned[last];
+    const span = Math.max(0.08, (left.end - left.start) || 0.2);
+    const remain = aligned.length - 1 - last;
+    const step = span / (remain + 1);
+    let cur = left.end;
+    for (let i = last + 1; i < aligned.length; i++) {
+      const s = cur;
+      const e = cur + step;
+      aligned[i] = { word: inputTokens[i], start: s, end: e };
+      cur = e;
+    }
+  }
+
+  // Final sanity: must be all filled and monotonic-ish.
+  const out = aligned.filter(Boolean);
+  if (out.length !== inputTokens.length) return [];
+  for (let i = 1; i < out.length; i++) {
+    if (out[i].start < out[i - 1].start) return [];
+  }
+  return out;
+}
+
 function phraseToRegexPattern(phrase) {
   return phrase
     .split(/\s+/)
@@ -158,6 +264,7 @@ const WAVEFORM = Array.from({ length: 34 }, (_, i) => 0.28 + Math.abs(Math.sin(i
 export default function SuggestedRewriteKaraoke({
   bandScore,
   suggestedRewrite,
+  wordTimestamps,
   audioRef,
   audioUrl,
   audioDuration,
@@ -184,9 +291,20 @@ export default function SuggestedRewriteKaraoke({
     [segmentedRewrite]
   );
 
+  const alignedWordTimings = useMemo(() => {
+    const ts = Array.isArray(wordTimestamps) ? wordTimestamps : [];
+    if (ts.length === 0) return [];
+    const inputTokens = plainTextForTimings.split(' ').filter(Boolean);
+    if (inputTokens.length === 0) return [];
+    return deriveAlignedTimingsFromTimestamps(inputTokens, ts);
+  }, [plainTextForTimings, wordTimestamps]);
+
   const wordTimings = useMemo(
-    () => getWordTimings(plainTextForTimings, audioDuration),
-    [plainTextForTimings, audioDuration]
+    () =>
+      alignedWordTimings.length > 0
+        ? alignedWordTimings
+        : getWordTimings(plainTextForTimings, audioDuration),
+    [plainTextForTimings, audioDuration, alignedWordTimings]
   );
 
   const karaokeParagraphRanges = useMemo(() => {

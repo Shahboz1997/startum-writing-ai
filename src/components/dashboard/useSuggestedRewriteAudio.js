@@ -2,6 +2,21 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 
+function sanitizeTextForTts(input) {
+  const s = String(input || '');
+  if (!s) return '';
+  return (
+    s
+      // remove mark tags (keeps inner text)
+      .replace(/<\/?mark>/gi, '')
+      // remove any other HTML-like tags (keeps inner text)
+      .replace(/<\/?[^>]+>/g, '')
+      // normalize whitespace
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+}
+
 function base64ToBlob(base64, mimeType) {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
@@ -21,7 +36,8 @@ async function fetchTtsWithTimestamps({ text, filenameBase }) {
   }
   const data = await response.json();
   const blob = data.audioBase64 ? base64ToBlob(data.audioBase64) : null;
-  return { blob };
+  const wordTimestamps = Array.isArray(data.wordTimestamps) ? data.wordTimestamps : [];
+  return { blob, wordTimestamps };
 }
 
 /**
@@ -30,6 +46,7 @@ async function fetchTtsWithTimestamps({ text, filenameBase }) {
 export function useSuggestedRewriteAudio(suggestedRewrite, filenameBase) {
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [audioUrl, setAudioUrl] = useState(null);
+  const [wordTimestamps, setWordTimestamps] = useState([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioTime, setAudioTime] = useState(0);
@@ -44,11 +61,13 @@ export function useSuggestedRewriteAudio(suggestedRewrite, filenameBase) {
 
   const handleGenerateAudio = useCallback(async () => {
     if (!suggestedRewrite || isAudioLoading) return;
+    const cleanText = sanitizeTextForTts(suggestedRewrite);
+    if (!cleanText) return;
     setIsAudioLoading(true);
     setAudioError('');
     try {
-      const { blob } = await fetchTtsWithTimestamps({
-        text: suggestedRewrite,
+      const { blob, wordTimestamps: ts } = await fetchTtsWithTimestamps({
+        text: cleanText,
         filenameBase: filenameBase || 'Stratum_Rewrite',
       });
       const url = window.URL.createObjectURL(blob);
@@ -56,6 +75,7 @@ export function useSuggestedRewriteAudio(suggestedRewrite, filenameBase) {
         if (prev) window.URL.revokeObjectURL(prev);
         return url;
       });
+      setWordTimestamps(Array.isArray(ts) ? ts : []);
       setIsPlaying(false);
       setAudioProgress(0);
       if (audioRef.current) {
@@ -71,12 +91,14 @@ export function useSuggestedRewriteAudio(suggestedRewrite, filenameBase) {
 
   const handleTogglePlay = useCallback(async () => {
     if (!audioRef.current || !audioUrl || isAudioLoading) return;
-    if (audioRef.current.paused) {
-      await audioRef.current.play();
-      setIsPlaying(true);
-    } else {
-      audioRef.current.pause();
-      setIsPlaying(false);
+    try {
+      if (audioRef.current.paused) {
+        await audioRef.current.play();
+      } else {
+        audioRef.current.pause();
+      }
+    } catch {
+      // ignore (e.g. user gesture restriction)
     }
   }, [audioUrl, isAudioLoading]);
 
@@ -99,13 +121,19 @@ export function useSuggestedRewriteAudio(suggestedRewrite, filenameBase) {
     };
     const onLoaded = () => setAudioDuration(el.duration || 0);
     const onEnded = () => setIsPlaying(false);
+    const onPause = () => setIsPlaying(false);
+    const onPlay = () => setIsPlaying(true);
     el.addEventListener('timeupdate', onTimeUpdate);
     el.addEventListener('loadedmetadata', onLoaded);
     el.addEventListener('ended', onEnded);
+    el.addEventListener('pause', onPause);
+    el.addEventListener('play', onPlay);
     return () => {
       el.removeEventListener('timeupdate', onTimeUpdate);
       el.removeEventListener('loadedmetadata', onLoaded);
       el.removeEventListener('ended', onEnded);
+      el.removeEventListener('pause', onPause);
+      el.removeEventListener('play', onPlay);
     };
   }, [audioUrl]);
 
@@ -119,6 +147,7 @@ export function useSuggestedRewriteAudio(suggestedRewrite, filenameBase) {
     audioRef,
     audioUrl,
     audioDuration,
+    wordTimestamps,
     isAudioLoading,
     isPlaying,
     audioProgress,
