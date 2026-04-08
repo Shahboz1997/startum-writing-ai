@@ -152,40 +152,221 @@ const MARK_HIGHLIGHT_CLASS_TASK2 =
 const MARK_HIGHLIGHT_CLASS_TASK1 =
   'bg-emerald-50 text-emerald-900 px-1.5 py-0.5 rounded-sm border-b-2 border-emerald-200 font-medium dark:bg-emerald-900/40 dark:text-emerald-100';
 
+const REWRITE_SPAN_CLASS = {
+  connectors:
+    'bg-sky-100 text-sky-900 px-1 py-0.5 rounded-sm border-b border-sky-200 font-semibold dark:bg-sky-900/25 dark:text-sky-200',
+  advanced:
+    'bg-amber-100/60 text-amber-900 px-1 py-0.5 rounded-sm border-b border-amber-200 font-medium dark:bg-amber-900/20 dark:text-amber-200',
+};
+
+const CONNECTOR_PHRASES_T1 = [
+  'Overall',
+  'In conclusion',
+  'To conclude',
+  'In summary',
+  'It is clear that',
+  'It can be seen that',
+  'The graph illustrates',
+  'The bar chart illustrates',
+  'The table illustrates',
+  'The diagram illustrates',
+  'The line graph illustrates',
+  'The pie chart illustrates',
+];
+
+const CONNECTOR_PHRASES_T2 = [
+  'On the one hand',
+  'On the other hand',
+  'In conclusion',
+  'To conclude',
+  'In summary',
+  'Overall',
+  'However',
+  'Nevertheless',
+  'Moreover',
+  'Furthermore',
+  'Therefore',
+  'Thus',
+  'Consequently',
+  'In addition',
+  'For example',
+  'For instance',
+  'In contrast',
+  'By contrast',
+  'As a result',
+];
+
+const ADVANCED_STOPWORDS_COMMON = new Set(
+  [
+    'whatever',
+    'whenever',
+    'wherever',
+    'everyone',
+    'everything',
+    'anything',
+    'something',
+    'somewhere',
+    'themselves',
+    'ourselves',
+    'yourselves',
+    'theoretically',
+  ].map((s) => s.toLowerCase())
+);
+
+// Task 1 often contains technical nouns (percentages, categories); be a bit stricter to reduce noise.
+const ADVANCED_STOPWORDS_T1 = new Set(
+  [
+    ...ADVANCED_STOPWORDS_COMMON,
+    'percentage',
+    'percentages',
+    'information',
+    'production',
+    'population',
+    'development',
+    'government',
+    'technology',
+    'university',
+  ].map((s) => s.toLowerCase())
+);
+
+// Task 2 tends to reward academic lexis more broadly; keep fewer exclusions.
+const ADVANCED_STOPWORDS_T2 = new Set(
+  [
+    ...ADVANCED_STOPWORDS_COMMON,
+    'international',
+    'environmental',
+  ].map((s) => s.toLowerCase())
+);
+
+function splitByPhrases(text, phrases, type) {
+  if (!text) return [{ kind: 'text', text: '' }];
+  const sorted = (Array.isArray(phrases) ? phrases : [])
+    .map((p) => String(p || '').trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  if (!sorted.length) return [{ kind: 'text', text }];
+
+  const lower = text.toLowerCase();
+  const phrasesLower = sorted.map((p) => p.toLowerCase());
+  const segments = [];
+  let i = 0;
+  let buf = '';
+
+  while (i < text.length) {
+    let matched = false;
+    for (let pi = 0; pi < phrasesLower.length; pi++) {
+      const pl = phrasesLower[pi];
+      if (pl && lower.startsWith(pl, i)) {
+        if (buf) {
+          segments.push({ kind: 'text', text: buf });
+          buf = '';
+        }
+        segments.push({ kind: 'span', type, text: text.slice(i, i + pl.length) });
+        i += pl.length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      buf += text[i];
+      i += 1;
+    }
+  }
+
+  if (buf) segments.push({ kind: 'text', text: buf });
+  return segments.length ? segments : [{ kind: 'text', text }];
+}
+
+function splitByAdvancedWords(text, { minLen, stopwords }) {
+  if (!text) return [{ kind: 'text', text: '' }];
+  // slightly stricter than \w: only letters, to avoid ids / numbers
+  const safeMin = Number.isFinite(minLen) ? Math.max(1, Math.floor(minLen)) : 9;
+  const re = new RegExp(`\\b[a-zA-Z]{${safeMin},}\\b`, 'g');
+  const out = [];
+  let last = 0;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const w = m[0];
+    const wl = w.toLowerCase();
+    if (stopwords?.has?.(wl)) continue;
+    if (m.index > last) out.push({ kind: 'text', text: text.slice(last, m.index) });
+    out.push({ kind: 'span', type: 'advanced', text: w });
+    last = m.index + w.length;
+  }
+  if (last < text.length) out.push({ kind: 'text', text: text.slice(last) });
+  return out.length ? out : [{ kind: 'text', text }];
+}
+
+/**
+ * Priority:
+ * - existing <mark>...</mark> phrases
+ * - task-specific connector phrases
+ * - auto-highlight remaining long academic words (>= 9 letters) as `advanced`
+ */
+function getRewriteSegments(paragraphText, activeTab) {
+  const raw = paragraphText == null ? '' : String(paragraphText);
+  if (!raw) return [{ kind: 'text', text: '' }];
+
+  const phrases = activeTab === 'Task 1' ? CONNECTOR_PHRASES_T1 : CONNECTOR_PHRASES_T2;
+  const advancedCfg =
+    activeTab === 'Task 1'
+      ? { minLen: 10, stopwords: ADVANCED_STOPWORDS_T1 }
+      : { minLen: 9, stopwords: ADVANCED_STOPWORDS_T2 };
+
+  // 1) split on <mark>...</mark>
+  const base = [];
+  let last = 0;
+  let m;
+  const re = new RegExp(MARK_PAIR_RE.source, MARK_PAIR_RE.flags);
+  while ((m = re.exec(raw)) !== null) {
+    if (m.index > last) base.push({ kind: 'text', text: raw.slice(last, m.index) });
+    base.push({ kind: 'span', type: 'rewrite_mark', text: m[1] });
+    last = re.lastIndex;
+  }
+  if (last < raw.length) base.push({ kind: 'text', text: raw.slice(last) });
+
+  // 2) split remaining text by connector phrases
+  const withConnectors = base.flatMap((seg) => {
+    if (seg.kind !== 'text') return [seg];
+    return splitByPhrases(seg.text, phrases, 'connectors');
+  });
+
+  // 3) split remaining plain text by long words
+  const withAdvanced = withConnectors.flatMap((seg) => {
+    if (seg.kind !== 'text') return [seg];
+    return splitByAdvancedWords(seg.text, advancedCfg);
+  });
+
+  return withAdvanced.length ? withAdvanced : [{ kind: 'text', text: raw }];
+}
+
 /**
  * Split rewrite text on <mark>...</mark> and return JSX fragments.
  * Unclosed or stray tags are left as plain text (no HTML injection).
  */
 function renderHighlightedText(paragraphText, activeTab, keyPrefix = 'r') {
-  const raw = paragraphText == null ? '' : String(paragraphText);
-  if (!raw) {
-    return [<span key={`${keyPrefix}-e`} />];
-  }
-
   const markClass =
     activeTab === 'Task 1' ? MARK_HIGHLIGHT_CLASS_TASK1 : MARK_HIGHLIGHT_CLASS_TASK2;
-  const out = [];
-  let last = 0;
-  let m;
+  const segs = getRewriteSegments(paragraphText, activeTab);
   let i = 0;
-  const re = new RegExp(MARK_PAIR_RE.source, MARK_PAIR_RE.flags);
-  while ((m = re.exec(raw)) !== null) {
-    if (m.index > last) {
-      out.push(
-        <span key={`${keyPrefix}-t-${i++}`}>{raw.slice(last, m.index)}</span>
+  return segs.map((seg) => {
+    if (seg.kind !== 'span') {
+      return <span key={`${keyPrefix}-t-${i++}`}>{seg.text}</span>;
+    }
+    if (seg.type === 'rewrite_mark') {
+      return (
+        <mark key={`${keyPrefix}-m-${i++}`} className={markClass}>
+          {seg.text}
+        </mark>
       );
     }
-    out.push(
-      <mark key={`${keyPrefix}-m-${i++}`} className={markClass}>
-        {m[1]}
-      </mark>
+    const cls = REWRITE_SPAN_CLASS[seg.type] || '';
+    return (
+      <span key={`${keyPrefix}-s-${i++}`} className={cls}>
+        {seg.text}
+      </span>
     );
-    last = re.lastIndex;
-  }
-  if (last < raw.length) {
-    out.push(<span key={`${keyPrefix}-t-${i++}`}>{raw.slice(last)}</span>);
-  }
-  return out.length ? out : [<span key={`${keyPrefix}-t-0`}>{raw}</span>];
+  });
 }
 
 /** Longform essay body — premium editorial rhythm */
@@ -205,6 +386,7 @@ const LEGEND_ITEMS = [
   { key: 'vocab', label: 'Vocabulary', dot: 'bg-purple-500' },
   { key: 'logic', label: 'Logic/Data', dot: 'bg-blue-600' },
   { key: 'connectors', label: 'Connectors', dot: 'bg-sky-400' },
+  { key: 'advanced', label: 'Advanced Vocabulary', dot: 'bg-amber-200' },
   { key: 'rewrite_mark', label: 'Rewrite highlights (<mark>)', dot: 'bg-amber-400' },
 ];
 

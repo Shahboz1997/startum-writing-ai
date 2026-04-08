@@ -109,6 +109,23 @@ export function renderParagraphWithLinkingPhrases(text) {
   );
 }
 
+/**
+ * Safely renders only <mark>...</mark> tags as real elements.
+ * Everything else stays as plain text (no HTML execution).
+ */
+export function renderParagraphWithMarksAndLinkingPhrases(text) {
+  const s = String(text || '');
+  if (!s) return s;
+  const parts = s.split(/(<mark>[\s\S]*?<\/mark>)/gi);
+  return parts
+    .filter((p) => p !== '')
+    .map((part, i) => {
+      const m = part.match(/^<mark>([\s\S]*?)<\/mark>$/i);
+      if (m) return <mark key={`m-${i}`}>{m[1]}</mark>;
+      return <React.Fragment key={`t-${i}`}>{renderParagraphWithLinkingPhrases(part)}</React.Fragment>;
+    });
+}
+
 function buildLinkingWordMask(wordTimingList) {
   const words = wordTimingList.map((t) => t.word);
   const n = words.length;
@@ -163,7 +180,7 @@ export default function SuggestedRewriteKaraoke({
   const segmentedRewrite = useMemo(() => insertLogicalParagraphBreaks(suggestedRewrite || ''), [suggestedRewrite]);
 
   const plainTextForTimings = useMemo(
-    () => segmentedRewrite.replace(/\s+/g, ' ').trim(),
+    () => segmentedRewrite.replace(/<\/?mark>/gi, '').replace(/\s+/g, ' ').trim(),
     [segmentedRewrite]
   );
 
@@ -245,7 +262,7 @@ export default function SuggestedRewriteKaraoke({
     'mb-6 text-lg leading-[1.8] font-serif text-slate-700 dark:text-slate-300 last:mb-0 whitespace-pre-wrap';
 
   const sectionClass =
-    'relative z-20 w-full max-w-none h-auto overflow-visible rounded-2xl border border-slate-200/60 bg-white/70 shadow-xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/80';
+    'relative z-20 w-full max-w-none h-auto overflow-visible rounded-2xl border border-slate-200/60 bg-white/70 shadow-xl backdrop-blur-md dark:border-slate-800/60 dark:bg-slate-900/80 [&_mark]:rounded [&_mark]:px-1 [&_mark]:py-0.5 [&_mark]:bg-amber-200/70 [&_mark]:text-slate-900 dark:[&_mark]:bg-amber-400/20 dark:[&_mark]:text-amber-200';
 
   const inner = (
     <>
@@ -387,13 +404,15 @@ export default function SuggestedRewriteKaraoke({
             <div className="not-prose h-auto overflow-visible">
               {staticParas.map((para, idx) => (
                 <p key={idx} className={paraClass}>
-                  {renderParagraphWithLinkingPhrases(para)}
+                  {renderParagraphWithMarksAndLinkingPhrases(para)}
                 </p>
               ))}
             </div>
           ) : (
             <div className="not-prose h-auto overflow-visible">
-              <p className={paraClass}>{renderParagraphWithLinkingPhrases(segmentedRewrite || suggestedRewrite || '')}</p>
+              <p className={paraClass}>
+                {renderParagraphWithMarksAndLinkingPhrases(segmentedRewrite || suggestedRewrite || '')}
+              </p>
             </div>
           )}
         </div>
