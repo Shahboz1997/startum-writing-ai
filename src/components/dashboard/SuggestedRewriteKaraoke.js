@@ -390,7 +390,7 @@ export default function SuggestedRewriteKaraoke({
               {bandLabel}
             </div>
             <span className="hidden text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 sm:inline">
-              Model band
+              Target band
             </span>
           </div>
           {audioTime > 0 ? (

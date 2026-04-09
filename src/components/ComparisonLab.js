@@ -1,7 +1,6 @@
 'use client';
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check } from 'lucide-react';
 
 function normalizeErrorType(t) {
   const s = String(t || '')
@@ -51,11 +50,65 @@ function splitEssayIntoParagraphs(raw) {
 }
 
 function stripMarkTags(text) {
-  return String(text || '').replace(/<\/?mark>/gi, '');
+  return String(text || '').replace(/<\/?mark\b[^>]*>/gi, '');
 }
 
 function isConclusionParagraph(text) {
   return /^\s*In conclusion\b/i.test(stripMarkTags(text));
+}
+
+/**
+ * DB / archive rows often store the examiner JSON in `feedback` (string).
+ * Flatten so Comparison Lab always sees suggested_rewrite, errors, corrections.
+ */
+function unwrapExaminerPayload(activeResult) {
+  if (!activeResult || typeof activeResult !== 'object') return {};
+  const base = { ...activeResult };
+  const fb = base.feedback;
+  if (typeof fb === 'string' && fb.trim()) {
+    try {
+      const parsed = JSON.parse(fb);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          ...parsed,
+          ...base,
+          text: base.text ?? base.content ?? parsed.text ?? parsed.content ?? '',
+          suggested_rewrite: base.suggested_rewrite ?? parsed.suggested_rewrite ?? '',
+          errors: Array.isArray(base.errors) && base.errors.length ? base.errors : parsed.errors,
+          corrections:
+            Array.isArray(base.corrections) && base.corrections.length
+              ? base.corrections
+              : parsed.corrections,
+          highlights:
+            Array.isArray(base.highlights) && base.highlights.length
+              ? base.highlights
+              : parsed.highlights,
+        };
+      }
+    } catch {
+      // ignore invalid feedback JSON
+    }
+  }
+  return base;
+}
+
+/** Prefer unified errors[]; else derive from corrections (API always sends corrections from errors). */
+function resolveDraftErrors(raw) {
+  const e = raw?.errors;
+  if (Array.isArray(e) && e.length > 0) return e;
+  const c = raw?.corrections;
+  if (!Array.isArray(c) || c.length === 0) return [];
+  return c.map((corr, i) => ({
+    id: corr.id ?? `cor-${i}`,
+    original: corr.original,
+    type: normalizeErrorType(corr.category ?? corr.rule),
+    explanation: corr.explanation ?? corr.impact ?? '',
+    suggestion: corr.fixed ?? corr.suggestion ?? '',
+  }));
+}
+
+function isWordChar(c) {
+  return c != null && /[a-zA-Z0-9]/.test(c);
 }
 
 /** Build non-overlapping segments from one paragraph + examiner errors. */
@@ -143,8 +196,8 @@ function highlightDraft(paragraphText, errors, { setTooltip, keyPrefix = 'd' }) 
   });
 }
 
-/** AI wraps upgrades in <mark>...</mark>; parsed without innerHTML. */
-const MARK_PAIR_RE = /<mark>([\s\S]*?)<\/mark>/gi;
+/** AI wraps upgrades in <mark>...</mark>; allow optional attributes; parsed without innerHTML. */
+const MARK_PAIR_RE = /<mark\b[^>]*>([\s\S]*?)<\/mark>/gi;
 
 const MARK_HIGHLIGHT_CLASS_TASK2 =
   'bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded-sm border-b-2 border-amber-300 font-medium dark:bg-amber-900/40 dark:text-amber-100';
@@ -157,6 +210,12 @@ const REWRITE_SPAN_CLASS = {
     'bg-sky-100 text-sky-900 px-1 py-0.5 rounded-sm border-b border-sky-200 font-semibold dark:bg-sky-900/25 dark:text-sky-200',
   advanced:
     'bg-amber-100/60 text-amber-900 px-1 py-0.5 rounded-sm border-b border-amber-200 font-medium dark:bg-amber-900/20 dark:text-amber-200',
+  connector:
+    'bg-sky-100 text-sky-900 px-1 py-0.5 rounded-sm border-b border-sky-200 font-semibold dark:bg-sky-900/25 dark:text-sky-200',
+  verb:
+    'bg-violet-100/80 text-violet-900 px-1 py-0.5 rounded-sm border-b border-violet-200 font-medium dark:bg-violet-900/25 dark:text-violet-200',
+  noun:
+    'bg-amber-100/70 text-amber-900 px-1 py-0.5 rounded-sm border-b border-amber-200 font-medium dark:bg-amber-900/20 dark:text-amber-200',
 };
 
 const CONNECTOR_PHRASES_T1 = [
@@ -238,6 +297,53 @@ const ADVANCED_STOPWORDS_T2 = new Set(
   ].map((s) => s.toLowerCase())
 );
 
+/**
+ * Optional examiner `highlights[]` (legacy / landing-style): { text, type }.
+ * Non-overlapping spans, longest phrases first.
+ */
+function splitByApiHighlights(text, highlights) {
+  if (!text || !Array.isArray(highlights) || highlights.length === 0) {
+    return [{ kind: 'text', text: text || '' }];
+  }
+  const items = highlights
+    .map((h) => ({
+      phrase: String(h?.text ?? '').trim(),
+      type: String(h?.type ?? 'advanced').toLowerCase(),
+    }))
+    .filter((h) => h.phrase.length >= 2)
+    .sort((a, b) => b.phrase.length - a.phrase.length);
+
+  if (!items.length) return [{ kind: 'text', text }];
+
+  const lower = text.toLowerCase();
+  const occ = [];
+  for (const it of items) {
+    const pl = it.phrase.toLowerCase();
+    let pos = 0;
+    let idx;
+    while ((idx = lower.indexOf(pl, pos)) !== -1) {
+      occ.push({ start: idx, end: idx + pl.length, type: it.type, phrase: text.slice(idx, idx + pl.length) });
+      pos = idx + 1;
+    }
+  }
+  occ.sort((a, b) => a.start - b.start || b.end - a.end - (a.end - a.start));
+  const picked = [];
+  for (const h of occ) {
+    const overlap = picked.some((p) => h.start < p.end && h.end > p.start);
+    if (!overlap) picked.push(h);
+  }
+  picked.sort((a, b) => a.start - b.start);
+  const segments = [];
+  let last = 0;
+  for (const h of picked) {
+    if (h.start > last) segments.push({ kind: 'text', text: text.slice(last, h.start) });
+    segments.push({ kind: 'span', type: h.type, text: h.phrase });
+    last = h.end;
+  }
+  if (last < text.length) segments.push({ kind: 'text', text: text.slice(last) });
+  return segments.length ? segments : [{ kind: 'text', text }];
+}
+
 function splitByPhrases(text, phrases, type) {
   if (!text) return [{ kind: 'text', text: '' }];
   const sorted = (Array.isArray(phrases) ? phrases : [])
@@ -256,16 +362,20 @@ function splitByPhrases(text, phrases, type) {
     let matched = false;
     for (let pi = 0; pi < phrasesLower.length; pi++) {
       const pl = phrasesLower[pi];
-      if (pl && lower.startsWith(pl, i)) {
-        if (buf) {
-          segments.push({ kind: 'text', text: buf });
-          buf = '';
-        }
-        segments.push({ kind: 'span', type, text: text.slice(i, i + pl.length) });
-        i += pl.length;
-        matched = true;
-        break;
+      if (!pl || !lower.startsWith(pl, i)) continue;
+      const end = i + pl.length;
+      const before = i > 0 ? text[i - 1] : '';
+      const after = end < text.length ? text[end] : '';
+      if (isWordChar(pl[0]) && i > 0 && isWordChar(before)) continue;
+      if (isWordChar(pl[pl.length - 1]) && end < text.length && isWordChar(after)) continue;
+      if (buf) {
+        segments.push({ kind: 'text', text: buf });
+        buf = '';
       }
+      segments.push({ kind: 'span', type, text: text.slice(i, end) });
+      i = end;
+      matched = true;
+      break;
     }
     if (!matched) {
       buf += text[i];
@@ -303,7 +413,7 @@ function splitByAdvancedWords(text, { minLen, stopwords }) {
  * - task-specific connector phrases
  * - auto-highlight remaining long academic words (>= 9 letters) as `advanced`
  */
-function getRewriteSegments(paragraphText, activeTab) {
+function getRewriteSegments(paragraphText, activeTab, highlights) {
   const raw = paragraphText == null ? '' : String(paragraphText);
   if (!raw) return [{ kind: 'text', text: '' }];
 
@@ -311,43 +421,55 @@ function getRewriteSegments(paragraphText, activeTab) {
   const advancedCfg =
     activeTab === 'Task 1'
       ? { minLen: 10, stopwords: ADVANCED_STOPWORDS_T1 }
-      : { minLen: 9, stopwords: ADVANCED_STOPWORDS_T2 };
+      : { minLen: 8, stopwords: ADVANCED_STOPWORDS_T2 };
 
-  // 1) split on <mark>...</mark>
-  const base = [];
-  let last = 0;
-  let m;
-  const re = new RegExp(MARK_PAIR_RE.source, MARK_PAIR_RE.flags);
-  while ((m = re.exec(raw)) !== null) {
-    if (m.index > last) base.push({ kind: 'text', text: raw.slice(last, m.index) });
-    base.push({ kind: 'span', type: 'rewrite_mark', text: m[1] });
-    last = re.lastIndex;
+  const applyMarkConnectorsAdvanced = (source) => {
+    const base = [];
+    let last = 0;
+    let m;
+    const re = new RegExp(MARK_PAIR_RE.source, MARK_PAIR_RE.flags);
+    while ((m = re.exec(source)) !== null) {
+      if (m.index > last) base.push({ kind: 'text', text: source.slice(last, m.index) });
+      base.push({ kind: 'span', type: 'rewrite_mark', text: m[1] });
+      last = re.lastIndex;
+    }
+    if (last < source.length) base.push({ kind: 'text', text: source.slice(last) });
+
+    const withConnectors = base.flatMap((seg) => {
+      if (seg.kind !== 'text') return [seg];
+      return splitByPhrases(seg.text, phrases, 'connectors');
+    });
+
+    const withAdvanced = withConnectors.flatMap((seg) => {
+      if (seg.kind !== 'text') return [seg];
+      return splitByAdvancedWords(seg.text, advancedCfg);
+    });
+
+    return withAdvanced.length ? withAdvanced : [{ kind: 'text', text: source }];
+  };
+
+  const hasMarks = /<mark\b/i.test(raw);
+  const useHighlights = Array.isArray(highlights) && highlights.length > 0 && !hasMarks;
+
+  if (useHighlights) {
+    const hlSegs = splitByApiHighlights(raw, highlights);
+    return hlSegs.flatMap((seg) => {
+      if (seg.kind !== 'text') return [seg];
+      return applyMarkConnectorsAdvanced(seg.text);
+    });
   }
-  if (last < raw.length) base.push({ kind: 'text', text: raw.slice(last) });
 
-  // 2) split remaining text by connector phrases
-  const withConnectors = base.flatMap((seg) => {
-    if (seg.kind !== 'text') return [seg];
-    return splitByPhrases(seg.text, phrases, 'connectors');
-  });
-
-  // 3) split remaining plain text by long words
-  const withAdvanced = withConnectors.flatMap((seg) => {
-    if (seg.kind !== 'text') return [seg];
-    return splitByAdvancedWords(seg.text, advancedCfg);
-  });
-
-  return withAdvanced.length ? withAdvanced : [{ kind: 'text', text: raw }];
+  return applyMarkConnectorsAdvanced(raw);
 }
 
 /**
  * Split rewrite text on <mark>...</mark> and return JSX fragments.
  * Unclosed or stray tags are left as plain text (no HTML injection).
  */
-function renderHighlightedText(paragraphText, activeTab, keyPrefix = 'r') {
+function renderHighlightedText(paragraphText, activeTab, keyPrefix = 'r', highlights) {
   const markClass =
     activeTab === 'Task 1' ? MARK_HIGHLIGHT_CLASS_TASK1 : MARK_HIGHLIGHT_CLASS_TASK2;
-  const segs = getRewriteSegments(paragraphText, activeTab);
+  const segs = getRewriteSegments(paragraphText, activeTab, highlights);
   let i = 0;
   return segs.map((seg) => {
     if (seg.kind !== 'span') {
@@ -360,7 +482,7 @@ function renderHighlightedText(paragraphText, activeTab, keyPrefix = 'r') {
         </mark>
       );
     }
-    const cls = REWRITE_SPAN_CLASS[seg.type] || '';
+    const cls = REWRITE_SPAN_CLASS[seg.type] || REWRITE_SPAN_CLASS.advanced;
     return (
       <span key={`${keyPrefix}-s-${i++}`} className={cls}>
         {seg.text}
@@ -432,27 +554,30 @@ function buildInsightsLines(activeResult, activeTab) {
 export default function ComparisonLab({ activeTab, activeResult, darkMode, className = '' }) {
   const [tooltip, setTooltip] = useState({ show: false, text: '', x: 0, y: 0 });
 
+  const payload = useMemo(() => unwrapExaminerPayload(activeResult), [activeResult]);
+
   const draftText =
-    (typeof activeResult?.text === 'string' && activeResult.text) ||
-    (typeof activeResult?.content === 'string' && activeResult.content) ||
+    (typeof payload.text === 'string' && payload.text) ||
+    (typeof payload.content === 'string' && payload.content) ||
     '';
 
-  const suggestedRewrite = activeResult?.suggested_rewrite || '';
-  const errors = Array.isArray(activeResult?.errors) ? activeResult.errors : [];
+  const suggestedRewrite = payload.suggested_rewrite || '';
+  const errors = useMemo(() => resolveDraftErrors(payload), [payload]);
+  const rewriteHighlights = Array.isArray(payload.highlights) ? payload.highlights : [];
 
   const draftParagraphs = useMemo(() => splitEssayIntoParagraphs(draftText), [draftText]);
   const rewriteParagraphs = useMemo(() => splitEssayIntoParagraphs(suggestedRewrite), [suggestedRewrite]);
 
   const insightsLines = useMemo(
-    () => buildInsightsLines(activeResult, activeTab),
-    [activeResult, activeTab]
+    () => buildInsightsLines(payload, activeTab),
+    [payload, activeTab]
   );
 
   const draftBandLabel = useMemo(() => {
-    const b = activeResult?.overall_band;
+    const b = payload?.overall_band;
     if (b != null && b !== '' && Number.isFinite(Number(b))) return `Band ${Number(b).toFixed(1)}`;
     return activeTab === 'Task 1' ? 'Band 5.0' : 'Band 5.5';
-  }, [activeResult?.overall_band, activeTab]);
+  }, [payload?.overall_band, activeTab]);
 
   const rewriteBandLabel = 'Band 8.5+';
 
@@ -532,7 +657,7 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
                           conclusion ? 'mt-12 italic border-t border-slate-100 pt-6 dark:border-slate-800' : ''
                         }`}
                       >
-                        {renderHighlightedText(para, activeTab, `r-${i}`)}
+                        {renderHighlightedText(para, activeTab, `r-${i}`, rewriteHighlights)}
                       </p>
                     );
                   })

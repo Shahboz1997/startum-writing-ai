@@ -1,7 +1,7 @@
 'use client';
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Download, ArrowLeft, Zap, BookOpen, GitBranch, ChevronDown } from 'lucide-react';
+import { Download, ArrowLeft, Zap, BookOpen, GitBranch, ChevronDown, Sparkles } from 'lucide-react';
 import { downloadCheckReport } from '@/lib/downloadReportPdf';
 import SuggestedRewriteKaraoke from './SuggestedRewriteKaraoke';
 
@@ -432,7 +432,17 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     });
   }, [feedback.errors, corrections]);
   const lexicalUpgrade = Array.isArray(feedback.lexical_upgrade) ? feedback.lexical_upgrade : [];
+  const linkingWords = feedback?.analysis?.linking_words ?? feedback?.linking_words ?? null;
+  const repetitionAlertsRaw = feedback?.analysis?.word_repetition ?? feedback?.word_repetition ?? [];
+  const repetitionAlerts = Array.isArray(repetitionAlertsRaw) ? repetitionAlertsRaw : [];
   const suggestedRewrite = feedback.suggested_rewrite || '';
+  // API prompt targets a Band 9.0-level rewrite; if backend ever returns a dedicated label, prefer it.
+  const rewriteBandLabel =
+    feedback?.suggested_rewrite_band ??
+    feedback?.rewrite_band ??
+    feedback?.model_band ??
+    feedback?.target_band ??
+    '9.0';
   const audioRef = useRef(null);
   const audioFilenameBase = getAudioFilenameBase(taskTypeForAudio);
   const audioDownloadName = `${audioFilenameBase}.mp3`;
@@ -457,6 +467,32 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     return set;
   }, [lexicalUpgrade]);
   const useTypedErrorHighlight = viewMode === 'feedback' && errors.length > 0;
+
+  const handleInsertLinkingWord = useCallback((w) => {
+    if (!setUserText) return;
+    const word = String(w || '').trim();
+    if (!word) return;
+    setUserText((prev) => {
+      const current = String(prev || '');
+      const sep = current && !/\s$/.test(current) ? ' ' : '';
+      return `${current}${sep}${word}`;
+    });
+  }, [setUserText]);
+
+  const replaceNextWordOccurrence = useCallback((wordRaw, replacementRaw) => {
+    if (!setUserText) return;
+    const word = String(wordRaw || '').trim();
+    const replacement = String(replacementRaw || '').trim();
+    if (!word || !replacement) return;
+    setUserText((prev) => {
+      const current = String(prev || '');
+      // Replace first whole-word occurrence, case-insensitive.
+      const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`\\b${escaped}\\b`, 'i');
+      if (!re.test(current)) return current;
+      return current.replace(re, replacement);
+    });
+  }, [setUserText]);
   const useWordLevelRendering =
     viewMode === 'feedback' && wordLevelsMap && wordLevelsMap.size > 0 && !useTypedErrorHighlight;
 
@@ -908,6 +944,159 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
             </div>
           </div>
 
+          {(linkingWords || repetitionAlerts.length > 0) && (
+            <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 sm:px-6 sm:py-3 border-b border-slate-100 dark:border-white/5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-slate-50 text-slate-700 text-xs dark:bg-slate-800 dark:text-slate-200" aria-hidden>
+                    📌
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                      Quick cheat sheet
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      Linking words + repetition fixes
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 sm:p-4 space-y-4">
+                <div className="rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/60 dark:bg-slate-900/60 p-3">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">
+                      Linguistic insights
+                    </span>
+                    {linkingWords?.score != null && (
+                      <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800/40 px-2 py-0.5 rounded-lg">
+                        Score: {linkingWords.score}/9.0
+                      </span>
+                    )}
+                  </div>
+
+                  {linkingWords && (
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+                          <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">
+                            Linking Words
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5">
+                          {(Array.isArray(linkingWords.found) ? linkingWords.found : []).slice(0, 10).map((w, i) => (
+                            <span
+                              key={`${w}-${i}`}
+                              className="inline-flex items-center px-2 py-0.5 rounded-full bg-white dark:bg-slate-950/40 border border-slate-200 dark:border-slate-700 text-[10px] font-semibold text-slate-700 dark:text-slate-200"
+                              title="Found in your essay"
+                            >
+                              {w}
+                            </span>
+                          ))}
+                          {(Array.isArray(linkingWords.found) ? linkingWords.found : []).length === 0 && (
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 italic">
+                              No linking words detected yet.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border-2 border-dashed border-amber-200/60 dark:border-amber-800/40 bg-amber-50/50 dark:bg-amber-950/10 p-3">
+                        <div className="flex items-center gap-2 mb-2 text-amber-700 dark:text-amber-300">
+                          <Sparkles className="h-4 w-4" />
+                          <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">
+                            Suggested additions
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(Array.isArray(linkingWords.suggestions) ? linkingWords.suggestions : []).slice(0, 8).map((s, i) => (
+                            <button
+                              key={`${s}-${i}`}
+                              type="button"
+                              onClick={() => handleInsertLinkingWord(s)}
+                              disabled={!setUserText}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-slate-950/40 border border-amber-100 dark:border-amber-800/50 text-[10px] font-semibold text-amber-700 dark:text-amber-200 hover:border-amber-400 dark:hover:border-amber-500 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                              title={setUserText ? `Insert "${s}"` : 'Read-only'}
+                            >
+                              <span className="opacity-60" aria-hidden>＋</span>
+                              {s}
+                            </button>
+                          ))}
+                          {(Array.isArray(linkingWords.suggestions) ? linkingWords.suggestions : []).length === 0 && (
+                            <span className="text-[10px] text-slate-500 dark:text-slate-400 italic">
+                              Great flow! No extra suggestions needed.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {repetitionAlerts.length > 0 && (
+                  <div className="rounded-2xl border border-slate-100 dark:border-white/5 bg-white dark:bg-slate-950/30 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-slate-800 dark:text-slate-100">
+                        Frequency alert
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {repetitionAlerts.slice(0, 4).map((item, i) => {
+                        const wordText = typeof item === 'object' ? (item.word ?? '') : String(item || '');
+                        const count = typeof item === 'object' ? Number(item.count ?? 0) : 0;
+                        const alternatives = typeof item === 'object' && Array.isArray(item.alternatives) ? item.alternatives : [];
+                        const cleanWord = String(wordText || '').trim();
+                        if (!cleanWord) return null;
+                        return (
+                          <div
+                            key={`${cleanWord}-${i}`}
+                            className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-3"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="truncate text-xs font-semibold text-slate-900 dark:text-slate-100">
+                                  “{cleanWord}”
+                                </span>
+                                <span className="text-[10px] text-rose-600 dark:text-rose-300 font-semibold bg-rose-50 dark:bg-rose-900/30 px-2 py-0.5 rounded-full border border-rose-200/60 dark:border-rose-800/40">
+                                  {count > 0 ? `${count}x` : 'repeated'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {alternatives.length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                                <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-1.5">
+                                  Band 8.0+ replacements
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {alternatives.slice(0, 8).map((syn) => (
+                                    <button
+                                      key={`${cleanWord}-${syn}`}
+                                      type="button"
+                                      onClick={() => replaceNextWordOccurrence(cleanWord, syn)}
+                                      disabled={!setUserText}
+                                      className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                                      title={setUserText ? `Replace next "${cleanWord}" with "${syn}"` : 'Read-only'}
+                                    >
+                                      {syn}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 shadow-sm overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 sm:px-6 sm:py-3 border-b border-slate-100 dark:border-white/5">
               <div className="flex items-center gap-2">
@@ -1010,7 +1199,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
             {suggestedRewrite && (
               <div className="w-full lg:w-fit min-w-0">
                 <SuggestedRewriteKaraoke
-                  bandScore={band != null ? String(band) : undefined}
+                  bandScore={rewriteBandLabel}
                   suggestedRewrite={suggestedRewrite}
                   wordTimestamps={suggestedRewriteWordTimestamps}
                   audioRef={audioRef}
