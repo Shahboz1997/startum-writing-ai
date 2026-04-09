@@ -400,6 +400,12 @@ export default function SuggestedRewriteKaraoke({
           ) : null}
         </div>
         <div className="p-6 sm:p-8">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+              Academic suggested rewrite
+            </span>
+            <span className="h-px flex-1 bg-slate-200/70 dark:bg-slate-800/60" aria-hidden />
+          </div>
         <div className="mb-8 bg-slate-900 dark:bg-black/50 rounded-2xl p-3 flex items-center gap-4 border border-white/5">
           <audio ref={audioRef} src={audioUrl || undefined} className="hidden" preload="metadata" />
 
