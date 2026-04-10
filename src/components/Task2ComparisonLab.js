@@ -112,20 +112,17 @@ export default function Task2ComparisonLab({ darkMode }) {
 
   const container = {
     initial: { opacity: 0 },
-    whileInView: { opacity: 1 },
-    viewport: { once: true, margin: '-40px' },
+    animate: { opacity: 1 },
     transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] },
   };
   const leftPanel = {
     initial: { opacity: 0, x: -24 },
-    whileInView: { opacity: 1, x: 0 },
-    viewport: { once: true },
+    animate: { opacity: 1, x: 0 },
     transition: { duration: 0.4, delay: 0.1 },
   };
   const rightPanel = {
     initial: { opacity: 0, x: 24 },
-    whileInView: { opacity: 1, x: 0 },
-    viewport: { once: true },
+    animate: { opacity: 1, x: 0 },
     transition: { duration: 0.4, delay: 0.15 },
   };
 

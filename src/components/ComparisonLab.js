@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 
 function normalizeErrorType(t) {
@@ -491,13 +491,13 @@ function renderHighlightedText(paragraphText, activeTab, keyPrefix = 'r', highli
   });
 }
 
-/** Longform essay body — premium editorial rhythm */
+/** Essay body — compact paragraph rhythm for side-by-side compare */
 const PARA_ESSAY =
-  'mb-8 text-justify font-serif text-lg font-normal leading-[1.9] last:mb-0 text-slate-800 dark:text-slate-200';
+  'mb-3.5 text-justify font-serif text-lg font-normal leading-[1.65] last:mb-0 text-slate-800 dark:text-slate-200 sm:mb-4';
 
-/** Right-column rewrite: magazine-style longform (left-aligned, no justified rivers) */
+/** Right-column rewrite — match draft density */
 const PARA_ESSAY_REWRITE =
-  'mb-8 font-serif text-[1.125rem] leading-[1.9] text-left text-slate-800 dark:text-slate-200 last:mb-0';
+  'mb-3.5 font-serif text-[1.125rem] leading-[1.65] text-left text-slate-800 dark:text-slate-200 last:mb-0 sm:mb-4';
 
 /** Drop cap: first paragraph only — full text stays in DOM; styling via ::first-letter */
 const DROP_CAP_CLASS =
@@ -553,10 +553,8 @@ function buildInsightsLines(activeResult, activeTab) {
 
 export default function ComparisonLab({ activeTab, activeResult, darkMode, className = '' }) {
   const [tooltip, setTooltip] = useState({ show: false, text: '', x: 0, y: 0 });
-  const [syncScroll, setSyncScroll] = useState(true);
-  const isSyncingScrollRef = useRef(false);
-  const draftScrollRef = useRef(null);
-  const rewriteScrollRef = useRef(null);
+  /** Kept for UI parity; inner column scroll was removed so this has no effect on layout. */
+  const [syncScroll, setSyncScroll] = useState(false);
 
   const payload = useMemo(() => unwrapExaminerPayload(activeResult), [activeResult]);
 
@@ -587,46 +585,6 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
 
   const borderTone = darkMode ? 'border-slate-800' : 'border-slate-200';
 
-  const syncScrollFromTo = useCallback((fromEl, toEl) => {
-    if (!fromEl || !toEl) return;
-    const fromMax = Math.max(1, fromEl.scrollHeight - fromEl.clientHeight);
-    const toMax = Math.max(1, toEl.scrollHeight - toEl.clientHeight);
-    const ratio = fromEl.scrollTop / fromMax;
-    toEl.scrollTop = ratio * toMax;
-  }, []);
-
-  const handleDraftScroll = useCallback(() => {
-    if (!syncScroll) return;
-    if (isSyncingScrollRef.current) return;
-    const fromEl = draftScrollRef.current;
-    const toEl = rewriteScrollRef.current;
-    if (!fromEl || !toEl) return;
-    isSyncingScrollRef.current = true;
-    syncScrollFromTo(fromEl, toEl);
-    requestAnimationFrame(() => {
-      isSyncingScrollRef.current = false;
-    });
-  }, [syncScroll, syncScrollFromTo]);
-
-  const handleRewriteScroll = useCallback(() => {
-    if (!syncScroll) return;
-    if (isSyncingScrollRef.current) return;
-    const fromEl = rewriteScrollRef.current;
-    const toEl = draftScrollRef.current;
-    if (!fromEl || !toEl) return;
-    isSyncingScrollRef.current = true;
-    syncScrollFromTo(fromEl, toEl);
-    requestAnimationFrame(() => {
-      isSyncingScrollRef.current = false;
-    });
-  }, [syncScroll, syncScrollFromTo]);
-
-  useEffect(() => {
-    if (!syncScroll) return;
-    // When toggled on (or content changes), align rewrite scroll position to draft.
-    syncScrollFromTo(draftScrollRef.current, rewriteScrollRef.current);
-  }, [syncScroll, draftText, suggestedRewrite, syncScrollFromTo]);
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -644,14 +602,17 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
               Side-by-side view of your draft vs the academic rewrite
             </p>
           </div>
-          <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+          <label
+            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
+            title="Columns grow with the page; there is no separate inner scroll to sync."
+          >
             <input
               type="checkbox"
               checked={syncScroll}
               onChange={(e) => setSyncScroll(e.target.checked)}
               className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900"
             />
-            Sync Scroll
+            Sync scroll
           </label>
         </div>
         <div className="relative">
@@ -665,17 +626,13 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-x-0 md:items-start">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-x-0 md:items-start md:gap-y-0">
             {/* DRAFT */}
             <div className="relative z-10 flex min-h-[12rem] flex-col md:pr-10">
               <p className="mb-4 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
                 DRAFT ORIGINAL
               </p>
-              <div
-                ref={draftScrollRef}
-                onScroll={handleDraftScroll}
-                className="flex flex-1 flex-col overflow-y-auto pr-2 max-h-[70vh] scroll-smooth"
-              >
+              <div className="flex flex-1 flex-col pr-2">
                 {draftParagraphs.length === 0 ? (
                   <p className={PARA_ESSAY} />
                 ) : (
@@ -684,7 +641,7 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
                     return (
                       <p
                         key={`draft-p-${i}`}
-                        className={`${PARA_ESSAY} ${conclusion ? 'mt-10 italic' : ''}`}
+                        className={`${PARA_ESSAY} ${conclusion ? 'mt-5 italic sm:mt-6' : ''}`}
                       >
                         {highlightDraft(para, errors, { setTooltip, keyPrefix: `d-${i}` })}
                       </p>
@@ -692,7 +649,7 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
                   })
                 )}
               </div>
-              <p className="mt-6 text-xs font-semibold tracking-tight text-slate-400 dark:text-slate-500">
+              <p className="mt-4 text-xs font-semibold tracking-tight text-slate-400 dark:text-slate-500">
                 {draftBandLabel}
               </p>
             </div>
@@ -710,11 +667,7 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
               <p className="mb-4 text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
                 ACADEMIC SUGGESTED REWRITE
               </p>
-              <div
-                ref={rewriteScrollRef}
-                onScroll={handleRewriteScroll}
-                className="flex min-w-0 flex-1 flex-col overflow-y-auto pr-2 max-h-[70vh] scroll-smooth"
-              >
+              <div className="flex min-w-0 flex-1 flex-col pr-2">
                 {rewriteParagraphs.length === 0 ? (
                   <p className={PARA_ESSAY_REWRITE} />
                 ) : (
@@ -725,7 +678,9 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
                       <p
                         key={`rewrite-p-${i}`}
                         className={`${PARA_ESSAY_REWRITE} ${isFirstBody ? DROP_CAP_CLASS : ''} ${
-                          conclusion ? 'mt-12 italic border-t border-slate-100 pt-6 dark:border-slate-800' : ''
+                          conclusion
+                            ? 'mt-6 border-t border-slate-100 pt-4 italic dark:border-slate-800 sm:mt-7 sm:pt-5'
+                            : ''
                         }`}
                       >
                         {renderHighlightedText(para, activeTab, `r-${i}`, rewriteHighlights)}
@@ -734,7 +689,7 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
                   })
                 )}
               </div>
-              <p className="mt-6 text-xs font-semibold text-emerald-600 dark:text-emerald-400 lg:mt-4">
+              <p className="mt-4 text-xs font-semibold text-emerald-600 dark:text-emerald-400 lg:mt-3">
                 {rewriteBandLabel}
               </p>
             </div>
