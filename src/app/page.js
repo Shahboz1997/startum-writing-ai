@@ -599,13 +599,18 @@ import 'react-medium-image-zoom/dist/styles.css';
         headers: { 'Content-Type': 'application/json' }
       });
 
-      if (res.data?.savedId) {
-        await update(); // refresh session so Navbar shows updated credits
-        router.push('/history/' + res.data.savedId);
-        return;
+      const { savedId, ...analysisRest } = res.data || {};
+      const resultPayload = {
+        ...analysisRest,
+        text: mode === 'task1' ? essayT1 : essayT2,
+      };
+      if (mode === 'task1') setResultT1(resultPayload);
+      else setResultT2(resultPayload);
+
+      if (savedId) {
+        await update();
+        toast.success('Saved to your history.', { duration: 3500 });
       }
-      if (mode === 'task1') setResultT1({ ...res.data, text: essayT1 });
-      else setResultT2({ ...res.data, text: essayT2 });
       if (typeof playSuccessSound === 'function') playSuccessSound();
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -3003,31 +3008,6 @@ const insertLinkingWord = (word) => {
     )}
     </main>
         </div>
-      {/* PRICING BLOCK — visible for Stripe compliance */}
-      <section id="pricing" className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50">
-        {/* <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.3 }}
-            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-2xl p-6 bg-[#f8fafc] dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800"
-          >
-            <div>
-              <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white mb-1">Plans &amp; Pricing</h3>
-              <p className="text-sm font-medium tracking-tight text-slate-500 dark:text-slate-400">Credits and subscriptions — use the <strong className="text-red-600 dark:text-red-400">Pricing</strong> menu in the navigation bar to view plans and top up.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="btn-stratum shrink-0 px-5 py-2.5 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]"
-            >
-              <div className="shimmer-layer animate-shimmer" aria-hidden />
-              <span className="btn-stratum-text">VIEW PRICING · STRATUM</span>
-            </button>
-          </motion.div>
-        </div> */}
-      </section>
       {/* FOOTER — matches main (Cathoven-style) */}
         <footer className="border-t border-white/5 bg-[#F9FAFB] dark:bg-[#050505] transition-colors">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
