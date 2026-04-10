@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import AuthModal from '../components/AuthModal';
@@ -79,6 +79,8 @@ import {
 } from 'lucide-react';
 import { TASK1_TIPS, TASK2_TIPS } from '@/lib/ieltsGuidelines';
 import ComparisonLab from '../components/ComparisonLab';
+import { BankProvider } from '@/context/BankContext';
+import WritingBankShell from '@/components/bank/WritingBankShell';
 import SuggestedRewriteKaraoke from '../components/dashboard/SuggestedRewriteKaraoke';
 import { useSuggestedRewriteAudio } from '../components/dashboard/useSuggestedRewriteAudio';
 import { jsPDF } from "jspdf";
@@ -88,7 +90,7 @@ import 'react-medium-image-zoom/dist/styles.css';
   const resetTask1 = () => {
     if (window.confirm("Очистить все данные для Task 1?")) {
       setEssayT1('');
-      setPromptT1('Summarize the information by selecting and reporting the main features...');
+      setPromptT1('ize the information by selecting and reporting the main features...');
       setResultT1(null);
       setImage(null);
       setIsDescribing(false);
@@ -150,7 +152,7 @@ import 'react-medium-image-zoom/dist/styles.css';
       times: [0, 0.5, 0.51, 1], // Резкое переключение на середине цикла
       ease: "linear"
     }}
-    className="ml-1 inline-block w-[2px] h-[1em] bg-red-600"
+    className="ml-1 inline-block w-[2px] h-[1em] bg-red-600"Summar
   />
 
         ))}
@@ -541,6 +543,30 @@ import 'react-medium-image-zoom/dist/styles.css';
   const editorRef = useRef(null); // Реф для текстового поля
   const { data: session, status: sessionStatus, update } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
+
+  /** Restore main tab when returning from /topics/:id (Back to Bank) or Navbar from topic page */
+  useEffect(() => {
+    if (pathname !== '/') return;
+    if (typeof window === 'undefined') return;
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const fromQuery = sp.get('tab');
+      const fromStore = sessionStorage.getItem('stratum_nav_tab');
+      const t = fromQuery || fromStore;
+      if (t === 'Bank' || t === 'Topics' || t === 'Task 1' || t === 'Task 2') {
+        setActiveTab(t);
+      }
+      if (fromQuery) {
+        sp.delete('tab');
+        const next = sp.toString();
+        window.history.replaceState({}, '', next ? `/?${next}` : '/');
+      }
+      if (fromStore) sessionStorage.removeItem('stratum_nav_tab');
+    } catch {
+      /* ignore */
+    }
+  }, [pathname]);
 
   const karaokeSuggestedRewrite =
     activeTab === 'Task 1' || activeTab === 'Task 2' ? (activeResult?.suggested_rewrite || '') : '';
@@ -3006,6 +3032,11 @@ const insertLinkingWord = (word) => {
   )}
 </div>
     )}
+      {activeTab === 'Bank' && (
+        <BankProvider>
+          <WritingBankShell darkMode={darkMode} />
+        </BankProvider>
+      )}
     </main>
         </div>
       {/* FOOTER — matches main (Cathoven-style) */}
@@ -3024,7 +3055,7 @@ const insertLinkingWord = (word) => {
               <div>
                 <h4 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight mb-4">Resources</h4>
                 <ul className="space-y-3">
-                  {['Topics', 'Task 1', 'Task 2'].map((t) => (
+                  {['Topics', 'Bank', 'Task 1', 'Task 2'].map((t) => (
                     <li key={t}>
                       <button
                         type="button"

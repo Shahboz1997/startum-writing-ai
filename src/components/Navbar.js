@@ -111,7 +111,7 @@ const Navbar = ({
     if (!isMenuOpen) setConfirmLogoutMobile(false);
   }, [isMenuOpen]);
 
-  const menuItems = ['Topics', 'Task 1', 'Task 2', 'Archive'];
+  const menuItems = ['Topics', 'Bank', 'Task 1', 'Task 2', 'Archive'];
   const handleThemeToggle = () => {
     if (!themeMounted) return;
     setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');

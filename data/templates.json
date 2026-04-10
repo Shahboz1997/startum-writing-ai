@@ -1,0 +1,239 @@
+[
+  {
+    "id": 1,
+    "title": "Template for Line Graph (Task 1)",
+    "type": "task1",
+    "subtype": "graph",
+    "date": "2023-01-10",
+    "structure": [
+      "Introduction: Paraphrase the task.",
+      "Overview: Highlight main trends.",
+      "Body Paragraph 1: Describe first trend or group.",
+      "Body Paragraph 2: Describe second trend or group.",
+      "Conclusion: Brief summary (if appropriate for your exam format)."
+    ],
+    "phrases": {
+      "introduction": "The line graph illustrates changes in...",
+      "overview": "Overall, it is evident that...",
+      "body": "In contrast, ... / Similarly, ...",
+      "conclusion": "To sum up, ..."
+    },
+    "example": "The line graph illustrates changes in energy consumption from 1990 to 2020. Overall, it is evident that renewable sources grew significantly."
+  },
+  {
+    "id": 2,
+    "title": "Table Task — comparison pattern",
+    "type": "task1",
+    "subtype": "table",
+    "date": "2023-02-14",
+    "structure": [
+      "Introduction: State what the table shows.",
+      "Overview: Identify the largest differences or rankings.",
+      "Body 1: Compare key figures for category A.",
+      "Body 2: Compare key figures for category B."
+    ],
+    "phrases": {
+      "introduction": "The table provides data regarding...",
+      "overview": "The most striking feature is that...",
+      "body": "Whereas X stood at..., Y recorded...",
+      "conclusion": "In summary, the figures reveal clear disparities."
+    },
+    "example": "The table provides data regarding household ownership of consumer goods. The most striking feature is that internet access rose most sharply."
+  },
+  {
+    "id": 3,
+    "title": "Process diagram — stages",
+    "type": "task1",
+    "subtype": "process",
+    "date": "2023-03-01",
+    "structure": [
+      "Introduction: Paraphrase the diagram purpose.",
+      "Overview: Summarise the main stages.",
+      "Body: Describe each stage in sequence using passive voice."
+    ],
+    "phrases": {
+      "introduction": "The diagram illustrates the process by which...",
+      "overview": "Overall, the process consists of several distinct stages.",
+      "body": "Initially, ... / Following this, ... / Finally, ...",
+      "conclusion": "The process concludes when..."
+    },
+    "example": "The diagram illustrates the process by which rainwater is collected. Initially, rainwater runs off the roof into a drain."
+  },
+  {
+    "id": 4,
+    "title": "Formal complaint letter (GT-style)",
+    "type": "task1",
+    "subtype": "letter",
+    "date": "2023-04-20",
+    "structure": [
+      "Opening: Purpose of writing.",
+      "Paragraph 1: Describe the problem clearly.",
+      "Paragraph 2: Explain impact and previous steps taken.",
+      "Closing: State desired outcome and polite close."
+    ],
+    "phrases": {
+      "introduction": "I am writing to express my dissatisfaction with...",
+      "overview": "During my stay on [date], I encountered several issues.",
+      "body": "Specifically, ... / Despite having mentioned this to...",
+      "conclusion": "I would appreciate a partial refund and assurance that..."
+    },
+    "example": "I am writing to express my dissatisfaction with the service I received at your hotel on 12 March."
+  },
+  {
+    "id": 5,
+    "title": "Opinion essay — agree/disagree",
+    "type": "task2",
+    "subtype": "opinion",
+    "date": "2023-05-05",
+    "structure": [
+      "Introduction: Topic + clear thesis (extent of agreement).",
+      "Body 1: Strongest argument supporting your view.",
+      "Body 2: Second argument or acknowledge counter-argument briefly.",
+      "Conclusion: Restate position clearly."
+    ],
+    "phrases": {
+      "introduction": "It is argued that... This essay strongly agrees that...",
+      "overview": "",
+      "body": "Firstly, ... / Furthermore, ... / Admittedly, some may argue...",
+      "conclusion": "In conclusion, I firmly believe that..."
+    },
+    "example": "It is argued that unpaid community service should be compulsory. This essay strongly agrees that such programmes develop civic responsibility."
+  },
+  {
+    "id": 6,
+    "title": "Discussion essay — both views + opinion",
+    "type": "task2",
+    "subtype": "discussion",
+    "date": "2023-06-12",
+    "structure": [
+      "Introduction: Paraphrase + outline both sides.",
+      "Body 1: View A with explanation.",
+      "Body 2: View B with explanation.",
+      "Conclusion: Balanced summary + your opinion."
+    ],
+    "phrases": {
+      "introduction": "While some people believe..., others contend that...",
+      "overview": "",
+      "body": "On the one hand... / On the other hand...",
+      "conclusion": "In my view, although..., I believe that..."
+    },
+    "example": "While some people believe dangerous sports should be banned, others contend that adults should decide for themselves."
+  },
+  {
+    "id": 7,
+    "title": "Problem and solution",
+    "type": "task2",
+    "subtype": "problem-solution",
+    "date": "2023-07-18",
+    "structure": [
+      "Introduction: State the issue in general terms.",
+      "Body 1: Causes or why the problem exists.",
+      "Body 2: Practical solutions with examples.",
+      "Conclusion: Summarise problem + best responses."
+    ],
+    "phrases": {
+      "introduction": "Traffic congestion has become a pressing issue in many urban areas.",
+      "overview": "",
+      "body": "One major cause is... / Effective measures could include...",
+      "conclusion": "To tackle this, governments and individuals must work together."
+    },
+    "example": "Traffic congestion has become a pressing issue. One major cause is reliance on private cars; effective measures could include expanding public transport."
+  },
+  {
+    "id": 8,
+    "title": "Bar chart — groups and trends",
+    "type": "task1",
+    "subtype": "graph",
+    "date": "2023-08-22",
+    "structure": [
+      "Introduction: What is compared.",
+      "Overview: Highest/lowest categories or overall pattern.",
+      "Body: Detail comparisons with data."
+    ],
+    "phrases": {
+      "introduction": "The bar chart compares...",
+      "overview": "Overall, X accounted for the largest share throughout the period.",
+      "body": "City A experienced a rise from... to..., whereas...",
+      "conclusion": ""
+    },
+    "example": "The bar chart compares average monthly temperatures in two cities. Overall, City B was consistently warmer in mid-year months."
+  },
+  {
+    "id": 9,
+    "title": "Map comparison",
+    "type": "task1",
+    "subtype": "graph",
+    "date": "2023-09-30",
+    "structure": [
+      "Introduction: Area and time period shown.",
+      "Overview: Main developments (e.g. expansion, new facilities).",
+      "Body: Describe north/south or key zones of change."
+    ],
+    "phrases": {
+      "introduction": "The maps show how [place] developed between...",
+      "overview": "The village underwent significant expansion, particularly to the east.",
+      "body": "A new road was constructed... / The former farmland was replaced by...",
+      "conclusion": ""
+    },
+    "example": "The maps show how a coastal village developed between 1980 and 2020. The village underwent significant expansion east of the original centre."
+  },
+  {
+    "id": 10,
+    "title": "Strong opinion — partial agreement",
+    "type": "task2",
+    "subtype": "opinion",
+    "date": "2023-10-15",
+    "structure": [
+      "Introduction: Nuanced thesis (partially agree).",
+      "Body 1: Aspect you support.",
+      "Body 2: Aspect you qualify or reject.",
+      "Conclusion: Balanced but decisive closing."
+    ],
+    "phrases": {
+      "introduction": "I partially agree with the notion that...",
+      "overview": "",
+      "body": "This is because... / Nevertheless, it should be noted that...",
+      "conclusion": "Therefore, while..., a more balanced approach would..."
+    },
+    "example": "I partially agree that longer sentences reduce crime, because deterrence matters; nevertheless, rehabilitation cannot be ignored."
+  },
+  {
+    "id": 11,
+    "title": "Pie charts — proportions",
+    "type": "task1",
+    "subtype": "graph",
+    "date": "2024-01-05",
+    "structure": [
+      "Introduction: Variables and years.",
+      "Overview: Largest segments and main shifts.",
+      "Body: Compare proportions with approximate figures."
+    ],
+    "phrases": {
+      "introduction": "The pie charts depict the proportion of...",
+      "overview": "The share of renewables increased noticeably over the period.",
+      "body": "In 2000, fossil fuels represented roughly...%, but by 2020 this had fallen to...",
+      "conclusion": ""
+    },
+    "example": "The pie charts depict the proportion of energy from different sources in 2000 and 2020. The share of renewables increased noticeably."
+  },
+  {
+    "id": 12,
+    "title": "Direct question — causes + opinion on support",
+    "type": "task2",
+    "subtype": "problem-solution",
+    "date": "2024-02-28",
+    "structure": [
+      "Introduction: Restate both questions from the prompt.",
+      "Body 1: Reasons (e.g. globalisation, marketing).",
+      "Body 2: Whether local film should be subsidised + justification.",
+      "Conclusion: Short synthesis."
+    ],
+    "phrases": {
+      "introduction": "The popularity of foreign films raises questions about cultural preferences and policy.",
+      "overview": "",
+      "body": "One reason for this trend is... / Governments arguably should... because...",
+      "conclusion": "Thus, both consumer choice and cultural identity need consideration."
+    },
+    "example": "One reason for preferring foreign films is wider distribution budgets; governments arguably should support local cinema to preserve cultural narratives."
+  }
+]

@@ -1,0 +1,128 @@
+[
+  {
+    "id": 1,
+    "title": "Describe the changes in global energy consumption from 1990 to 2020.",
+    "type": "task1",
+    "subtype": "graph",
+    "date": "2023-05-15"
+  },
+  {
+    "id": 2,
+    "title": "Some people think that unpaid community service should be a compulsory part of high school programmes. To what extent do you agree?",
+    "type": "task2",
+    "subtype": "opinion",
+    "date": "2023-06-20"
+  },
+  {
+    "id": 3,
+    "title": "The table below shows the percentage of households with various consumer durables in a country between 1995 and 2015.",
+    "type": "task1",
+    "subtype": "table",
+    "date": "2022-11-08"
+  },
+  {
+    "id": 4,
+    "title": "The diagram shows how rainwater is collected and used for drinking in an Australian town.",
+    "type": "task1",
+    "subtype": "process",
+    "date": "2024-01-12"
+  },
+  {
+    "id": 5,
+    "title": "You recently stayed at a hotel where the service was unsatisfactory. Write a letter to the hotel manager explaining the problems and requesting compensation.",
+    "type": "task1",
+    "subtype": "letter",
+    "date": "2023-09-03"
+  },
+  {
+    "id": 6,
+    "title": "Discuss both views and give your own opinion on whether governments should ban dangerous sports.",
+    "type": "task2",
+    "subtype": "discussion",
+    "date": "2023-08-17"
+  },
+  {
+    "id": 7,
+    "title": "In many cities, traffic congestion is a serious problem. What are the causes and what solutions can you suggest?",
+    "type": "task2",
+    "subtype": "problem-solution",
+    "date": "2024-02-22"
+  },
+  {
+    "id": 8,
+    "title": "The bar chart compares average monthly temperatures in two cities over a year.",
+    "type": "task1",
+    "subtype": "graph",
+    "date": "2022-04-30"
+  },
+  {
+    "id": 9,
+    "title": "The pie charts show the proportion of energy produced from different sources in 2000 and 2020.",
+    "type": "task1",
+    "subtype": "graph",
+    "date": "2023-12-05"
+  },
+  {
+    "id": 10,
+    "title": "Some believe that the best way to reduce crime is longer prison sentences. Others think there are better alternatives. Discuss both views.",
+    "type": "task2",
+    "subtype": "discussion",
+    "date": "2023-03-14"
+  },
+  {
+    "id": 11,
+    "title": "The maps illustrate the development of a coastal village between 1980 and 2020.",
+    "type": "task1",
+    "subtype": "graph",
+    "date": "2024-06-01"
+  },
+  {
+    "id": 12,
+    "title": "The process diagram shows how chocolate is produced from cocoa beans.",
+    "type": "task1",
+    "subtype": "process",
+    "date": "2022-10-19"
+  },
+  {
+    "id": 13,
+    "title": "Technology is increasingly used in education. What are the advantages and disadvantages?",
+    "type": "task2",
+    "subtype": "discussion",
+    "date": "2023-07-25"
+  },
+  {
+    "id": 14,
+    "title": "The table gives information about underground railway systems in six cities.",
+    "type": "task1",
+    "subtype": "table",
+    "date": "2021-12-11"
+  },
+  {
+    "id": 15,
+    "title": "Write a letter to a local newspaper editor about noise pollution in your neighbourhood and suggest practical measures.",
+    "type": "task1",
+    "subtype": "letter",
+    "date": "2024-03-08"
+  },
+  {
+    "id": 16,
+    "title": "Many people prefer to watch foreign films rather than locally produced ones. Why might this be? Should governments give financial support to local film industries?",
+    "type": "task2",
+    "subtype": "problem-solution",
+    "date": "2024-05-18"
+  },
+  {
+    "id": 17,
+    "title": "The line graph shows the average number of visitors to three museums between 1980 and 2015.",
+    "type": "task1",
+    "subtype": "graph",
+    "date": "2022-07-07"
+  },
+  {
+    "id": 18,
+    "title": "To what extent do you agree that success in life comes from hard work rather than luck?",
+    "type": "task2",
+    "subtype": "opinion",
+    "date": "2023-10-02"
+  }
+]

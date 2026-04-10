@@ -8,8 +8,55 @@ import nodemailer from 'nodemailer';
 import https from 'https';
 import http from 'http';
 import { URL as NodeURL } from 'url';
+import {
+  IELTS_TASK1_STANDARD_INSTRUCTION,
+  buildTask1QuestionPaperText,
+} from '@/lib/task1Prompt.js';
 
 const API_KEY_ERROR_MSG = 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.';
+
+/**
+ * Vision models sometimes return a full "sample report" despite instructions — drop it and use standard wording only.
+ */
+function sanitizeTask1VisionIntro(raw) {
+  if (typeof raw !== 'string') return '';
+  let s = raw.trim();
+  const fence = /^```(?:\w*)?\s*([\s\S]*?)```\s*$/m.exec(s);
+  if (fence) s = fence[1].trim();
+  s = s.replace(/^["']|["']$/g, '').trim();
+  if (!s || /^none\.?$/i.test(s)) return '';
+  const words = s.split(/\s+/).filter(Boolean);
+  if (words.length > 90) return '';
+  const paras = s.split(/\n\s*\n/).filter((p) => p.trim());
+  if (paras.length > 2) return '';
+  const lower = s.toLowerCase();
+  if (
+    lower.includes('in conclusion') ||
+    lower.includes('to sum up') ||
+    lower.includes('to summarise') ||
+    lower.includes('in summary,')
+  ) {
+    return '';
+  }
+  const digitGroups = s.match(/\d[\d,.\s]*/g) || [];
+  if (digitGroups.length >= 5) return '';
+  const essayPhrases = [
+    'overall,',
+    'overall the',
+    'it can be seen that',
+    'it is clear that',
+    'peaking at',
+    'the second highest',
+    'respectively.',
+    'by contrast',
+  ];
+  let hits = 0;
+  for (const ph of essayPhrases) {
+    if (lower.includes(ph)) hits++;
+  }
+  if (hits >= 2) return '';
+  return s;
+}
 
 /** baseURL ends with /v1. Use OPENAI_BASE_URL in .env for Cloudflare proxy. */
 function getOpenAIBaseURL() {
@@ -614,13 +661,28 @@ await transporter.sendMail({
       const openai = clientResult.openai;
       const describeMessages = (imageUrlForApi) => [
         {
-          role: "system",
-          content:
-            "You are an IELTS Task 1 Expert. Describe this chart in detail. Identify the exact chart type, years, and categories. Return ONLY the question text.",
+          role: 'system',
+          content: `You write the QUESTION STEM for IELTS Academic Writing Task 1 — not the candidate's answer.
+
+Output ONLY 1–2 short sentences that introduce the visual: name the chart/graph/table/map/process type and the general subject (what is measured or shown).
+
+FORBIDDEN in your output:
+- Any numbers, percentages, years used as data, or quantities (e.g. "52,000", "60%", "doubled").
+- Trend or analysis language: rise, fall, peak, highest, lowest, compared, whereas, while X, overall trend, illustrates that (followed by interpretation).
+- More than two sentences, bullet lists, or multiple paragraphs.
+- The instruction line "Summarize the information..." (it is added by the app).
+
+If a safe neutral intro is impossible, reply exactly: NONE`,
         },
         {
-          role: "user",
-          content: [{ type: "image_url", image_url: { url: imageUrlForApi } }],
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'Write the introductory stem only. Do not write the essay or report.',
+            },
+            { type: 'image_url', image_url: { url: imageUrlForApi } },
+          ],
         },
       ];
       try {
@@ -635,7 +697,7 @@ await transporter.sendMail({
               {
                 model: "gpt-4o",
                 messages: describeMessages(rawImage),
-                max_tokens: 900,
+                max_tokens: 220,
               },
               { timeout: 180_000 }
             );
@@ -649,7 +711,7 @@ await transporter.sendMail({
               {
                 model: "gpt-4o",
                 messages: describeMessages(finalImage),
-                max_tokens: 900,
+                max_tokens: 220,
               },
               { timeout: 180_000 }
             );
@@ -659,13 +721,21 @@ await transporter.sendMail({
             {
               model: "gpt-4o",
               messages: describeMessages(body.image),
-              max_tokens: 900,
+              max_tokens: 220,
             },
             { timeout: 180_000 }
           );
         }
 
-        return NextResponse.json({ question: response.choices[0].message.content });
+        const rawIntro = response?.choices?.[0]?.message?.content;
+        const intro = sanitizeTask1VisionIntro(
+          typeof rawIntro === 'string' ? rawIntro : ''
+        );
+        const question = intro
+          ? buildTask1QuestionPaperText(intro)
+          : IELTS_TASK1_STANDARD_INSTRUCTION;
+
+        return NextResponse.json({ question });
       } catch (error) {
         console.error(
           "OpenAI error (describeImage):",
@@ -690,16 +760,26 @@ await transporter.sendMail({
       const openai = clientResult.openai;
       try {
         const response = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: 'gpt-4o-mini',
           messages: [
-            { 
-              role: "system", 
-              content: "You are an IELTS Examiner. Generate a professional Academic Task 1 prompt. START with the chart type." 
+            {
+              role: 'system',
+              content: `You write ONLY the written description that appears above the task instructions on an IELTS Academic Task 1 paper.
+
+Return 2–4 sentences that describe a hypothetical chart, table, map, or process (type + what it shows). Do NOT invent specific numbers. Do NOT write the candidate's report, overview of trends, or analysis.
+
+Do NOT include "Summarize the information" or "Write at least 150 words".`,
             },
-            { role: "user", content: "Generate a new Academic Task 1 topic." }
-          ]
+            { role: 'user', content: 'Generate a new Academic Task 1 written prompt (description only).' },
+          ],
+          max_tokens: 220,
         });
-        return NextResponse.json({ question: response.choices[0].message.content });
+        const raw = response?.choices?.[0]?.message?.content;
+        const intro = sanitizeTask1VisionIntro(typeof raw === 'string' ? raw : '');
+        const question = intro
+          ? buildTask1QuestionPaperText(intro)
+          : IELTS_TASK1_STANDARD_INSTRUCTION;
+        return NextResponse.json({ question });
       } catch (err) {
         console.error('Generate Task 1 error:', err, 'response?.data:', err?.response?.data ?? err?.error);
         if (isOpenAIAuthError(err)) {

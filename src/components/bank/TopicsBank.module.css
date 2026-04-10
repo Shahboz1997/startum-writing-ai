@@ -1,0 +1,94 @@
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.card {
+  border-radius: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  border-width: 1px;
+  border-style: solid;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 12px 40px -12px rgb(79 70 229 / 0.15);
+}
+
+/* Selected topic when returning from /topics/:id */
+.cardActive {
+  border-color: rgb(79 70 229) !important;
+  box-shadow:
+    0 0 0 2px rgb(79 70 229 / 0.35),
+    0 12px 40px -12px rgb(79 70 229 / 0.2);
+}
+
+.filters {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .filters {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .filters {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.filterField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.input,
+.select {
+  width: 100%;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  outline: none;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.pagerBtn {
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-width: 1px;
+  border-style: solid;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}

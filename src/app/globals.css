@@ -343,3 +343,18 @@ img {
 .animate-shimmer {
   animation: shimmer 2.5s ease-in-out infinite;
 }
+
+/* Section enter: Bank ↔ Topics detail */
+.stratum-topic-fade {
+  animation: stratum-topic-fade-in 0.45s ease-out both;
+}
+@keyframes stratum-topic-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
