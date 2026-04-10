@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 
 function normalizeErrorType(t) {
@@ -553,6 +553,10 @@ function buildInsightsLines(activeResult, activeTab) {
 
 export default function ComparisonLab({ activeTab, activeResult, darkMode, className = '' }) {
   const [tooltip, setTooltip] = useState({ show: false, text: '', x: 0, y: 0 });
+  const [syncScroll, setSyncScroll] = useState(true);
+  const isSyncingScrollRef = useRef(false);
+  const draftScrollRef = useRef(null);
+  const rewriteScrollRef = useRef(null);
 
   const payload = useMemo(() => unwrapExaminerPayload(activeResult), [activeResult]);
 
@@ -583,6 +587,46 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
 
   const borderTone = darkMode ? 'border-slate-800' : 'border-slate-200';
 
+  const syncScrollFromTo = useCallback((fromEl, toEl) => {
+    if (!fromEl || !toEl) return;
+    const fromMax = Math.max(1, fromEl.scrollHeight - fromEl.clientHeight);
+    const toMax = Math.max(1, toEl.scrollHeight - toEl.clientHeight);
+    const ratio = fromEl.scrollTop / fromMax;
+    toEl.scrollTop = ratio * toMax;
+  }, []);
+
+  const handleDraftScroll = useCallback(() => {
+    if (!syncScroll) return;
+    if (isSyncingScrollRef.current) return;
+    const fromEl = draftScrollRef.current;
+    const toEl = rewriteScrollRef.current;
+    if (!fromEl || !toEl) return;
+    isSyncingScrollRef.current = true;
+    syncScrollFromTo(fromEl, toEl);
+    requestAnimationFrame(() => {
+      isSyncingScrollRef.current = false;
+    });
+  }, [syncScroll, syncScrollFromTo]);
+
+  const handleRewriteScroll = useCallback(() => {
+    if (!syncScroll) return;
+    if (isSyncingScrollRef.current) return;
+    const fromEl = rewriteScrollRef.current;
+    const toEl = draftScrollRef.current;
+    if (!fromEl || !toEl) return;
+    isSyncingScrollRef.current = true;
+    syncScrollFromTo(fromEl, toEl);
+    requestAnimationFrame(() => {
+      isSyncingScrollRef.current = false;
+    });
+  }, [syncScroll, syncScrollFromTo]);
+
+  useEffect(() => {
+    if (!syncScroll) return;
+    // When toggled on (or content changes), align rewrite scroll position to draft.
+    syncScrollFromTo(draftScrollRef.current, rewriteScrollRef.current);
+  }, [syncScroll, draftText, suggestedRewrite, syncScrollFromTo]);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -591,6 +635,25 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
       className={`overflow-hidden rounded-[3rem] border ${borderTone} bg-white dark:bg-slate-950 ${className}`}
     >
       <div className="p-8 sm:p-12">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
+              Compare
+            </p>
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+              Side-by-side view of your draft vs the academic rewrite
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+            <input
+              type="checkbox"
+              checked={syncScroll}
+              onChange={(e) => setSyncScroll(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900"
+            />
+            Sync Scroll
+          </label>
+        </div>
         <div className="relative">
           <div
             className="pointer-events-none absolute bottom-0 left-1/2 top-0 z-0 hidden w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-slate-200/90 via-80% to-transparent md:block dark:from-transparent dark:via-slate-600/85 dark:to-transparent"
@@ -608,7 +671,11 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
               <p className="mb-4 text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">
                 DRAFT ORIGINAL
               </p>
-              <div className="flex flex-1 flex-col">
+              <div
+                ref={draftScrollRef}
+                onScroll={handleDraftScroll}
+                className="flex flex-1 flex-col overflow-y-auto pr-2 max-h-[70vh] scroll-smooth"
+              >
                 {draftParagraphs.length === 0 ? (
                   <p className={PARA_ESSAY} />
                 ) : (
@@ -643,7 +710,11 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
               <p className="mb-4 text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
                 ACADEMIC SUGGESTED REWRITE
               </p>
-              <div className="flex min-w-0 flex-1 flex-col">
+              <div
+                ref={rewriteScrollRef}
+                onScroll={handleRewriteScroll}
+                className="flex min-w-0 flex-1 flex-col overflow-y-auto pr-2 max-h-[70vh] scroll-smooth"
+              >
                 {rewriteParagraphs.length === 0 ? (
                   <p className={PARA_ESSAY_REWRITE} />
                 ) : (
