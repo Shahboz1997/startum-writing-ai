@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { format } from "date-fns";
 import { FileText, ChevronRight, Star, Search, SortDesc, SortAsc, Filter, Clock, Download } from "lucide-react";
 import Link from "next/link";
-import { downloadCheckReport } from "@/lib/downloadReportPdf";
+import { generateStratumWritingPdfFromCheck } from "@/lib/stratumWritingPdf";
 import { EmptyState } from "@/components/stratum";
 
 export default function HistoryClientWrapper({ initialData }) {
@@ -18,7 +18,7 @@ export default function HistoryClientWrapper({ initialData }) {
     if (!check) return;
     setDownloadingId(check.id);
     try {
-      downloadCheckReport(check);
+      generateStratumWritingPdfFromCheck(check);
     } finally {
       setDownloadingId(null);
     }

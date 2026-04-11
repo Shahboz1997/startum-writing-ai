@@ -17,7 +17,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { type, content, score, feedback } = body;
+  const { type, content, score, feedback, promptText } = body;
 
   if (type !== 'TASK_1' && type !== 'TASK_2') {
     return NextResponse.json({ error: 'Invalid or missing type' }, { status: 400 });
@@ -44,6 +44,7 @@ export async function POST(request) {
       content,
       score: scoreNum,
       feedback: feedbackStr,
+      promptText: typeof promptText === 'string' ? promptText : null,
       userId: session.user.id,
     },
   });

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { Loader2, Search, AlertCircle } from 'lucide-react';
+import { Search, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useBankTopicsNav } from '@/context/BankTopicsNavContext';
 import styles from '@/components/bank/TopicsBank.module.css';
@@ -28,6 +28,48 @@ const T2_SUB = [
   { value: 'problem-solution', label: 'Problem & solution' },
 ];
 
+const SUBTYPE_LABEL = {
+  graph: 'Graph',
+  table: 'Table',
+  process: 'Process',
+  letter: 'Letter',
+  opinion: 'Opinion',
+  discussion: 'Discussion',
+  'problem-solution': 'Problem & solution',
+};
+
+function subtypeDisplay(subtype) {
+  const key = String(subtype || '').toLowerCase();
+  const label = SUBTYPE_LABEL[key];
+  return label ? label.toUpperCase().replace(/\s*&\s*/g, ' & ') : String(subtype || '').toUpperCase();
+}
+
+function taskTypeLabel(type) {
+  if (type === 'task1') return 'Task 1';
+  if (type === 'task2') return 'Task 2';
+  return String(type || '');
+}
+
+function topicPromptText(t) {
+  if (typeof t.promptText === 'string' && t.promptText.trim()) return t.promptText.trim();
+  return String(t.title || '');
+}
+
+function isAbortError(e) {
+  return (
+    e?.code === 'ERR_CANCELED' ||
+    e?.name === 'CanceledError' ||
+    (typeof axios.isCancel === 'function' && axios.isCancel(e))
+  );
+}
+
+function topicCardAriaLabel(t) {
+  const prompt = topicPromptText(t);
+  const short = prompt.length > 160 ? `${prompt.slice(0, 157).trim()}…` : prompt;
+  const date = t.date || 'unknown date';
+  return `${taskTypeLabel(t.type)}, ${subtypeDisplay(t.subtype)}, exam date ${date}. ${short}`;
+}
+
 /**
  * Writing Bank — exam topics grid. Clicks go to /topics/:id; filters sync via BankTopicsNavContext + localStorage.
  */
@@ -39,6 +81,8 @@ export default function BankList({ darkMode }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const fetchGenRef = useRef(0);
+  const abortRef = useRef(null);
 
   const type = nav.taskType;
   const subtype = nav.subtype;
@@ -57,6 +101,11 @@ export default function BankList({ darkMode }) {
   }, [type]);
 
   const fetchTopics = useCallback(async () => {
+    abortRef.current?.abort();
+    const gen = ++fetchGenRef.current;
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
@@ -66,18 +115,26 @@ export default function BankList({ darkMode }) {
       if (dateFrom) params.set('dateFrom', dateFrom);
       if (dateTo) params.set('dateTo', dateTo);
       if (appliedSearch.trim()) params.set('q', appliedSearch.trim());
-      const { data } = await axios.get(bankUrl(`/api/topics?${params.toString()}`));
+      const { data } = await axios.get(bankUrl(`/api/topics?${params.toString()}`), {
+        signal: controller.signal,
+      });
+      if (gen !== fetchGenRef.current) return;
       setItems(Array.isArray(data.data) ? data.data : []);
     } catch (e) {
+      if (isAbortError(e)) return;
+      if (gen !== fetchGenRef.current) return;
       setError(e.response?.data?.error || e.message || 'Failed to load topics');
       setItems([]);
     } finally {
-      setLoading(false);
+      if (gen === fetchGenRef.current) setLoading(false);
     }
   }, [type, subtype, dateFrom, dateTo, appliedSearch]);
 
   useEffect(() => {
     fetchTopics();
+    return () => {
+      abortRef.current?.abort();
+    };
   }, [fetchTopics]);
 
   const sortedItems = useMemo(() => {
@@ -92,7 +149,10 @@ export default function BankList({ darkMode }) {
 
   const totalPages = Math.max(1, Math.ceil(sortedItems.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const slice = sortedItems.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const slice = useMemo(
+    () => sortedItems.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [sortedItems, safePage]
+  );
 
   useEffect(() => {
     if (loading || !navHydrated) return;
@@ -227,64 +287,126 @@ export default function BankList({ darkMode }) {
 
       {error && (
         <div
-          className={`flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm ${
+          className={`flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3 text-sm ${
             darkMode ? 'border-red-900/50 bg-red-950/30 text-red-200' : 'border-red-200 bg-red-50 text-red-800'
           }`}
+          role="alert"
         >
           <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
+          <span className="flex-1 min-w-[12rem]">{error}</span>
+          <button
+            type="button"
+            onClick={() => fetchTopics()}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${
+              darkMode
+                ? 'bg-red-900/60 text-red-100 hover:bg-red-900'
+                : 'bg-white border border-red-200 text-red-900 hover:bg-red-100/80'
+            }`}
+          >
+            Try again
+          </button>
         </div>
       )}
 
       {loading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
-        </div>
+        <ul
+          className={styles.grid}
+          role="list"
+          aria-busy="true"
+          aria-label="Loading writing bank topics"
+        >
+          {Array.from({ length: 6 }).map((_, i) => (
+            <li key={i}>
+              <div
+                className={`${styles.skeletonCard} ${darkMode ? 'border-slate-700 bg-slate-900/40' : ''}`}
+                aria-hidden
+              >
+                <div className={styles.skeletonRow}>
+                  <div className="flex gap-2 items-center">
+                    <div
+                      className={`${styles.skeletonBar} h-5 w-14 ${darkMode ? styles.skeletonBarDark : ''}`}
+                    />
+                    <div
+                      className={`${styles.skeletonBar} h-3 w-20 ${darkMode ? styles.skeletonBarDark : ''}`}
+                    />
+                  </div>
+                  <div
+                    className={`${styles.skeletonBar} h-3 w-24 ${darkMode ? styles.skeletonBarDark : ''}`}
+                  />
+                </div>
+                <div className={styles.skeletonLines}>
+                  <div
+                    className={`${styles.skeletonBar} h-3 w-full ${darkMode ? styles.skeletonBarDark : ''}`}
+                  />
+                  <div
+                    className={`${styles.skeletonBar} h-3 w-[92%] ${darkMode ? styles.skeletonBarDark : ''}`}
+                  />
+                  <div
+                    className={`${styles.skeletonBar} h-3 w-[70%] ${darkMode ? styles.skeletonBarDark : ''}`}
+                  />
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       ) : (
         <>
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
             Showing {slice.length} of {sortedItems.length} topics (page {safePage} / {totalPages})
           </p>
-          <div className={styles.grid}>
-            {slice.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => onCardClick(t)}
-                className={`text-left w-full ${styles.card} ${
-                  Number(selectedTopicId) === Number(t.id) ? styles.cardActive : ''
-                } ${
-                  darkMode
-                    ? 'border-slate-800 bg-slate-900/40'
-                    : 'border-slate-200 bg-white shadow-sm'
-                }`}
-              >
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg bg-indigo-600 text-white">
-                    {t.type}
-                  </span>
-                  <span className="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
-                    {t.subtype}
-                  </span>
-                  <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 ml-auto">
-                    {t.date}
-                  </span>
-                </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
-                  {t.title}
-                </h3>
-              </button>
-            ))}
-          </div>
+          <ul className={styles.grid} role="list" aria-label="Writing bank topics">
+            {slice.map((t) => {
+              const isT1 = t.type === 'task1';
+              const isSelected = Number(selectedTopicId) === Number(t.id);
+              return (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    onClick={() => onCardClick(t)}
+                    aria-label={topicCardAriaLabel(t)}
+                    aria-current={isSelected ? 'true' : undefined}
+                    className={`text-left w-full ${styles.card} ${
+                      darkMode ? `${styles.cardDark} bg-slate-900/50` : 'bg-white'
+                    } ${isSelected ? (darkMode ? styles.cardActiveDark : styles.cardActive) : ''}`}
+                  >
+                    <div className={styles.cardHeader}>
+                      <div className={styles.cardMeta}>
+                        <span
+                          className={`${isT1 ? styles.badgeT1 : styles.badgeT2} ${
+                            darkMode ? (isT1 ? styles.badgeT1Dark : styles.badgeT2Dark) : ''
+                          }`}
+                          aria-hidden
+                        >
+                          {taskTypeLabel(t.type)}
+                        </span>
+                        <span className={styles.cardSubtype} aria-hidden>
+                          {subtypeDisplay(t.subtype)}
+                        </span>
+                      </div>
+                      <span className={styles.cardDate} aria-hidden>
+                        {t.date}
+                      </span>
+                    </div>
+                    <p className={`${styles.cardPrompt} ${styles.cardPromptClamp}`}>{topicPromptText(t)}</p>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
           {sortedItems.length === 0 && !error && (
-            <p className="text-center text-sm text-slate-500 py-8">No topics match your filters.</p>
+            <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-8">
+              {appliedSearch.trim()
+                ? `No topics match your search “${appliedSearch.trim()}”. Try different keywords or clear filters.`
+                : 'No topics match your filters. Try widening the date range or choosing “All tasks”.'}
+            </p>
           )}
           {totalPages > 1 && (
-            <div className={styles.pager}>
+            <nav className={styles.pager} aria-label="Pagination">
               <button
                 type="button"
                 disabled={safePage <= 1}
                 onClick={() => nav.setFilters({ page: Math.max(1, safePage - 1) })}
+                aria-label="Previous page"
                 className={`${styles.pagerBtn} ${
                   darkMode
                     ? 'border-slate-700 bg-slate-900 text-slate-200 disabled:opacity-40'
@@ -298,9 +420,11 @@ export default function BankList({ darkMode }) {
                   key={p}
                   type="button"
                   onClick={() => nav.setFilters({ page: p })}
+                  aria-label={`Page ${p}`}
+                  aria-current={p === safePage ? 'page' : undefined}
                   className={`${styles.pagerBtn} ${
                     p === safePage
-                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                      ? styles.pagerBtnActive
                       : darkMode
                         ? 'border-slate-700 bg-slate-900 text-slate-300'
                         : 'border-slate-200 bg-white text-slate-700'
@@ -313,6 +437,7 @@ export default function BankList({ darkMode }) {
                 type="button"
                 disabled={safePage >= totalPages}
                 onClick={() => nav.setFilters({ page: Math.min(totalPages, safePage + 1) })}
+                aria-label="Next page"
                 className={`${styles.pagerBtn} ${
                   darkMode
                     ? 'border-slate-700 bg-slate-900 text-slate-200 disabled:opacity-40'
@@ -321,7 +446,7 @@ export default function BankList({ darkMode }) {
               >
                 Next
               </button>
-            </div>
+            </nav>
           )}
         </>
       )}

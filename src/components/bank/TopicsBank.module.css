@@ -2,6 +2,13 @@
   display: grid;
   gap: 1rem;
   grid-template-columns: 1fr;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.grid > li {
+  min-width: 0;
 }
 
 @media (min-width: 640px) {
@@ -16,24 +23,147 @@
   }
 }
 
+/* Writing Bank topic cards — STRATUM-style prompt tiles */
 .card {
-  border-radius: 1.25rem;
-  padding: 1.25rem 1.5rem;
+  border-radius: 10px;
+  padding: 1rem 1.125rem;
   border-width: 1px;
   border-style: solid;
+  border-color: #e0e0e0;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.card:focus {
+  outline: none;
+}
+
+.card:focus-visible {
+  outline: 2px solid #5d5fef;
+  outline-offset: 2px;
+}
+
+.cardDark:focus-visible {
+  outline-color: #a5b4fc;
 }
 
 .card:hover {
-  box-shadow: 0 12px 40px -12px rgb(79 70 229 / 0.15);
+  border-color: #5d5fef;
+  box-shadow: 0 8px 24px -8px rgb(93 95 239 / 0.22);
 }
 
 /* Selected topic when returning from /topics/:id */
 .cardActive {
-  border-color: rgb(79 70 229) !important;
-  box-shadow:
-    0 0 0 2px rgb(79 70 229 / 0.35),
-    0 12px 40px -12px rgb(79 70 229 / 0.2);
+  border-color: #5d5fef !important;
+  box-shadow: 0 0 0 1px #5d5fef, 0 10px 28px -10px rgb(93 95 239 / 0.35);
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.badgeT1 {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.badgeT2 {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: #4f46e5;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.cardSubtype {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.cardDate {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: #9ca3af;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.cardPrompt {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #111827;
+}
+
+.cardPromptClamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+/* Dark mode card chrome */
+.cardDark {
+  border-color: rgb(51 65 85 / 0.85);
+}
+
+.cardDark:hover {
+  border-color: #818cf8;
+  box-shadow: 0 8px 24px -8px rgb(99 102 241 / 0.25);
+}
+
+.cardDark .cardSubtype,
+.cardDark .cardDate {
+  color: rgb(148 163 184);
+}
+
+.cardDark .cardPrompt {
+  color: rgb(241 245 249);
+}
+
+.badgeT1Dark {
+  background: #2563eb;
+}
+
+.badgeT2Dark {
+  background: #5d5fef;
+}
+
+.cardActiveDark {
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 0 1px #818cf8, 0 10px 28px -10px rgb(129 140 248 / 0.35);
 }
 
 .filters {
@@ -82,13 +212,70 @@
 .pagerBtn {
   min-width: 2.5rem;
   min-height: 2.5rem;
-  border-radius: 0.75rem;
-  font-size: 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   border-width: 1px;
   border-style: solid;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.pagerBtn:focus {
+  outline: none;
+}
+
+.pagerBtn:focus-visible {
+  outline: 2px solid #5d5fef;
+  outline-offset: 2px;
+}
+
+.skeletonCard {
+  border-radius: 10px;
+  padding: 1rem 1.125rem;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  min-height: 7.5rem;
+}
+
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.skeletonBar {
+  border-radius: 6px;
+  background: rgb(226 232 240);
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+
+.skeletonBarDark {
+  background: rgb(51 65 85 / 0.6);
+}
+
+.skeletonLines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@keyframes skeletonPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+.pagerBtnActive {
+  background: #5d5fef !important;
+  border-color: #5d5fef !important;
+  color: #fff !important;
 }

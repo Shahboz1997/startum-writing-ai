@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Download, ArrowLeft, Zap, BookOpen, GitBranch, ChevronDown, Sparkles } from 'lucide-react';
-import { downloadCheckReport } from '@/lib/downloadReportPdf';
+import { generateStratumWritingPdfFromCheck } from '@/lib/stratumWritingPdf';
 import SuggestedRewriteKaraoke from './SuggestedRewriteKaraoke';
 
 const FEED_LABEL = { grammar: 'Grammar', lexical: 'Vocabulary', cohesion: 'Cohesion', logic: 'Logic' };
@@ -1188,7 +1188,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
               </button>
               <button
                 type="button"
-                onClick={() => check && downloadCheckReport(check)}
+                onClick={() => check && generateStratumWritingPdfFromCheck(check)}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-indigo-300 hover:text-indigo-600 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors"
                 title="Download PDF"
               >
