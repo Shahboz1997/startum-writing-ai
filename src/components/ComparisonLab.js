@@ -12,6 +12,38 @@ function normalizeErrorType(t) {
   return 'grammar';
 }
 
+/**
+ * Examiner JSON often ends `explanation` with the full rewrite after " — " while `fixed`/`suggestion`
+ * repeats the same sentence. Joining both produced duplicate text in the tooltip.
+ */
+function mergeExplanationAndSuggestion(explanation, suggestion) {
+  const exp = String(explanation ?? '').trim();
+  const sug = String(suggestion ?? '').trim();
+  if (!sug) return exp;
+  if (!exp) return sug;
+  if (exp === sug) return exp;
+
+  const collapse = (s) => s.replace(/\s+/g, ' ').trim();
+  const e = collapse(exp);
+  const s = collapse(sug);
+  const el = e.toLowerCase();
+  const sl = s.toLowerCase();
+  if (el === sl) return exp;
+  if (el.endsWith(sl)) return exp;
+  const stripTrail = (x) => x.replace(/[.…;:!?]+$/u, '').trim().toLowerCase();
+  if (stripTrail(el).endsWith(stripTrail(sl))) return exp;
+  if (sl.length >= 12 && el.includes(sl)) return exp;
+
+  const lastEmDash = e.lastIndexOf(' — ');
+  if (lastEmDash !== -1) {
+    const after = e.slice(lastEmDash + 3).trim();
+    const al = after.toLowerCase();
+    if (al === sl || stripTrail(al) === stripTrail(sl)) return exp;
+  }
+
+  return `${exp} — ${s}`;
+}
+
 const ERROR_SPAN_CLASS = {
   grammar: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-b-2 border-rose-500/50',
   lexical: 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-b-2 border-purple-500/50',
@@ -172,12 +204,11 @@ function highlightDraft(paragraphText, errors, { setTooltip, keyPrefix = 'd' }) 
       return <span key={`${keyPrefix}-t-${i}`}>{seg.text}</span>;
     }
     const cls = ERROR_SPAN_CLASS[seg.errorType] || ERROR_SPAN_CLASS.grammar;
-    const tip = [seg.explanation, seg.suggestion].filter(Boolean).join(' — ');
+    const tip = mergeExplanationAndSuggestion(seg.explanation, seg.suggestion);
     return (
       <span
         key={`${keyPrefix}-${seg.id}-${i}`}
         className={`rounded-sm ${cls}`}
-        title={tip || undefined}
         onMouseEnter={(e) => {
           if (!tip) return;
           const rect = e.currentTarget.getBoundingClientRect();
