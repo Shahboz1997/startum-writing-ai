@@ -5,7 +5,13 @@ import { ShieldAlert, Key } from 'lucide-react';
 
 export default function ErrorState({ message, is401 = false, onDismiss, variant = 'default', className = '' }) {
   const Icon = is401 ? Key : ShieldAlert;
-  const displayMessage = is401 ? 'Access Denied. Check Stratum Credentials.' : (message || 'Something went wrong.');
+  /** Prefer explicit message (e.g. wrong password, API detail); fallback only when empty */
+  const displayMessage =
+    typeof message === 'string' && message.trim()
+      ? message.trim()
+      : is401
+        ? 'Access Denied. Check Stratum Credentials.'
+        : 'Something went wrong.';
 
   if (variant === 'inline') {
     return (

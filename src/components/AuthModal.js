@@ -135,7 +135,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
               >
                 <ErrorState
                   message={error}
-                  is401={error === 'Invalid email or password' || error === 'Access Denied. Check Stratum Credentials.'}
+                  is401={false}
                   onDismiss={() => setError('')}
                   variant="inline"
                   className="!p-4 !flex-row !justify-between"
