@@ -6,9 +6,21 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = path.resolve(HERE, '..', '..');
-const DATA_DIR = path.join(PROJECT_ROOT, 'data');
+/**
+ * After Next bundles server code, `import.meta.url` points at `.next/server/chunks/…`, not `src/lib`.
+ * Using only that breaks `data/topics.json` on Vercel (ENOENT → 500 on GET /api/topics).
+ * Prefer `process.cwd()/data` (repo root on deploy); fall back to path next to this file (dev).
+ */
+function resolveDataDir() {
+  const cwdData = path.join(process.cwd(), 'data');
+  if (fs.existsSync(path.join(cwdData, 'topics.json'))) return cwdData;
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const nextToModule = path.resolve(here, '..', '..', 'data');
+  if (fs.existsSync(path.join(nextToModule, 'topics.json'))) return nextToModule;
+  return cwdData;
+}
+
+const DATA_DIR = resolveDataDir();
 const TOPICS_FILE = path.join(DATA_DIR, 'topics.json');
 const TEMPLATES_FILE = path.join(DATA_DIR, 'templates.json');
 
