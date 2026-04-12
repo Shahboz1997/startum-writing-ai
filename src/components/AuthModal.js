@@ -37,6 +37,8 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
     e.preventDefault();
     if (!validate()) return;
 
+    const normalizedEmail = formData.email.trim().toLowerCase();
+
     setIsLoading(true);
     setError('');
     setMessage('');
@@ -45,7 +47,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
       // --- ВХОД ---
       try {
         const res = await signIn('credentials', {
-          email: formData.email,
+          email: normalizedEmail,
           password: formData.password,
           redirect: false,
         });
@@ -66,29 +68,46 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
       try {
         const res = await fetch('/api/register', {
           method: 'POST',
-          body: JSON.stringify({ 
-            email: formData.email, 
-            password: formData.password, 
-            name: formData.name 
+          body: JSON.stringify({
+            email: normalizedEmail,
+            password: formData.password,
+            name: formData.name.trim(),
           }),
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
         });
 
-        const data = await res.json();
-
-        if (res.ok) {
-          setMessage('Success! You can now log in.');
-          // После регистрации сразу логиним
-          await signIn('credentials', {
-            email: formData.email,
-            password: formData.password,
-            callbackUrl: '/'
-          });
-          onLoginSuccess?.();
-          onClose();
-        } else {
-          setError(data.error || 'Registration failed');
+        const raw = await res.text();
+        let data = {};
+        try {
+          data = raw ? JSON.parse(raw) : {};
+        } catch {
+          setError(
+            res.ok
+              ? 'Invalid server response after registration.'
+              : 'Registration failed. Please try again.'
+          );
+          return;
         }
+
+        if (!res.ok) {
+          setError(data.error || 'Registration failed');
+          return;
+        }
+
+        const inResult = await signIn('credentials', {
+          email: normalizedEmail,
+          password: formData.password,
+          redirect: false,
+        });
+
+        if (inResult?.error) {
+          setIsLogin(true);
+          setMessage('Account created. Sign in with your email and password.');
+          return;
+        }
+
+        onLoginSuccess?.();
+        onClose();
       } catch (err) {
         setError('Something went wrong');
       } finally {

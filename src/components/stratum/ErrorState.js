@@ -15,10 +15,10 @@ export default function ErrorState({ message, is401 = false, onDismiss, variant 
 
   if (variant === 'inline') {
     return (
-      <div className={`rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30 px-4 py-3 flex items-center justify-between gap-3 ${className}`}>
-        <div className="flex items-center gap-3 min-w-0">
+      <div className={`rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/30 px-4 py-3 flex items-start justify-between gap-3 ${className}`}>
+        <div className="flex items-start gap-3 min-w-0 flex-1">
           <Icon className="w-5 h-5 shrink-0 text-red-500 dark:text-red-400 [filter:drop-shadow(0_0_6px_rgba(239,68,68,0.4))]" strokeWidth={1.5} />
-          <span className="text-sm font-medium tracking-wide text-red-700 dark:text-red-300 truncate">{displayMessage}</span>
+          <span className="text-sm font-medium tracking-wide text-red-700 dark:text-red-300 break-words text-left">{displayMessage}</span>
         </div>
         {onDismiss && (
           <button type="button" onClick={onDismiss} className="p-1.5 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors shrink-0" aria-label="Dismiss">

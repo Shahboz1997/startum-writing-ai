@@ -1,27 +1,29 @@
 /**
  * IELTS Writing bank — topics & templates (shared by Next.js API and optional Express server).
  * Data: /data/topics.json, /data/templates.json (project root).
+ *
+ * Topics/templates are imported as JSON so they are bundled into the serverless function on Vercel.
+ * Reading via fs from process.cwd() often fails on deploy (files not traced into the bundle → ENOENT → 500).
  */
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import topicsSeed from '../../data/topics.json';
+import templatesSeed from '../../data/templates.json';
 
 /**
- * After Next bundles server code, `import.meta.url` points at `.next/server/chunks/…`, not `src/lib`.
- * Using only that breaks `data/topics.json` on Vercel (ENOENT → 500 on GET /api/topics).
- * Prefer `process.cwd()/data` (repo root on deploy); fall back to path next to this file (dev).
+ * Used only for optional writes to templates.json (admin); path must exist in dev / full Node.
  */
 function resolveDataDir() {
   const cwdData = path.join(process.cwd(), 'data');
-  if (fs.existsSync(path.join(cwdData, 'topics.json'))) return cwdData;
+  if (fs.existsSync(path.join(cwdData, 'templates.json'))) return cwdData;
   const here = path.dirname(fileURLToPath(import.meta.url));
   const nextToModule = path.resolve(here, '..', '..', 'data');
-  if (fs.existsSync(path.join(nextToModule, 'topics.json'))) return nextToModule;
+  if (fs.existsSync(path.join(nextToModule, 'templates.json'))) return nextToModule;
   return cwdData;
 }
 
 const DATA_DIR = resolveDataDir();
-const TOPICS_FILE = path.join(DATA_DIR, 'topics.json');
 const TEMPLATES_FILE = path.join(DATA_DIR, 'templates.json');
 
 export const TASK1_SUB = new Set(['graph', 'table', 'process', 'letter']);
@@ -39,17 +41,12 @@ export function dataDir() {
   return DATA_DIR;
 }
 
-function readJsonSafe(filePath) {
-  const raw = fs.readFileSync(filePath, 'utf8');
-  return JSON.parse(raw);
-}
-
 export function readTopics() {
-  return readJsonSafe(TOPICS_FILE);
+  return Array.isArray(topicsSeed) ? [...topicsSeed] : [];
 }
 
 export function readTemplates() {
-  return readJsonSafe(TEMPLATES_FILE);
+  return Array.isArray(templatesSeed) ? [...templatesSeed] : [];
 }
 
 function writeTemplates(list) {
