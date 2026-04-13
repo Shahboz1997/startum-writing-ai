@@ -35,6 +35,10 @@ import {
   Volume2,
   Headphones,
   X,
+  CalendarDays,
+  BellRing,
+  LineChart,
+  BookOpen,
 } from 'lucide-react';
 import { TASK1_TIPS, TASK2_TIPS } from '@/lib/ieltsGuidelines';
 import { useBilling } from '@/components/BillingContext';
@@ -99,7 +103,7 @@ const VOCAB_UPGRADES = [
   { basic: 'big change', advanced: 'dramatic shift', category: 'Task 1' },
   { basic: 'good', advanced: 'exemplary / beneficial', category: 'General' },
   { basic: 'problem', advanced: 'setback / predicament', category: 'Task 2' },
-  { basic: 'importent', advanced: 'crucial', category: 'task2' }
+  { basic: 'importent', advanced: 'crucial', category: 'Task 2' },
 ];
 
 const FAQ_ITEMS = [
@@ -118,6 +122,10 @@ const FAQ_ITEMS = [
   {
     q: 'Is my data secure and private?',
     a: 'We prioritize your privacy. Your essays are processed via encrypted channels and are never shared with third parties or used for public model training.',
+  },
+  {
+    q: 'Does STRATUM include a study plan and practice reminders?',
+    a: 'Yes. Your Study plan page turns saved checks into a Writing profile: criterion averages, recurring error patterns, sub-topic trends, and curated links for weak areas. Optional email reminders in Settings let you pick local time, weekdays, and timezone so consistency becomes effortless.',
   },
 ];
 
@@ -260,6 +268,28 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
             </button>
           </motion.div>
 
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="flex flex-wrap justify-center gap-2 mb-8 max-w-2xl mx-auto"
+          >
+            {[
+              { label: 'Writing profile analytics', Icon: LineChart },
+              { label: 'Study plan & focus', Icon: Target },
+              { label: 'Email practice reminders', Icon: BellRing },
+              { label: 'Weak-area resources', Icon: BookOpen },
+            ].map(({ label, Icon }) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 shadow-sm"
+              >
+                <Icon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" strokeWidth={2} />
+                {label}
+              </span>
+            ))}
+          </motion.div>
+
           {/* Dashboard preview — bento widget */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -295,8 +325,43 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
         </div>
       </section>
 
+      {/* Workflow — four steps (prompt → feedback loop) */}
+      <section aria-labelledby="section-workflow" className="py-10 sm:py-14 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
+        <div className="max-w-6xl mx-auto px-4">
+          <motion.div {...fadeInUp} className="text-center mb-8 sm:mb-10">
+            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+              Workflow
+            </span>
+            <h2 id="section-workflow" className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">
+              From prompt to band breakthrough
+            </h2>
+            <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
+              A clear loop: generate, write, score, fix — then let your saved checks build a data-backed study plan.
+            </p>
+          </motion.div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {SUCCESS_PATH_STEPS.map(({ step, title, desc, Icon }) => (
+              <motion.div
+                key={step}
+                {...fadeInUp}
+                className="relative overflow-hidden rounded-[1.75rem] border border-white/10 dark:border-white/5 bg-white/80 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 shadow-xl shadow-black/5 dark:shadow-black/20"
+              >
+                <div className="absolute top-4 right-4 text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500/90 dark:text-indigo-400/90">
+                  {String(step).padStart(2, '0')}
+                </div>
+                <div className="w-11 h-11 rounded-2xl bg-indigo-100 dark:bg-indigo-900/35 flex items-center justify-center mb-4 border border-indigo-200/30 dark:border-indigo-700/25">
+                  <Icon className="w-5 h-5 text-indigo-600 dark:text-indigo-300" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-sm font-semibold tracking-wide text-slate-900 dark:text-white mb-2 pr-10">{title}</h3>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Section 1: Precision AI Analysis — Features & Value */}
-      <section id="how-it-works" aria-labelledby="section-precision-ai" className="-mt-10 py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
+      <section id="how-it-works" aria-labelledby="section-precision-ai" className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
         <div className="max-w-6xl mx-auto px-4">
           <motion.div {...fadeInUp} className="text-center mb-8">
             <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">AI-Evaluation</span>
@@ -450,6 +515,101 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
         </div>
       </section>
 
+      {/* Study plan, analytics & reminders — latest dashboard features */}
+      <section
+        id="study-plan"
+        aria-labelledby="section-study-plan"
+        className="py-12 sm:py-16 bg-gradient-to-b from-[#F0F4FF]/60 via-[#F9FAFB] to-[#F9FAFB] dark:from-indigo-950/20 dark:via-[#050505] dark:to-[#050505] border-b border-white/5"
+      >
+        <div className="max-w-6xl mx-auto px-4">
+          <motion.div {...fadeInUp} className="text-center mb-10 sm:mb-12">
+            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+              Preparation
+            </span>
+            <h2
+              id="section-study-plan"
+              className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white"
+            >
+              Study plan, analytics &amp; reminders
+            </h2>
+            <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
+              STRATUM does not stop at one-off scores. Your dashboard aggregates every saved check into trends, focus areas, and habits — so preparation stays measurable between exam day and today.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-5 sm:gap-6">
+            {[
+              {
+                Icon: LineChart,
+                title: 'Writing profile & charts',
+                blurb:
+                  'Criterion averages, flagged issue types, and sub-topic patterns — built from your archive. See where you gain points and where errors repeat.',
+                accent: 'from-indigo-500/15 to-transparent',
+              },
+              {
+                Icon: BookOpen,
+                title: 'Curated weak-area links',
+                blurb:
+                  'The Study plan suggests external materials matched to your profile — turn analytics into targeted practice instead of random essays.',
+                accent: 'from-teal-500/12 to-transparent',
+              },
+              {
+                Icon: CalendarDays,
+                title: 'Timezone-aware email nudges',
+                blurb:
+                  'Enable practice reminders in Settings: pick weekdays, local send time, and your timezone. Gentle consistency beats cramming.',
+                accent: 'from-violet-500/15 to-transparent',
+              },
+            ].map(({ Icon, title, blurb, accent }) => (
+              <motion.div
+                key={title}
+                {...fadeInUp}
+                className="group relative overflow-hidden rounded-[2rem] border border-white/10 dark:border-white/5 bg-white/85 dark:bg-white/5 backdrop-blur-md p-6 sm:p-7 shadow-2xl shadow-black/5 dark:shadow-black/25 transition-all duration-300 hover:border-indigo-300/30 dark:hover:border-indigo-500/20"
+              >
+                <div
+                  className={`pointer-events-none absolute -top-24 -right-24 h-48 w-48 rounded-full bg-gradient-to-br ${accent} blur-2xl opacity-90`}
+                  aria-hidden
+                />
+                <div className="relative">
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 ring-1 ring-indigo-200/50 dark:ring-indigo-600/30 transition-transform duration-300 group-hover:scale-[1.05]">
+                    <Icon className="h-6 w-6 text-indigo-600 dark:text-indigo-300" strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-base font-semibold tracking-wide text-slate-900 dark:text-white mb-2">{title}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{blurb}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.div
+            {...fadeInUp}
+            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 rounded-[1.75rem] border border-dashed border-indigo-300/40 dark:border-indigo-500/25 bg-indigo-50/50 dark:bg-indigo-950/20 px-6 py-5"
+          >
+            <div className="flex items-center gap-3 text-left">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/80 dark:bg-white/10 shadow-sm ring-1 ring-indigo-200/60 dark:ring-white/10">
+                <BellRing className="h-5 w-5 text-indigo-600 dark:text-indigo-400" strokeWidth={1.5} />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-700 dark:text-indigo-300">
+                  After you sign in
+                </p>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-300 mt-0.5">
+                  Open <span className="text-slate-900 dark:text-white">Study plan</span> for analytics and{' '}
+                  <span className="text-slate-900 dark:text-white">Settings</span> for email reminders — same account, one preparation stack.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onLoginClick}
+              className="shrink-0 rounded-xl border border-indigo-200/80 dark:border-indigo-500/30 bg-white/90 dark:bg-slate-900/80 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-200 shadow-sm transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+            >
+              Sign in to unlock
+            </button>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Task 2 Comparison Lab — Static Premium Demo (Cathalon.ai style) */}
       <section className="py-8 sm:py-10 bg-white/50 dark:bg-white/5 border-b border-white/5">
         <Task2ComparisonLab darkMode={darkMode} />
@@ -466,7 +626,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               BEYOND EVALUATION. COMPLETE MASTERY.
             </h2>
             <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
-              The Stratum Cycle connects prompt generation, examiner-grade evaluation, and audio shadowing into one continuous improvement loop.
+              The Stratum Cycle connects prompt generation, examiner-grade evaluation, and audio shadowing into one continuous improvement loop — with writing-profile analytics and optional email reminders so progress does not fade between sessions.
             </p>
           </motion.div>
 

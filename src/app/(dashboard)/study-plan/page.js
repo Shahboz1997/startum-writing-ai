@@ -1,5 +1,6 @@
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getPrisma } from "@/lib/prisma";
+import { getCachedWritingProfile } from "@/lib/writingProfileCache";
 import { buildWritingProfile } from "@/lib/writingProfileAnalytics";
 import StudyPlanClient from "@/components/dashboard/StudyPlanClient";
 
@@ -7,30 +8,23 @@ export default async function StudyPlanPage() {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  let checks = [];
   let locale = "en";
   let dbError = null;
+  let profile = null;
 
   try {
     const prisma = getPrisma();
-    const [rows, user] = await Promise.all([
-      prisma.check.findMany({
-        where: { userId: session.user.id },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { language: true },
-      }),
-    ]);
-    checks = rows;
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { language: true },
+    });
     locale = user?.language === "ru" ? "ru" : "en";
+    profile = await getCachedWritingProfile(session.user.id, locale);
   } catch (err) {
     console.error("Study plan DB error:", err);
     dbError = err?.message || "Database unavailable";
+    profile = buildWritingProfile([], { locale });
   }
-
-  const profile = buildWritingProfile(checks, { locale });
 
   return (
     <div className="w-full max-w-5xl mx-auto px-0 py-4 sm:py-6 md:py-8">

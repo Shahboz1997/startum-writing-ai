@@ -15,6 +15,7 @@ import { BookOpen, Bell, TrendingDown, ExternalLink } from 'lucide-react';
 
 const BAR_CRIT = '#6366f1';
 const BAR_ERR = '#f43f5e';
+const BAR_SUB = '#0d9488';
 
 export default function StudyPlanClient({ profile, locale }) {
   const isRu = locale === 'ru';
@@ -23,6 +24,7 @@ export default function StudyPlanClient({ profile, locale }) {
     display: r.value != null ? Number(r.value.toFixed(2)) : null,
   }));
   const errData = (profile.errorSeries || []).filter((e) => e.count > 0);
+  const subData = profile.subtopicSeries || [];
 
   return (
     <div className="space-y-8 max-w-4xl">
@@ -117,6 +119,43 @@ export default function StudyPlanClient({ profile, locale }) {
       </section>
 
       <section className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white/90 dark:bg-slate-900/60 backdrop-blur-md p-6 sm:p-8">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1 tracking-tight">
+          {isRu ? 'Подтемы (грамматика, лексика, задание)' : 'Sub-topics (grammar, vocabulary, task)'}
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+          {isRu
+            ? 'Поле subtopic в отчёте AI; для старых проверок — эвристика по тексту пояснения.'
+            : 'Uses the subtopic field from new checks; older reports use a text heuristic.'}
+        </p>
+        {subData.length === 0 ? (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {isRu
+              ? 'Нет данных по подтемам — сделайте новую проверку после обновления.'
+              : 'No sub-topic data yet — run a new check after this update.'}
+          </p>
+        ) : (
+          <div className="h-[min(28rem,70vh)] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={subData} layout="vertical" margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200 dark:stroke-slate-700" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="label" width={148} tick={{ fontSize: 10 }} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 12, fontSize: 12 }}
+                  formatter={(v) => [v, isRu ? 'Раз' : 'Count']}
+                />
+                <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={22}>
+                  {subData.map((_, i) => (
+                    <Cell key={i} fill={BAR_SUB} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-white/90 dark:bg-slate-900/60 backdrop-blur-md p-6 sm:p-8">
         <div className="flex items-center gap-2 mb-4">
           <BookOpen className="w-5 h-5 text-indigo-500" strokeWidth={1.5} />
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
@@ -155,8 +194,8 @@ export default function StudyPlanClient({ profile, locale }) {
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
               {isRu
-                ? 'Пуш-уведомления и email можно подключить позже (очередь задач + настройки в профиле). Пока используйте напоминание в календаре телефона на 2–3 сеанса в неделю.'
-                : 'Push and email reminders can be added later (job queue + user settings). For now, use your phone calendar for 2–3 weekly sessions.'}
+                ? 'Включите email-напоминания в Настройках: время, дни недели и часовой пояс. На Vercel нужны CRON_SECRET и переменные EMAIL_USER / EMAIL_PASS (SMTP).'
+                : 'Turn on email reminders in Settings: time, weekdays, and timezone. On Vercel, set CRON_SECRET and EMAIL_USER / EMAIL_PASS (SMTP).'}
             </p>
           </div>
         </div>

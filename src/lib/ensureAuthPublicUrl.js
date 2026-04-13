@@ -1,0 +1,36 @@
+/**
+ * Auth.js v5: AUTH_URL / NEXTAUTH_URL must be the **site origin only** (e.g. http://localhost:3000).
+ * Any path (including /api/auth or /en) makes next-auth/lib/env.js derive a wrong basePath → error=Configuration.
+ *
+ * Do **not** auto-set localhost when unset: Next may show Network as http://10.x.x.x:3000; forcing localhost
+ * breaks OAuth PKCE cookies when the browser uses the LAN IP (reqWithEnvURL vs real Host mismatch).
+ * Set AUTH_URL explicitly to the origin you open in the browser (localhost or IP), and add that redirect URI in Google Cloud.
+ */
+export function ensureAuthPublicUrl() {
+  if (typeof process === "undefined") return;
+
+  const raw = (process.env.AUTH_URL || process.env.NEXTAUTH_URL || "").replace(/^\uFEFF/, "").trim();
+  if (!raw) return;
+
+  try {
+    const hasProto = /^https?:\/\//i.test(raw);
+    const withProto = hasProto
+      ? raw
+      : /^(localhost|127\.0\.0\.1)(:\d+)?/i.test(raw.trim())
+        ? `http://${raw}`
+        : `https://${raw}`;
+    const u = new URL(withProto);
+    const originOnly = `${u.protocol}//${u.host}`;
+    process.env.AUTH_URL = originOnly;
+    process.env.NEXTAUTH_URL = originOnly;
+  } catch {
+    let base = raw.replace(/\/+$/, "");
+    if (base.endsWith("/api/auth")) {
+      base = base.slice(0, -"/api/auth".length).replace(/\/+$/, "");
+    }
+    if (/^https?:\/\//i.test(base)) {
+      process.env.AUTH_URL = base;
+      process.env.NEXTAUTH_URL = base;
+    }
+  }
+}

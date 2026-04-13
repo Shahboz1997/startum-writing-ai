@@ -18,6 +18,14 @@ model User {
   updatedAt     DateTime  @updatedAt
   credits       Int       @default(5)   // For essay checks; decremented on each check
   language      String?   @default("en") // en | ru | uz
+  /// Email practice reminders (cron + /settings)
+  practiceRemindersEnabled Boolean  @default(false)
+  practiceReminderHour     Int      @default(19) // 0–23 local
+  practiceReminderMinute   Int      @default(0)  // 0–59 local
+  practiceReminderTimezone String   @default("UTC") // IANA, e.g. Europe/Moscow
+  /// Comma-separated JS weekday numbers 0=Sun … 6=Sat (e.g. "1,2,3,4,5" Mon–Fri)
+  practiceReminderDays     String   @default("1,2,3,4,5")
+  practiceReminderLastSent DateTime?
   accounts      Account[]
   sessions      Session[]
   checks        Check[]   // Связь с проверками

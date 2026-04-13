@@ -3,6 +3,8 @@
  * Uses stored `feedback` JSON (criteria + errors) — same shape as check API.
  */
 
+import { normalizeSubtopic, labelSubtopic } from '@/lib/errorSubtopics.js';
+
 function normalizeExaminerErrorType(t) {
   const s = String(t || '')
     .toLowerCase()
@@ -20,7 +22,17 @@ function collectErrorsFromFeedback(fb) {
     if (!original) return;
     const key = original.toLowerCase();
     if (byKey.has(key)) return;
-    byKey.set(key, { type: normalizeExaminerErrorType(row?.type ?? row?.category) });
+    const type = normalizeExaminerErrorType(row?.type ?? row?.category);
+    const expl =
+      typeof row?.explanation === 'string'
+        ? row.explanation
+        : typeof row?.reason === 'string'
+          ? row.reason
+          : '';
+    byKey.set(key, {
+      type,
+      subtopic: normalizeSubtopic(row?.subtopic, type, expl),
+    });
   };
   (Array.isArray(fb.errors) ? fb.errors : []).forEach(push);
   (Array.isArray(fb.logical_errors) ? fb.logical_errors : []).forEach((e) =>
@@ -111,6 +123,8 @@ export function buildWritingProfile(checks, opts = {}) {
   const locale = opts.locale === 'ru' ? 'ru' : 'en';
   const buckets = { ta: [], cc: [], lr: [], gra: [] };
   const errorTypes = { grammar: 0, logic: 0, lexical: 0 };
+  /** @type {Record<string, number>} */
+  const subtopicCounts = {};
 
   for (const check of checks || []) {
     let fb = {};
@@ -130,6 +144,8 @@ export function buildWritingProfile(checks, opts = {}) {
     }
     for (const e of collectErrorsFromFeedback(fb)) {
       if (errorTypes[e.type] !== undefined) errorTypes[e.type] += 1;
+      const st = e.subtopic || 'other';
+      subtopicCounts[st] = (subtopicCounts[st] || 0) + 1;
     }
   }
 
@@ -146,6 +162,15 @@ export function buildWritingProfile(checks, opts = {}) {
     value: averages[def.key],
     n: buckets[def.key].length,
   })).filter((row) => row.value != null);
+
+  const subtopicSeries = Object.entries(subtopicCounts)
+    .map(([key, count]) => ({
+      key,
+      label: labelSubtopic(key, locale),
+      count,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 14);
 
   const totalErr = errorTypes.grammar + errorTypes.logic + errorTypes.lexical;
   const errorSeries = [
@@ -197,6 +222,7 @@ export function buildWritingProfile(checks, opts = {}) {
     averages,
     criteriaSeries,
     errorSeries,
+    subtopicSeries,
     totalFlaggedErrors: totalErr,
     weakCriteriaKeys: weakKeys,
     headline,
