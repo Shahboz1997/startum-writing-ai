@@ -4,49 +4,49 @@ import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Copy, Check } from 'lucide-react';
 
+// Segment data: original with "error" spans, improved with "enhancement" spans
+const ORIGINAL_SEGMENTS = [
+  { text: 'The graph shows that the number of people who ' },
+  { text: 'go to the cinema', error: true },
+  { text: ' increased. ' },
+  { text: 'It was low', error: true },
+  { text: ' in 1990 and then it ' },
+  { text: 'went up high', error: true },
+  { text: ' in 2010. Also, more young people ' },
+  { text: 'like movies', error: true },
+  { text: ' than old people.' },
+];
+
+const IMPROVED_SEGMENTS = [
+  { text: 'The line graph ' },
+  { text: 'illustrates', enhancement: true },
+  { text: ' a ' },
+  { text: 'significant upward trend', enhancement: true },
+  { text: ' in cinema attendance over the two-decade period. Starting from a ' },
+  { text: 'nadir', enhancement: true },
+  { text: ' in 1990, figures ' },
+  { text: 'surged dramatically', enhancement: true },
+  { text: ' by 2010. ' },
+  { text: 'Furthermore', enhancement: true },
+  { text: ', there is a ' },
+  { text: 'clear correlation', enhancement: true },
+  { text: ' between age and preference, with younger ' },
+  { text: 'demographics', enhancement: true },
+  { text: ' showing higher ' },
+  { text: 'engagement', enhancement: true },
+  { text: '.' },
+];
+
 const TransformationSlider = ({ darkMode, onCtaClick }) => {
   const [copied, setCopied] = useState(false);
 
   const copyToClipboard = useCallback(() => {
-    const text = improvedSegments.map((s) => s.text).join('');
+    const text = IMPROVED_SEGMENTS.map((s) => s.text).join('');
     navigator.clipboard?.writeText(text).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
   }, []);
-
-  // Segment data: original with "error" spans, improved with "enhancement" spans
-  const originalSegments = [
-    { text: 'The graph shows that the number of people who ' },
-    { text: 'go to the cinema', error: true },
-    { text: ' increased. ' },
-    { text: 'It was low', error: true },
-    { text: ' in 1990 and then it ' },
-    { text: 'went up high', error: true },
-    { text: ' in 2010. Also, more young people ' },
-    { text: 'like movies', error: true },
-    { text: ' than old people.' },
-  ];
-
-  const improvedSegments = [
-    { text: 'The line graph ' },
-    { text: 'illustrates', enhancement: true },
-    { text: ' a ' },
-    { text: 'significant upward trend', enhancement: true },
-    { text: ' in cinema attendance over the two-decade period. Starting from a ' },
-    { text: 'nadir', enhancement: true },
-    { text: ' in 1990, figures ' },
-    { text: 'surged dramatically', enhancement: true },
-    { text: ' by 2010. ' },
-    { text: 'Furthermore', enhancement: true },
-    { text: ', there is a ' },
-    { text: 'clear correlation', enhancement: true },
-    { text: ' between age and preference, with younger ' },
-    { text: 'demographics', enhancement: true },
-    { text: ' showing higher ' },
-    { text: 'engagement', enhancement: true },
-    { text: '.' },
-  ];
 
   const originalBand = 5.5;
   const improvedBand = 8.5;
@@ -86,7 +86,7 @@ const TransformationSlider = ({ darkMode, onCtaClick }) => {
             </div>
             <div className="text-base sm:text-lg font-medium leading-relaxed text-slate-700 dark:text-slate-300">
               &ldquo;
-              {originalSegments.map((seg, i) =>
+              {ORIGINAL_SEGMENTS.map((seg, i) =>
                 seg.error ? (
                   <span
                     key={i}
@@ -144,7 +144,7 @@ const TransformationSlider = ({ darkMode, onCtaClick }) => {
             </div>
             <div className="text-base sm:text-lg font-medium leading-relaxed text-slate-700 dark:text-slate-300">
               &ldquo;
-              {improvedSegments.map((seg, i) =>
+              {IMPROVED_SEGMENTS.map((seg, i) =>
                 seg.enhancement ? (
                   <span
                     key={i}

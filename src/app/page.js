@@ -1945,7 +1945,9 @@ const insertLinkingWord = (word) => {
       {activeTab === 'Task 2' && currentTopic && (
               <div className="mb-6 p-6 bg-indigo-50 dark:bg-indigo-950/20 rounded-3xl border border-indigo-100 dark:border-indigo-900/30">
                 <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-2 tracking-tight">Selected Prompt</p>
-                <p className="text-lg font-medium text-slate-900 dark:text-white">"{currentTopic.q}"</p>
+                <p className="text-lg font-medium text-slate-900 dark:text-white">
+                  {'"'}{currentTopic.q}{'"'}
+                </p>
               </div>
             )}
     <div className="mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -2342,7 +2344,7 @@ const insertLinkingWord = (word) => {
             {/* ИНФОРМАЦИЯ О СЛОВЕ */}
             <div className="flex items-center gap-2">
               <span className={`text-sm font-extrabold uppercase tracking-tight text-slate-900 dark:text-slate-100`}>
-                "{wordText}"
+                {'"'}{wordText}{'"'}
               </span>
               <span className="text-[10px] text-red-500 font-bold bg-red-100/20 px-2 py-0.5 rounded-full border border-red-500/10">
                 {count}x repeated

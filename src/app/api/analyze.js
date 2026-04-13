@@ -1,3 +1,5 @@
+import { motion } from "framer-motion";
+
 const ScoreDisplay = ({ analysis }) => {
     return (
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-6 bg-slate-50 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
@@ -15,7 +17,7 @@ const ScoreDisplay = ({ analysis }) => {
           </div>
         ))}
         <div className="col-span-full mt-6 p-4 bg-white dark:bg-slate-800 rounded-2xl text-sm italic text-slate-600 dark:text-slate-300">
-          "Overall Band Score: {analysis.band_score} - {analysis.feedback}"
+          {`Overall Band Score: ${analysis.band_score} - ${analysis.feedback}`}
         </div>
       </div>
     );
