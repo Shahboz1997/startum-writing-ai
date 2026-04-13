@@ -22,6 +22,9 @@ function inReminderWindow(parts, hour, minute) {
 
 /**
  * Vercel Cron: protect with CRON_SECRET (Authorization: Bearer …).
+ *
+ * Hobby plan: cron may run at most once per day — frequent schedules fail deployment.
+ * vercel.json uses one daily run (UTC). For sub-hourly checks, upgrade to Pro or call this URL from an external cron.
  */
 export async function GET(request) {
   const secret = process.env.CRON_SECRET;
