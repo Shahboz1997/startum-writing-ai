@@ -4,18 +4,35 @@ import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function AuthErrorClient({ humanizeAuthError }) {
+function humanizeAuthError(code) {
+  const c = String(code || "").trim();
+  if (!c) return "Unknown auth error";
+  if (c === "Configuration") {
+    return "Auth configuration error. This usually means missing/incorrect environment variables (AUTH_URL/NEXTAUTH_URL, AUTH_SECRET/NEXTAUTH_SECRET, Google credentials) or a host/redirect mismatch.";
+  }
+  if (c === "OAuthSignin" || c === "OAuthCallback") {
+    return "OAuth sign-in failed. Check Google OAuth redirect URI and AUTH_URL/NEXTAUTH_URL.";
+  }
+  if (c === "OAuthAccountNotLinked") {
+    return "This email is already registered with a different sign-in method. Use the same method you used originally.";
+  }
+  if (c === "AccessDenied") {
+    return "Access denied by the provider or your app.";
+  }
+  if (c === "Verification") {
+    return "Verification failed or expired.";
+  }
+  return `Auth error: ${c}`;
+}
+
+export default function AuthErrorClient() {
   const sp = useSearchParams();
   const error = sp?.get("error") || "";
   const callbackUrl = sp?.get("callbackUrl") || "";
 
   const message = useMemo(() => {
-    try {
-      return typeof humanizeAuthError === "function" ? humanizeAuthError(error) : String(error || "");
-    } catch {
-      return String(error || "");
-    }
-  }, [error, humanizeAuthError]);
+    return humanizeAuthError(error);
+  }, [error]);
 
   return (
     <div className="min-h-[70dvh] flex items-center justify-center px-4 py-10">
