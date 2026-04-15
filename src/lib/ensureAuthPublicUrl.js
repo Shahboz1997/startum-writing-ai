@@ -10,7 +10,17 @@ export function ensureAuthPublicUrl() {
   if (typeof process === "undefined") return;
 
   const raw = (process.env.AUTH_URL || process.env.NEXTAUTH_URL || "").replace(/^\uFEFF/, "").trim();
-  if (!raw) return;
+  // In production (e.g. Vercel), AUTH_URL/NEXTAUTH_URL is sometimes not set.
+  // Prefer the platform-provided public hostname, but never override an explicit setting.
+  if (!raw) {
+    const vercel = (process.env.VERCEL_URL || "").trim();
+    if (vercel) {
+      const originOnly = `https://${vercel.replace(/^https?:\/\//i, "").replace(/\/+$/, "")}`;
+      process.env.AUTH_URL = originOnly;
+      process.env.NEXTAUTH_URL = originOnly;
+    }
+    return;
+  }
 
   try {
     const hasProto = /^https?:\/\//i.test(raw);

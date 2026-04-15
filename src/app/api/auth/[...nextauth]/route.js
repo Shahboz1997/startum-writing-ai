@@ -11,6 +11,8 @@ ensureAuthPublicUrl();
 
 // Force dynamic so env vars are read at request time (avoids stale/empty secret)
 export const dynamic = "force-dynamic";
+// Prisma + bcrypt require Node runtime (avoid Edge incompatibilities after deploy)
+export const runtime = "nodejs";
 
 // Required in production: AUTH_SECRET or NEXTAUTH_SECRET; optional GOOGLE_* for Google sign-in
 const isDev = process.env.NODE_ENV === "development";
@@ -43,6 +45,19 @@ export const authOptions = {
   basePath: "/api/auth",
   secret: getSecret(),
   adapter: PrismaAdapter(getPrisma()),
+  logger: {
+    error(code, ...message) {
+      console.error("[auth] error", code, ...message);
+    },
+    warn(code, ...message) {
+      console.warn("[auth] warn", code, ...message);
+    },
+    debug(code, ...message) {
+      if (process.env.NEXTAUTH_DEBUG === "true") {
+        console.log("[auth] debug", code, ...message);
+      }
+    },
+  },
   // Silence optional experiments/features (reduces noisy warnings).
   experimental: {
     webAuthn: false,
@@ -188,11 +203,12 @@ export const authOptions = {
   },
   pages: {
     signIn: "/",
+    error: "/auth/error",
     // Не указывать error: "/" — иначе Auth.js редиректит с маской error=Configuration вместо реальной причины (см. assertConfig).
   },
   // Auth.js warning "debug-enabled" will only show when debug=true.
   // Default to false unless explicitly enabled.
-  debug: process.env.NEXTAUTH_DEBUG === "true" && isDev,
+  debug: process.env.NEXTAUTH_DEBUG === "true",
 };
 
 // App Router: equivalent to const handler = NextAuth(authOptions); export { handler as GET, handler as POST }
@@ -312,14 +328,8 @@ function shouldRecoverOAuthCallbackRedirect(request, response) {
 export async function GET(request) {
   try {
     const res = await handlers.GET(request);
-    if (shouldRecoverOAuthCallbackRedirect(request, res)) {
-      if (isDev) {
-        console.warn(
-          "[auth] OAuth callback ended with Configuration; clearing auth cookies. Open the app using the same host as AUTH_URL / Google redirect URI."
-        );
-      }
-      return clearAuthCookiesAndRedirect(request);
-    }
+    // Don't silently swallow Configuration errors on OAuth callbacks.
+    // Let Auth.js redirect to our custom /auth/error page so the real cause is visible in production.
     return res;
   } catch (err) {
     if (isSessionDecryptionError(err)) {
