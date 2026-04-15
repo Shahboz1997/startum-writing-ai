@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 import TransformationSlider from '@/components/TransformationSlider';
 import Task2ComparisonLab from '@/components/Task2ComparisonLab';
 import {
@@ -34,6 +35,7 @@ import {
   Zap,
   Volume2,
   Headphones,
+  Share2,
   X,
   CalendarDays,
   BellRing,
@@ -194,11 +196,34 @@ function BeforeAfterComparison() {
 export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
   const { plans, openPricing } = useBilling();
   const { resolvedTheme } = useTheme();
+  const { status } = useSession();
   const [themeMounted, setThemeMounted] = useState(false);
   const [faqOpenIndex, setFaqOpenIndex] = useState(null);
   const [isSampleOpen, setIsSampleOpen] = useState(false);
+  const [shareInfoOpen, setShareInfoOpen] = useState(false);
   useEffect(() => setThemeMounted(true), []);
   const darkMode = themeMounted && resolvedTheme === 'dark';
+
+  const shareLanding = async () => {
+    if (typeof window === 'undefined') return;
+    const url = window.location.origin;
+    const title = 'STRATUM.ai — Premium IELTS Intelligence';
+    const text = 'Try STRATUM.ai for IELTS Writing Task 1 & Task 2.';
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+        return;
+      }
+    } catch {
+      // user canceled or share failed
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      alert('Link copied to clipboard!');
+    } catch {
+      window.prompt('Copy this link:', url);
+    }
+  };
 
   const cycleContainer = {
     initial: {},
@@ -288,6 +313,46 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
                 {label}
               </span>
             ))}
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.28 }}
+            className="flex flex-col items-center gap-3 mb-4"
+          >
+            <button
+              type="button"
+              onClick={async () => {
+                if (status !== 'authenticated') {
+                  setShareInfoOpen((v) => !v);
+                  return;
+                }
+                setShareInfoOpen(false);
+                await shareLanding();
+              }}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-white/5 text-slate-700 dark:text-slate-300 font-semibold tracking-wide hover:bg-white/80 dark:hover:bg-white/10 transition-colors"
+              title={status === 'authenticated' ? 'Share STRATUM.ai' : 'Info'}
+            >
+              <Share2 className="w-4 h-4" />
+              Share
+            </button>
+
+            <AnimatePresence>
+              {shareInfoOpen && status !== 'authenticated' && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.18 }}
+                  className="w-full max-w-xl px-4"
+                >
+                  <div className="rounded-2xl border border-indigo-200/60 dark:border-indigo-800/40 bg-indigo-50/70 dark:bg-indigo-950/30 px-4 py-3 text-center text-xs sm:text-sm font-medium text-indigo-900/90 dark:text-indigo-200">
+                    Sharing is available after you create an account and sign in.
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
 
           {/* Dashboard preview — bento widget */}
