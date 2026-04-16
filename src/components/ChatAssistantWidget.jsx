@@ -210,7 +210,7 @@ export default function ChatAssistantWidget() {
             aria-hidden="true"
           />
 
-          <div className="fixed inset-x-0 bottom-0 sm:static sm:mb-3 sm:w-[92vw] sm:max-w-[420px] rounded-t-3xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur shadow-2xl overflow-hidden h-[85dvh] sm:h-auto flex flex-col">
+          <div className="fixed inset-x-0 bottom-0 sm:static sm:mb-3 sm:w-[92vw] sm:max-w-[420px] rounded-t-3xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur shadow-2xl overflow-hidden h-[85dvh] sm:h-[560px] sm:max-h-[70vh] flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/70 dark:border-slate-800">
             <div className="min-w-0">
               <div className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
