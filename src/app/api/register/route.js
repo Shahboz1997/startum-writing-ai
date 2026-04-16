@@ -2,6 +2,9 @@ import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(request) {
   try {
     // Ensure DATABASE_URL (or DIRECT_URL) is available before using Prisma
@@ -77,10 +80,27 @@ export async function POST(request) {
       );
     }
 
+    // Table missing / migrations not applied (common right after deploy)
+    const isSchemaMissing =
+      code === "P2021" ||
+      /does not exist/i.test(message) ||
+      /relation .* does not exist/i.test(message);
+    if (isSchemaMissing) {
+      return NextResponse.json(
+        {
+          error:
+            "Database schema is missing. Run Prisma migrations / push schema in production.",
+        },
+        { status: 503 }
+      );
+    }
+
     const isDbUnreachable =
       code === "P1001" ||
       /Can't reach database server/i.test(message) ||
-      /Connection refused/i.test(message);
+      /Connection refused/i.test(message) ||
+      /self signed certificate/i.test(message) ||
+      /certificate/i.test(message);
 
     if (isDbUnreachable) {
       return NextResponse.json(
@@ -93,7 +113,7 @@ export async function POST(request) {
     }
 
     return NextResponse.json(
-      { error: "Registration failed. Please try again." },
+      { error: "Registration failed. Please try again.", details: code || undefined },
       { status: 500 }
     );
   }
