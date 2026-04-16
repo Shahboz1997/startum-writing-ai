@@ -157,7 +157,7 @@ const Navbar = ({
             </div>
 
             <div className="flex items-center gap-4 border-l pl-6 border-slate-700/30">
-              <div className="relative">
+              {/* <div className="relative">
                 <button type="button" onClick={() => setIsPricingOpen(!isPricingOpen)} className="flex items-center gap-2 min-h-[44px] px-3 py-2 font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 rounded-xl transition-all">
                   <CreditCard className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} /> Pricing
                 </button>
@@ -173,7 +173,7 @@ const Navbar = ({
                     </motion.div>
                   )}
                 </AnimatePresence>
-              </div>
+              </div> */}
             {isLoggedIn ? (
         <div className="flex items-center gap-3">
           {/* Кредиты */}
