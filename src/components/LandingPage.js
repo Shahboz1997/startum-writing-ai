@@ -1007,7 +1007,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
       </section>
 
       {/* Pricing — bento cards */}
-      <section id="pricing" className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
+      {/* <section id="pricing" className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5">
         <div className="max-w-5xl mx-auto px-4">
           <motion.div {...fadeInUp} className="text-center mb-6">
             <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">Plans</span>
@@ -1061,7 +1061,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Final CTA */}
       <section className="py-12 sm:py-16 bg-white/50 dark:bg-white/5 border-b border-white/5">
