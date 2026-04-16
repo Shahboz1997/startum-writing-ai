@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import AuthModal from '../components/AuthModal';
@@ -548,6 +548,8 @@ import 'react-medium-image-zoom/dist/styles.css';
   const { data: session, status: sessionStatus, update } = useSession();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const forceLanding = searchParams?.get('landing') === '1';
 
   // Namespace localStorage per user so drafts/archives don't leak between accounts on same device.
   const userStorageId = useMemo(() => {
@@ -1477,19 +1479,55 @@ const handleScrollToTop = () => {
   // 3. Плавный скролл к началу страницы
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
-const shareReport = async (entry) => {
+const shareReport = async () => {
+  const t1Id = activeResultT1?.savedId || null;
+  const t2Id = activeResultT2?.savedId || null;
   const band =
-    entry?.overall_band ?? entry?.fullData?.overall_band ?? entry?.analysis?.overall_band ?? '';
+    activeResult?.overall_band ??
+    activeResult?.analysis?.overall_band ??
+    activeResultT1?.overall_band ??
+    activeResultT2?.overall_band ??
+    '';
 
-  const reportId = entry?.savedId || null; // only savedId is guaranteed to exist in /history/:id
-  const shareUrl = reportId ? `${window.location.origin}/history/${reportId}` : null;
+  let shareUrl = null;
+  if (t1Id || t2Id) {
+    try {
+      const res = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ t1Id, t2Id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.token) {
+          shareUrl = `${window.location.origin}/share/${data.token}`;
+        }
+      }
+    } catch (_) {}
+  }
 
   const shareText = [
     band ? `IELTS Writing Report (Band ${band})` : 'IELTS Writing Report',
     shareUrl ? `Link: ${shareUrl}` : '',
+    shareUrl ? '' : 'Tip: Save your analysis to History to generate a shareable link.',
   ]
     .filter(Boolean)
     .join('\n');
+
+  // Always copy something user can paste (desktop-friendly).
+  // Even if Web Share succeeds, users often expect the link to be in clipboard.
+  const textToCopy = shareUrl || shareText;
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(textToCopy);
+    copied = true;
+    if (shareUrl) toast.success('Share link copied to clipboard!', { duration: 2500 });
+    else toast.success('Copied.', { duration: 2000 });
+  } catch {
+    // Some browsers block clipboard writes unless triggered by a direct user gesture or on insecure contexts.
+    // prompt() still lets the user copy manually.
+    window.prompt('Copy this:', textToCopy);
+  }
 
   try {
     if (navigator.share) {
@@ -1498,24 +1536,15 @@ const shareReport = async (entry) => {
         text: shareText,
         ...(shareUrl ? { url: shareUrl } : {}),
       });
-      toast.success('Shared.', { duration: 2000 });
+      // If clipboard already contains the link/text, show a subtle confirmation.
+      toast.success(copied ? 'Shared (link also copied).' : 'Shared.', { duration: 2000 });
       return;
     }
   } catch (err) {
-    // Not fatal: user may cancel or share can fail on some desktop browsers.
     const msg = String(err?.message || '');
     if (!/abort|cancel/i.test(msg)) {
-      toast.error('Sharing failed on this device. Copied text instead.');
+      toast.error('Sharing failed on this device. Link is copied.', { duration: 2500 });
     }
-  }
-
-  // Desktop / fallback: copy to clipboard. If we don't have a public link yet, copy a shareable summary.
-  try {
-    await navigator.clipboard.writeText(shareUrl || shareText);
-    if (shareUrl) toast.success('Public link copied to clipboard!', { duration: 2500 });
-    else toast.success('Copied. Sign in / save to History to get a public link.', { duration: 3500 });
-  } catch {
-    window.prompt('Copy this:', shareUrl || shareText);
   }
 };
 const playClickSound = () => {
@@ -1620,8 +1649,9 @@ const insertLinkingWord = (word) => {
   }, 10);
 }
 
-  // Render landing when unauthenticated (after all hooks to avoid "fewer hooks" error)
-  if (sessionStatus === 'unauthenticated') {
+  // Render landing when unauthenticated OR forced via query.
+  // (after all hooks to avoid "fewer hooks" error)
+  if (sessionStatus === 'unauthenticated' || forceLanding) {
     return (
       <div className="relative min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300">
         <GlowFollow />
@@ -1632,7 +1662,7 @@ const insertLinkingWord = (word) => {
               setAuthModalMessage('Sign up to see your Band Score');
               setIsAuthOpen(true);
             }}
-            isLoggedIn={false}
+            isLoggedIn={sessionStatus === 'authenticated'}
           />
           <AnimatePresence>
             {isAuthOpen && (
@@ -2284,9 +2314,9 @@ const insertLinkingWord = (word) => {
         </button>
 
         <button 
-          onClick={() => shareReport(activeResult)}
+          onClick={() => shareReport()}
           className="flex aspect-square w-12 items-center justify-center rounded-2xl bg-white/10 text-white transition-all hover:bg-white/20 active:scale-90 sm:w-auto sm:px-5"
-          title={activeResult?.savedId ? "Share Analysis" : "Share summary (save to History for public link)"}
+          title={(activeResultT1?.savedId || activeResultT2?.savedId) ? "Share Analysis" : "Share summary (save to History for public link)"}
         >
           <Share2 className="h-5 w-5" /> 
         </button>
