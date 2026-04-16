@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import AuthModal from '../components/AuthModal';
@@ -548,8 +548,20 @@ import 'react-medium-image-zoom/dist/styles.css';
   const { data: session, status: sessionStatus, update } = useSession();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const forceLanding = searchParams?.get('landing') === '1';
+  const [forceLanding, setForceLanding] = useState(false);
+
+  // Avoid useSearchParams() here: it can break static prerender/export on Vercel.
+  // We only need this on the client.
+  useEffect(() => {
+    if (pathname !== '/') return;
+    if (typeof window === 'undefined') return;
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      setForceLanding(sp.get('landing') === '1');
+    } catch {
+      setForceLanding(false);
+    }
+  }, [pathname]);
 
   // Namespace localStorage per user so drafts/archives don't leak between accounts on same device.
   const userStorageId = useMemo(() => {
