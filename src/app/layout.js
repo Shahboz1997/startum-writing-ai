@@ -3,7 +3,6 @@ import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { Providers } from "../components/Providers";
-import ChatAssistantWidget from "../components/ChatAssistantWidget";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -87,7 +86,6 @@ export default function RootLayout({ children }) {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <Providers>
             {children}
-            <ChatAssistantWidget />
           </Providers>
         </ThemeProvider>
       </body>

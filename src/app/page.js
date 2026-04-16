@@ -8,6 +8,7 @@ import Navbar from '../components/Navbar';
 import AuthModal from '../components/AuthModal';
 import LandingPage from '../components/LandingPage';
 import GlowFollow from '../components/GlowFollow';
+import ChatAssistantWidget from '../components/ChatAssistantWidget';
 import { LoadingState, EmptyState, ErrorState, SuccessState } from '../components/stratum';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -3012,6 +3013,8 @@ const insertLinkingWord = (word) => {
         </footer>
 
 {/* КНОПКА НАВЕРХ */}
+
+        {(activeTab === 'Task 1' || activeTab === 'Task 2') && <ChatAssistantWidget />}
 
         </div>
       </div>
