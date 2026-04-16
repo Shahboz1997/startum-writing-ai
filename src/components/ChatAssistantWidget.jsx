@@ -8,12 +8,10 @@ function cx(...xs) {
   return xs.filter(Boolean).join(" ");
 }
 
-const WORKSPACE_KEY = "ielts_stratum_workspace_v1";
-
-function readWorkspace() {
+function readWorkspace(workspaceKey) {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(WORKSPACE_KEY);
+    const raw = window.localStorage.getItem(workspaceKey);
     if (!raw) return null;
     const w = JSON.parse(raw);
     if (!w || typeof w !== "object") return null;
@@ -36,8 +34,16 @@ function inferTaskTypeFromWorkspace(w) {
 }
 
 export default function ChatAssistantWidget() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const isAuthed = status === "authenticated";
+  const userStorageId = useMemo(() => {
+    const id = session?.user?.id || session?.user?.email;
+    return typeof id === "string" && id.trim().length > 0 ? id.trim() : "anon";
+  }, [session?.user?.id, session?.user?.email]);
+  const workspaceKey = useMemo(
+    () => `ielts_stratum_workspace_v1:${userStorageId}`,
+    [userStorageId]
+  );
 
   const [open, setOpen] = useState(false);
   const [taskType, setTaskType] = useState("Task 2");
@@ -102,27 +108,27 @@ export default function ChatAssistantWidget() {
     };
 
     // Apply immediately on mount.
-    applyWorkspace(readWorkspace());
+    applyWorkspace(readWorkspace(workspaceKey));
 
     // Re-apply when the widget is opened (in case user typed since mount).
-    if (open) applyWorkspace(readWorkspace());
+    if (open) applyWorkspace(readWorkspace(workspaceKey));
 
     // Listen to storage events (cross-tab). Same-tab writes won't trigger this,
     // so we also poll lightly while the widget is open.
     const onStorage = (e) => {
-      if (e?.key === WORKSPACE_KEY) applyWorkspace(readWorkspace());
+      if (e?.key === workspaceKey) applyWorkspace(readWorkspace(workspaceKey));
     };
     window.addEventListener("storage", onStorage);
 
     let poll = null;
     if (open) {
-      poll = window.setInterval(() => applyWorkspace(readWorkspace()), 1500);
+      poll = window.setInterval(() => applyWorkspace(readWorkspace(workspaceKey)), 1500);
     }
     return () => {
       window.removeEventListener("storage", onStorage);
       if (poll) window.clearInterval(poll);
     };
-  }, [open, isAuthed]);
+  }, [open, isAuthed, workspaceKey]);
 
   const bottomRef = useRef(null);
   useEffect(() => {
