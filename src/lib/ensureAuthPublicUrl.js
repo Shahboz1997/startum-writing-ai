@@ -31,8 +31,18 @@ export function ensureAuthPublicUrl() {
         : `https://${raw}`;
     const u = new URL(withProto);
     const originOnly = `${u.protocol}//${u.host}`;
-    process.env.AUTH_URL = originOnly;
-    process.env.NEXTAUTH_URL = originOnly;
+    // If deployed on Vercel but env mistakenly points to localhost,
+    // override to the real public hostname to avoid Auth.js Configuration errors.
+    const vercel = (process.env.VERCEL_URL || "").trim();
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(originOnly);
+    if (vercel && isLocalhost && process.env.NODE_ENV !== "development") {
+      const vercelOrigin = `https://${vercel.replace(/^https?:\/\//i, "").replace(/\/+$/, "")}`;
+      process.env.AUTH_URL = vercelOrigin;
+      process.env.NEXTAUTH_URL = vercelOrigin;
+    } else {
+      process.env.AUTH_URL = originOnly;
+      process.env.NEXTAUTH_URL = originOnly;
+    }
   } catch {
     let base = raw.replace(/\/+$/, "");
     if (base.endsWith("/api/auth")) {
