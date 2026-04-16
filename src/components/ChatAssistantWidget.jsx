@@ -194,9 +194,23 @@ export default function ChatAssistantWidget() {
   if (!isAuthed) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 sm:right-24 z-[200]">
+    <div
+      className="fixed z-[200]"
+      style={{
+        right: "calc(1rem + env(safe-area-inset-right))",
+        bottom: "calc(1rem + env(safe-area-inset-bottom))",
+      }}
+    >
       {open && (
-        <div className="mb-3 w-[92vw] max-w-[420px] rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur shadow-2xl overflow-hidden">
+        <>
+          {/* Mobile backdrop */}
+          <div
+            className="fixed inset-0 bg-black/30 backdrop-blur-[2px] sm:hidden"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+
+          <div className="fixed inset-x-0 bottom-0 sm:static sm:mb-3 sm:w-[92vw] sm:max-w-[420px] rounded-t-3xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur shadow-2xl overflow-hidden h-[85dvh] sm:h-auto flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/70 dark:border-slate-800">
             <div className="min-w-0">
               <div className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">
@@ -277,7 +291,7 @@ export default function ChatAssistantWidget() {
             </details>
           </div>
 
-          <div className="h-[300px] overflow-auto px-4 py-3 space-y-3">
+          <div className="flex-1 overflow-auto px-4 py-3 space-y-3">
             {messages.map((m, idx) => (
               <div
                 key={idx}
@@ -304,7 +318,7 @@ export default function ChatAssistantWidget() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="px-4 py-3 border-t border-slate-200/70 dark:border-slate-800">
+          <div className="px-4 py-3 border-t border-slate-200/70 dark:border-slate-800 bg-white/70 dark:bg-slate-950/60">
             <div className="flex flex-wrap gap-2 mb-2">
               <button
                 type="button"
@@ -376,13 +390,17 @@ export default function ChatAssistantWidget() {
               Enter = send • Shift+Enter = new line
             </div>
           </div>
-        </div>
+          </div>
+        </>
       )}
 
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-14 h-14 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-center hover:scale-[1.02] active:scale-95 transition-transform"
+        className={cx(
+          "w-14 h-14 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center justify-center hover:scale-[1.02] active:scale-95 transition-transform",
+          open ? "sm:translate-y-0" : ""
+        )}
         aria-label="Open AI assistant"
       >
         <MessageCircle className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
