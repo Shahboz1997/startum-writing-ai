@@ -1150,11 +1150,20 @@ const renderHighlightedText = (text, highlights, searchState) => { // Добав
       if (isUrl) {
         imageData = fileOrUrl;
       } else {
+        // Prevent huge base64 payloads (Vercel/Next/OpenAI may reject or time out).
+        const maxBytes = 6 * 1024 * 1024; // 6MB raw file limit (base64 becomes larger)
+        if (fileOrUrl?.size && fileOrUrl.size > maxBytes) {
+          throw new Error('Image is too large. Please upload an image under 6MB.');
+        }
         imageData = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onloadend = () => resolve(reader.result);
           reader.readAsDataURL(fileOrUrl);
         });
+      }
+
+      if (typeof imageData === 'string' && imageData.startsWith('data:') && imageData.length > 10_000_000) {
+        throw new Error('Image is too large after encoding. Please upload a smaller image (or use a URL).');
       }
 
       setImage(imageData);

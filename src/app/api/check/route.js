@@ -463,6 +463,7 @@ function normalizeSimplifiedCheckResult(raw, taskCriteriaName, userText) {
 }
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_DATA_URL_CHARS = 10_000_000; // ~7.5MB base64 payload depending on header
 
 /** Prefer Node http(s) — global fetch/Undici often throws "fetch failed" for some CDNs on Windows. */
 function downloadImageAsDataUrl(imageUrl, redirectCount = 0) {
@@ -663,6 +664,19 @@ await transporter.sendMail({
     // --- 1. РЕЖИМ: Глубокий анализ изображения (Vision / OCR) ---
     // Frontend sends POST with { describeImage: true, image: base64OrUrl }. API key is read at request time via getOpenAIClient().
     if (body.describeImage && body.image) {
+      const rawImage = typeof body.image === 'string' ? body.image.trim() : '';
+      if (!rawImage) {
+        return NextResponse.json({ error: 'Missing image.' }, { status: 400 });
+      }
+      if (rawImage.startsWith('data:')) {
+        if (!rawImage.startsWith('data:image/')) {
+          return NextResponse.json({ error: 'Unsupported data URL type. Please upload a valid image.' }, { status: 400 });
+        }
+        if (rawImage.length > MAX_DATA_URL_CHARS) {
+          return NextResponse.json({ error: 'Image is too large. Please upload a smaller image (under ~6MB).' }, { status: 413 });
+        }
+      }
+
       const clientResult = getOpenAIClient();
       if (clientResult.error) return clientResult.error;
       const openai = clientResult.openai;
@@ -693,7 +707,6 @@ If a safe neutral intro is impossible, reply exactly: NONE`,
         },
       ];
       try {
-        const rawImage = typeof body.image === "string" ? body.image.trim() : "";
         const isPublicHttp = /^https?:\/\//i.test(rawImage);
 
         let response;
@@ -753,10 +766,22 @@ If a safe neutral intro is impossible, reply exactly: NONE`,
         if (isOpenAIAuthError(error)) {
           return NextResponse.json({ error: "INVALID_API_KEY" }, { status: 401 });
         }
-        return NextResponse.json({ 
-          error: "The selected image source is protected or invalid. Please upload a file manually or try another topic.",
-          question: null
-        }, { status: 500 });
+        const upstreamStatus = error?.status ?? error?.statusCode ?? error?.response?.status;
+        const message =
+          typeof error?.message === 'string' && error.message
+            ? error.message
+            : 'Image description failed.';
+        return NextResponse.json(
+          {
+            error:
+              upstreamStatus === 400
+                ? 'Invalid image for vision. Please try another image.'
+                : 'The selected image source is protected, too large, or invalid. Please upload a smaller file or try another topic.',
+            detail: process.env.NODE_ENV === 'development' ? message : undefined,
+            question: null,
+          },
+          { status: 502 }
+        );
       }
     }
 
