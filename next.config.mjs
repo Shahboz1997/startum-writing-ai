@@ -4,6 +4,17 @@ const withPWA = withPWAInit({
   dest: 'public',
   // Отключаем PWA при сборке, если она падает, либо оставляем только для продакшена
   disable: process.env.NODE_ENV === 'development',
+  // Service Worker не должен кешировать/ломать NextAuth (OAuth POST → редирект на Google)
+  extendDefaultRuntimeCaching: true,
+  workboxOptions: {
+    navigateFallbackDenylist: [/^\/api\//, /^\/_next\/static/],
+    runtimeCaching: [
+      {
+        urlPattern: /\/api\/auth\//,
+        handler: 'NetworkOnly',
+      },
+    ],
+  },
 });
 
 /** @type {import('next').NextConfig} */

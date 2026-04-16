@@ -1,8 +1,10 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { auth } from '@/app/api/auth/[...nextauth]/route';
 import { getPrisma } from '@/lib/prisma';
+import { writingProfileTag } from '@/lib/writingProfileCache.js';
 
 export async function POST(request) {
   const session = await auth();
@@ -48,6 +50,9 @@ export async function POST(request) {
       userId: session.user.id,
     },
   });
+  try {
+    revalidateTag(writingProfileTag(session.user.id));
+  } catch (_) {}
 
   return NextResponse.json({ ok: true, id: check.id }, { status: 200 });
 }

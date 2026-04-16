@@ -12,11 +12,13 @@ import {
   Sliders,
   LogOut,
   User,
+  Target,
 } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 const mainNavItems = [
   { name: 'Overview', href: '/dashboard', icon: BarChart3 },
+  { name: 'Study plan', href: '/study-plan', icon: Target },
   { name: 'My Checks', href: '/history', icon: Clock },
   { name: 'Writer', href: '/', icon: PenTool },
 ];

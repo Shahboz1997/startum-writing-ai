@@ -8,8 +8,9 @@ import { BankTopicsNavProvider } from "@/context/BankTopicsNavContext";
 export function Providers({ children }) {
   return (
     <SessionProvider
+      basePath="/api/auth"
       refetchInterval={5 * 60}
-      refetchOnWindowFocus={false}
+      refetchOnWindowFocus
     >
       <Toaster position="top-center" />
       <BillingProvider>

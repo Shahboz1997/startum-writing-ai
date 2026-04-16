@@ -610,7 +610,7 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
     const b = payload?.overall_band;
     if (b != null && b !== '' && Number.isFinite(Number(b))) return `Band ${Number(b).toFixed(1)}`;
     return activeTab === 'Task 1' ? 'Band 5.0' : 'Band 5.5';
-  }, [payload?.overall_band, activeTab]);
+  }, [payload, activeTab]);
 
   const rewriteBandLabel = 'Band 8.5+';
 

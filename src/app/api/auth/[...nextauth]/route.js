@@ -5,17 +5,22 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { ensureAuthPublicUrl } from "@/lib/ensureAuthPublicUrl";
+
+ensureAuthPublicUrl();
 
 // Force dynamic so env vars are read at request time (avoids stale/empty secret)
 export const dynamic = "force-dynamic";
+// Prisma + bcrypt require Node runtime (avoid Edge incompatibilities after deploy)
+export const runtime = "nodejs";
 
-// Required in .env.local: NEXTAUTH_SECRET (or AUTH_SECRET), NEXTAUTH_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+// Required in production: AUTH_SECRET or NEXTAUTH_SECRET; optional GOOGLE_* for Google sign-in
 const isDev = process.env.NODE_ENV === "development";
 
 // Secret must be a non-empty string; undefined causes "Configuration" error
 function getSecret() {
-  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
-  if (secret && typeof secret === "string" && secret.length > 0) return secret;
+  const secret = (process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "").trim();
+  if (secret.length > 0) return secret;
   if (isDev) {
     const fallback = "dev-secret-min-32-chars-required-for-auth";
     console.warn("[auth] NEXTAUTH_SECRET / AUTH_SECRET missing; using dev fallback. Set in .env.local for production.");
@@ -24,20 +29,57 @@ function getSecret() {
   throw new Error("NEXTAUTH_SECRET or AUTH_SECRET must be set in production.");
 }
 
+const googleClientId = (
+  process.env.AUTH_GOOGLE_ID ||
+  process.env.GOOGLE_CLIENT_ID ||
+  ""
+).trim();
+const googleClientSecret = (
+  process.env.AUTH_GOOGLE_SECRET ||
+  process.env.GOOGLE_CLIENT_SECRET ||
+  ""
+).trim();
+
 export const authOptions = {
   trustHost: true,
+  basePath: "/api/auth",
   secret: getSecret(),
   adapter: PrismaAdapter(getPrisma()),
+  logger: {
+    error(code, ...message) {
+      console.error("[auth] error", code, ...message);
+    },
+    warn(code, ...message) {
+      console.warn("[auth] warn", code, ...message);
+    },
+    debug(code, ...message) {
+      if (process.env.NEXTAUTH_DEBUG === "true") {
+        console.log("[auth] debug", code, ...message);
+      }
+    },
+  },
   // Silence optional experiments/features (reduces noisy warnings).
   experimental: {
     webAuthn: false,
   },
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      allowDangerousEmailAccountMerging: true,
-    }),
+    ...(googleClientId && googleClientSecret
+      ? [
+          GoogleProvider({
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+            // v5: must be "Linking" — "Merging" is ignored; otherwise OAuth + existing email → OAuthAccountNotLinked
+            allowDangerousEmailAccountLinking: true,
+            authorization: {
+              params: {
+                scope: "openid email profile",
+                access_type: "offline",
+                response_type: "code",
+              },
+            },
+          }),
+        ]
+      : []),
     // 2. Вход через Email/Пароль
     CredentialsProvider({
       name: "credentials",
@@ -76,65 +118,75 @@ export const authOptions = {
     strategy: "jwt", // Обязательно для Credentials и Middleware
   },
   callbacks: {
-    // Связывание Google с существующим пользователем по email + логирование ошибок (в т.ч. продакшен)
-    async signIn({ user, account, profile }) {
-      try {
-        if (isDev) {
-          console.log("[auth] signIn:", { email: user?.email, provider: account?.provider });
-        }
-        if (account?.provider === "google" && user?.email) {
-          const prisma = getPrisma();
-          const existingUser = await prisma.user.findUnique({
-            where: { email: user.email },
-          });
-          if (existingUser) {
-            await prisma.account.upsert({
-              where: {
-                provider_providerAccountId: {
-                  provider: "google",
-                  providerAccountId: account.providerAccountId,
-                },
-              },
-              create: {
-                userId: existingUser.id,
-                type: account.type ?? "oauth",
-                provider: "google",
-                providerAccountId: account.providerAccountId,
-                access_token: account.access_token ?? null,
-                refresh_token: account.refresh_token ?? null,
-                expires_at: account.expires_at ?? null,
-              },
-              update: {},
-            });
-            if (isDev) console.log("[auth] Account linked for", user.email);
-          }
-        }
-        return true;
-      } catch (err) {
-        console.error("[auth] signIn error:", err?.message ?? err);
-        if (err?.code) console.error("[auth] signIn error code:", err.code);
-        throw err;
+    async signIn({ user, account }) {
+      if (isDev) {
+        console.log("[auth] signIn:", { email: user?.email, provider: account?.provider });
       }
+      return true;
+    },
+    /** Не уводить пользователя на чужой origin после OAuth */
+    async redirect({ url, baseUrl }) {
+      const base = baseUrl.replace(/\/+$/, "");
+      if (url.startsWith("/")) return `${base}${url}`;
+      try {
+        const u = new URL(url);
+        if (u.origin === new URL(base).origin) return url;
+      } catch {
+        /* ignore */
+      }
+      return base;
     },
     // Сохраняем ID и Кредиты пользователя в JWT токене
-    async jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id;
-        token.credits = user.credits;
-        token.language = user.language;
-        if (!token.language) {
-          try {
-            const prisma = getPrisma();
-            const dbUser = await prisma.user.findUnique({ where: { id: user.id }, select: { language: true } });
-            token.language = dbUser?.language || 'en';
-          } catch (_) {
-            token.language = 'en';
+    async jwt({ token, user, trigger, session, account }) {
+      try {
+        if (user) {
+          const uid = user.id ?? user.sub ?? token.sub;
+          if (uid) {
+            token.id = uid;
+            // Keep JWT `sub` aligned with DB user id so session/callbacks stay consistent (OAuth profile `sub` is not our User.id).
+            token.sub = String(uid);
+          }
+          if (account?.provider === "google" && !token.id && user.email) {
+            try {
+              const prisma = getPrisma();
+              const row = await prisma.user.findUnique({
+                where: { email: user.email },
+                select: { id: true, credits: true, language: true },
+              });
+              if (row) {
+                token.id = row.id;
+                token.sub = String(row.id);
+                token.credits = row.credits ?? 0;
+                token.language = row.language ?? "en";
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+          if (token.id) {
+            try {
+              const prisma = getPrisma();
+              const dbUser = await prisma.user.findUnique({
+                where: { id: token.id },
+                select: { credits: true, language: true },
+              });
+              token.credits = dbUser?.credits ?? user.credits ?? 0;
+              token.language = dbUser?.language ?? user.language ?? "en";
+            } catch (_) {
+              token.credits = user.credits ?? 0;
+              token.language = user.language ?? "en";
+            }
+          } else {
+            token.credits = user.credits ?? 0;
+            token.language = user.language ?? "en";
           }
         }
-      }
-      if (trigger === "update") {
-        if (session?.credits !== undefined) token.credits = session.credits;
-        if (session?.language !== undefined) token.language = session.language;
+        if (trigger === "update") {
+          if (session?.credits !== undefined) token.credits = session.credits;
+          if (session?.language !== undefined) token.language = session.language;
+        }
+      } catch (e) {
+        if (isDev) console.error("[auth] jwt callback:", e?.message ?? e);
       }
       return token;
     },
@@ -151,11 +203,12 @@ export const authOptions = {
   },
   pages: {
     signIn: "/",
-    error: "/",
+    error: "/auth/error",
+    // Не указывать error: "/" — иначе Auth.js редиректит с маской error=Configuration вместо реальной причины (см. assertConfig).
   },
   // Auth.js warning "debug-enabled" will only show when debug=true.
   // Default to false unless explicitly enabled.
-  debug: process.env.NEXTAUTH_DEBUG === "true" && isDev,
+  debug: process.env.NEXTAUTH_DEBUG === "true",
 };
 
 // App Router: equivalent to const handler = NextAuth(authOptions); export { handler as GET, handler as POST }
@@ -164,25 +217,86 @@ export const { handlers, auth } = nextAuth;
 
 /** Ошибка расшифровки JWT сессии (сменился секрет или битый cookie) — не отдаём 500, а завершаем сессию */
 function isSessionDecryptionError(err) {
-  if (!err) return false;
-  const name = err?.name || "";
-  const msg = (err?.message || "").toLowerCase();
-  return (
-    name === "JWTSessionError" ||
-    name === "JWEDecryptionFailed" ||
-    msg.includes("decryption secret") ||
-    msg.includes("decryption failed") ||
-    msg.includes("no matching")
-  );
+  let e = err;
+  let depth = 0;
+  while (e && depth < 6) {
+    const name = e?.name || "";
+    const msg = String(e?.message || "").toLowerCase();
+    if (
+      name === "JWTSessionError" ||
+      name === "JWEDecryptionFailed" ||
+      msg.includes("decryption secret") ||
+      msg.includes("decryption failed") ||
+      msg.includes("no matching")
+    ) {
+      return true;
+    }
+    e = e?.cause;
+    depth += 1;
+  }
+  return false;
 }
 
-/** Очищает cookie сессии и перенаправляет на главную (вместо 500 при невалидном токене) */
-function clearSessionAndRedirect(request) {
+/** OAuth PKCE/state cookie lost or wrong host — очистить и начать вход заново */
+function isPkceOrOAuthStateError(err) {
+  let e = err;
+  let depth = 0;
+  while (e && depth < 6) {
+    const name = e?.name || "";
+    const msg = String(e?.message || "").toLowerCase();
+    if (
+      name === "InvalidCheck" ||
+      msg.includes("pkcecodeverifier") ||
+      (msg.includes("pkce") && msg.includes("parsed"))
+    ) {
+      return true;
+    }
+    e = e?.cause;
+    depth += 1;
+  }
+  return false;
+}
+
+/** Auth.js может разбивать JWT на несколько cookie (session-token.0, .1, …) */
+function appendClearAuthCookies(response) {
+  const names = [
+    "authjs.session-token",
+    "__Secure-authjs.session-token",
+    "authjs.pkce.code_verifier",
+    "__Secure-authjs.pkce.code_verifier",
+    "authjs.state",
+    "__Secure-authjs.state",
+    "authjs.callback-url",
+    "__Secure-authjs.callback-url",
+    "authjs.csrf-token",
+    "__Host-authjs.csrf-token",
+  ];
+  for (const n of names) {
+    response.cookies.set(n, "", { maxAge: 0, path: "/" });
+  }
+  for (let i = 0; i < 8; i++) {
+    response.cookies.set(`authjs.session-token.${i}`, "", { maxAge: 0, path: "/" });
+    response.cookies.set(`__Secure-authjs.session-token.${i}`, "", { maxAge: 0, path: "/" });
+  }
+  return response;
+}
+
+function isAuthSessionRoute(request) {
+  const p = request.nextUrl.pathname;
+  return p === "/api/auth/session" || p.endsWith("/auth/session");
+}
+
+/** Ответ для fetch() клиента next-auth: JSON, не редирект (редирект ломает SessionProvider и выглядит как «сразу вылетел»). */
+function clearSessionJsonResponse() {
+  const res = NextResponse.json(null, { status: 200 });
+  return appendClearAuthCookies(res);
+}
+
+/** Очищает auth cookies и перенаправляет на главную (только для навигации браузера, не для /api/auth/session). */
+function clearAuthCookiesAndRedirect(request) {
   const homeUrl = new URL("/", request.url);
   const response = NextResponse.redirect(homeUrl, 302);
-  response.cookies.set("authjs.session-token", "", { maxAge: 0, path: "/" });
-  response.cookies.set("__Secure-authjs.session-token", "", { maxAge: 0, path: "/" });
-  return response;
+  return appendClearAuthCookies(response);
 }
 
 // Return JSON on error so the client never receives HTML (fixes ClientFetchError "Unexpected token '<', '<!DOCTYPE'")
@@ -190,14 +304,47 @@ function jsonError(message, status = 500) {
   return NextResponse.json({ error: message }, { status });
 }
 
+/**
+ * Auth.js catches many failures and redirects to /api/auth/error?error=Configuration (no throw).
+ * After OAuth callback, recover by clearing cookies so the user can retry (fixes PKCE / host mismatch).
+ */
+function shouldRecoverOAuthCallbackRedirect(request, response) {
+  if (response.status < 300 || response.status >= 400) return false;
+  if (!request.nextUrl.pathname.includes("/callback/")) return false;
+  const loc = response.headers.get("Location");
+  if (!loc) return false;
+  try {
+    const u = new URL(loc, request.url);
+    return (
+      u.pathname.includes("/api/auth/error") &&
+      u.searchParams.get("error") === "Configuration"
+    );
+  } catch {
+    return false;
+  }
+}
+
 // App Router requires named GET and POST exports; delegate to NextAuth handlers
 export async function GET(request) {
   try {
-    return await handlers.GET(request);
+    const res = await handlers.GET(request);
+    // Don't silently swallow Configuration errors on OAuth callbacks.
+    // Let Auth.js redirect to our custom /auth/error page so the real cause is visible in production.
+    return res;
   } catch (err) {
     if (isSessionDecryptionError(err)) {
       if (isDev) console.warn("[auth] Session decryption failed, clearing session:", err?.message);
-      return clearSessionAndRedirect(request);
+      if (isAuthSessionRoute(request)) {
+        return clearSessionJsonResponse();
+      }
+      return clearAuthCookiesAndRedirect(request);
+    }
+    if (isPkceOrOAuthStateError(err)) {
+      if (isDev) console.warn("[auth] OAuth PKCE/state invalid, clearing auth cookies:", err?.message);
+      if (isAuthSessionRoute(request)) {
+        return clearSessionJsonResponse();
+      }
+      return clearAuthCookiesAndRedirect(request);
     }
     if (isDev) console.error("[auth] GET error:", err?.message ?? err);
     return jsonError(err?.message ?? "Authentication error");
@@ -210,7 +357,17 @@ export async function POST(request) {
   } catch (err) {
     if (isSessionDecryptionError(err)) {
       if (isDev) console.warn("[auth] Session decryption failed, clearing session:", err?.message);
-      return clearSessionAndRedirect(request);
+      if (isAuthSessionRoute(request)) {
+        return clearSessionJsonResponse();
+      }
+      return clearAuthCookiesAndRedirect(request);
+    }
+    if (isPkceOrOAuthStateError(err)) {
+      if (isDev) console.warn("[auth] OAuth PKCE/state invalid, clearing auth cookies:", err?.message);
+      if (isAuthSessionRoute(request)) {
+        return clearSessionJsonResponse();
+      }
+      return clearAuthCookiesAndRedirect(request);
     }
     if (isDev) console.error("[auth] POST error:", err?.message ?? err);
     return jsonError(err?.message ?? "Authentication error");

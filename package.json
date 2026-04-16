@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "bank-api": "node bank-server/server.js",
     "postinstall": "prisma generate"
   },
@@ -43,7 +43,9 @@
     "postgres": "^3.4.8",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-ga4": "^3.0.1",
     "react-hot-toast": "^2.6.0",
+    "react-is": "^19.2.5",
     "react-medium-image-zoom": "^5.4.0",
     "recharts": "^3.7.0",
     "swr": "^2.4.0",

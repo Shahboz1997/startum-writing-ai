@@ -3,6 +3,7 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import OpenAI from 'openai';
 import nodemailer from 'nodemailer';
 import https from 'https';
@@ -12,6 +13,8 @@ import {
   IELTS_TASK1_STANDARD_INSTRUCTION,
   buildTask1QuestionPaperText,
 } from '@/lib/task1Prompt.js';
+import { normalizeSubtopic } from '@/lib/errorSubtopics.js';
+import { writingProfileTag } from '@/lib/writingProfileCache.js';
 
 const API_KEY_ERROR_MSG = 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.';
 
@@ -219,16 +222,18 @@ function mergeUnifiedErrors(result) {
         : typeof row.reason === 'string'
           ? row.reason.trim()
           : '';
+    const expl =
+      explanation ||
+      (type === 'logic'
+        ? 'This issue affects Task Achievement or Task Response and may lower your band.'
+        : 'See criterion feedback for impact on your band score.');
     byKey.set(key, {
       original,
       type,
+      subtopic: normalizeSubtopic(row.subtopic, type, expl),
       fixed: fixed || suggestion,
       suggestion: suggestion || fixed,
-      explanation:
-        explanation ||
-        (type === 'logic'
-          ? 'This issue affects Task Achievement or Task Response and may lower your band.'
-          : 'See criterion feedback for impact on your band score.'),
+      explanation: expl,
     });
   };
 
@@ -294,6 +299,7 @@ Each error MUST have exactly:
   "original": "exact phrase from text",
   "correction": "corrected phrase (or empty string if no one-to-one correction is possible)",
   "type": "logic" | "grammar" | "lexical",
+  "subtopic": "REQUIRED — pick ONE id: for grammar use tense_aspect | articles | prepositions | agreement | word_order | punctuation | spelling | other_grammar; for lexical use collocation | register | repetition | word_choice | other_lexical; for logic use data_contradiction | overview | task_alignment | other_logic",
   "explanation": "Start with 'Logic Error:' or 'Grammar Error:' (or 'Lexical Error:'). Explain EXACTLY why the data/argument is wrong and how it lowers the Band score."
 }
 
@@ -390,6 +396,7 @@ OUTPUT: Return **ONLY** valid JSON (no markdown fences). Shape:
       "original": "exact substring copied from the student essay",
       "correction": "corrected phrase; use empty string if no one-to-one replacement is possible",
       "type": "grammar" | "logic" | "lexical",
+      "subtopic": "tense_aspect | articles | prepositions | agreement | word_order | punctuation | spelling | other_grammar | collocation | register | repetition | word_choice | other_lexical | data_contradiction | overview | task_alignment | other_logic",
       "explanation": "Start with 'Logic Error:' or 'Grammar Error:' (or 'Lexical Error:'). Explain EXACTLY why the data/argument is wrong and how it lowers the Band score."
     }
   ],
@@ -977,6 +984,9 @@ Do NOT include "Summarize the information" or "Write at least 150 words".`,
           userId,
         },
       });
+      try {
+        revalidateTag(writingProfileTag(userId));
+      } catch (_) {}
       await prisma.user.update({
         where: { id: userId },
         data: { credits: { decrement: 1 } },
