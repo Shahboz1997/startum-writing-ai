@@ -59,7 +59,28 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
         });
 
         if (res?.error) {
-          setError('Invalid email or password');
+          // Try to differentiate: account not found vs Google-only vs wrong password.
+          try {
+            const stRes = await fetch('/api/auth/credentials-status', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: normalizedEmail }),
+            });
+            const st = await stRes.json().catch(() => ({}));
+            if (stRes.ok && st && typeof st === 'object') {
+              if (st.exists === false) {
+                setError('No account found for this email. Please register first.');
+              } else if (st.exists === true && st.hasPassword === false && st.hasGoogle === true) {
+                setError('This email is linked to Google sign-in. Click “Google” to log in.');
+              } else {
+                setError('Invalid email or password');
+              }
+            } else {
+              setError('Invalid email or password');
+            }
+          } catch {
+            setError('Invalid email or password');
+          }
         } else {
           onLoginSuccess?.();
           onClose();
