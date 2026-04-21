@@ -633,18 +633,6 @@ export default function ComparisonLab({ activeTab, activeResult, darkMode, class
               Side-by-side view of your draft vs the academic rewrite
             </p>
           </div>
-          <label
-            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200"
-            title="Columns grow with the page; there is no separate inner scroll to sync."
-          >
-            <input
-              type="checkbox"
-              checked={syncScroll}
-              onChange={(e) => setSyncScroll(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900"
-            />
-            Sync scroll
-          </label>
         </div>
         <div className="relative">
           <div

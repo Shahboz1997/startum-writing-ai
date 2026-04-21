@@ -1665,9 +1665,9 @@ const insertLinkingWord = (word) => {
   // (after all hooks to avoid "fewer hooks" error)
   if (sessionStatus === 'unauthenticated' || forceLanding) {
     return (
-      <div className="relative min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300">
+      <div className="relative min-h-[100dvh] bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300 overflow-y-auto overflow-x-hidden pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-0">
         <GlowFollow />
-        <div className="relative z-0 min-h-screen">
+        <div className="relative z-0 min-h-[100dvh]">
           <LandingPage
             onLoginClick={() => setIsAuthOpen(true)}
             onFullAnalysisClick={() => {
@@ -1692,9 +1692,9 @@ const insertLinkingWord = (word) => {
   }
 
   return (
-      <div className="relative min-h-screen flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto transition-colors duration-300">
+      <div className="relative min-h-[100dvh] flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto overflow-x-hidden transition-colors duration-300 pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-0">
         <GlowFollow />
-        <div className="relative z-0 flex flex-col flex-1 min-h-screen">
+        <div className="relative z-0 flex flex-col flex-1 min-h-[100dvh]">
         <Navbar 
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -1720,7 +1720,7 @@ const insertLinkingWord = (word) => {
         </AnimatePresence>
 
         <div className="flex flex-1">
-    <main className="flex-1 min-w-0 w-full max-w-7xl xl:max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 xl:px-10 py-4 md:py-8 bg-white dark:bg-slate-950 transition-colors duration-300">
+    <main className="flex-1 min-w-0 w-full max-w-7xl xl:max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 xl:px-10 pt-4 md:pt-8 pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-8 bg-white dark:bg-slate-950 transition-colors duration-300">
     {activeTab === 'Topics' && (
     <div className="space-y-12 animate-in fade-in duration-700">
       <header className="text-center space-y-4 mb-12">
@@ -3032,14 +3032,19 @@ const insertLinkingWord = (word) => {
       initial={{ opacity: 0, scale: 0.5, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.5, y: 20 }}
-      className="fixed bottom-8 right-8 z-[100] flex items-center justify-center group"
+      className="fixed z-[100] flex items-center justify-center group"
+      style={{
+        // Keep aligned with ChatAssistantWidget (bottom-right), but place this button to its left.
+        right: "calc(1rem + env(safe-area-inset-right) + 4.25rem)",
+        bottom: "calc(1rem + env(safe-area-inset-bottom))",
+      }}
     >
       <span className="absolute right-full mr-4 px-3 py-1 bg-slate-900 dark:bg-slate-800 text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap">
         Back to top
       </span>
       <button
         onClick={handleScrollToTop}
-        className={`relative p-4 rounded-2xl flex items-center justify-center transition-all active:scale-90 shadow-lg ${
+        className={`relative w-14 h-14 rounded-3xl flex items-center justify-center transition-all active:scale-90 shadow-lg ${
           darkMode ? 'bg-slate-800 text-white border border-slate-700' : 'bg-white text-indigo-600 border border-slate-200 shadow-sm'
         }`}
       >
