@@ -60,7 +60,6 @@ function sanitizeTask1VisionIntro(raw) {
   if (hits >= 2) return '';
   return s;
 }
-
 /** baseURL ends with /v1. Use OPENAI_BASE_URL in .env for Cloudflare proxy. */
 function getOpenAIBaseURL() {
   const raw = process.env.OPENAI_BASE_URL;
@@ -71,32 +70,6 @@ function getOpenAIBaseURL() {
 
 /** Uses process.env.OPENAI_API_KEY and OPENAI_PROJECT_ID (server-side). Key is trimmed to remove hidden \\r/spaces. */
 let _openaiKeyLogged = false;
-// function getOpenAIClient() {
-//   const apiKey = (process.env.OPENAI_API_KEY || '').trim();
-//   const hasKey = apiKey.length > 0;
-
-//   if (!hasKey) {
-//     console.error('OPENAI_API_KEY is missing or empty. Set it in .env.local and restart the dev server.');
-//     return { error: NextResponse.json({ error: 'Server Configuration Error: Missing API Key' }, { status: 401 }) };
-//   }
-
-//   const baseURL = getOpenAIBaseURL();
-//   const project = typeof process.env.OPENAI_PROJECT_ID === 'string' ? process.env.OPENAI_PROJECT_ID.trim() : undefined;
-//   const organization = typeof process.env.OPENAI_ORG_ID === 'string' ? process.env.OPENAI_ORG_ID.trim() : undefined;
-//   if (!_openaiKeyLogged) {
-//     _openaiKeyLogged = true;
-//     console.log("STRATUM_SYSTEM_READY: API Key Verified.");
-//     console.log('[OpenAI] API key loaded at first use; baseURL:', baseURL, 'project:', project || '(none)');
-//   }
-
-//   const client = new OpenAI({
-//     apiKey,
-//     baseURL,
-//     organization: organization || undefined,
-//     project: project || undefined,
-//   });
-//   return { openai: client };
-// }
 /** Retries transient Undici/Node "fetch failed" / connection drops when calling OpenAI. */
 async function resilientFetch(input, init) {
   const max = 4;
@@ -323,6 +296,28 @@ ${errorsSpec}
 
 Keep "analysis.word_repetition" and "lexical_upgrade" as before.
 
+ADDITIONAL REQUIREMENT (Task 1 only):
+Return a "task1_strategy" object that focuses on STRUCTURE and GROUPING (not grammar). It must be actionable and brief:
+- Recommend the ideal paragraph plan (Intro / Overview / Body 1 / Body 2).
+- Propose how to GROUP information into 2 Body paragraphs (e.g., highest vs lowest; increasing vs decreasing; early vs late; categories A+B vs C+D).
+- If the student's structure is weak (e.g., 3 body paragraphs with an empty/underdeveloped one), state why and how to fix it.
+- Give 3–6 quick, concrete fixes (comparisons, overview, avoid listing).
+Schema:
+"task1_strategy": {
+  "recommended_body_count": 2,
+  "paragraph_plan": ["Intro", "Overview", "Body 1", "Body 2"],
+  "grouping_plan": [
+    { "label": "Body 1", "focus": "string", "comparisons_to_make": ["string", "string"] },
+    { "label": "Body 2", "focus": "string", "comparisons_to_make": ["string", "string"] }
+  ],
+  "what_to_fix": ["string", "string", "string"]
+}
+
+CRITICAL (Task 1 only): Your "suggested_rewrite" MUST follow "task1_strategy":
+- Use exactly: Intro + Overview + 2 Body paragraphs (unless the prompt is a process/diagram where grouping differs; still keep 4 paragraphs).
+- Ensure each Body paragraph has explicit comparisons and avoids pure listing.
+Do not add personal opinion or conclusions in Task 1.
+
 Return a Band 9.0–level "suggested_rewrite" with paragraphs separated by \\n\\n; no bullets or markdown inside the essay body. Rewrite the essay to Band 9.0 level. Wrap every improved phrase, advanced word, or structural change in <mark>...</mark> tags (lowercase only) so the UI can highlight them; do not use any other HTML or markdown inside the essay.`;
 
   const task2Rules = `You are a strict universal IELTS Writing expert (British Council / IDP style).
@@ -341,6 +336,32 @@ ${baseCriteria.replace('Task Achievement', 'Task Response')}
 ${errorsSpec}
 
 Keep "analysis.word_repetition" and "lexical_upgrade" as before.
+
+ADDITIONAL REQUIREMENT (Task 2 only):
+Return an "idea_development" object that evaluates DEPTH of ideas, not grammar/wording. It must be practical and specific:
+- Identify each paragraph's main idea (1 short clause).
+- Explain what's missing (mechanism / example / impact / link to prompt).
+- Provide 1–2 concrete upgrade suggestions per paragraph (each 1 sentence), focusing on adding depth (cause→effect, psychological/social/economic mechanism, specific example).
+- Keep it short: total <= 220 words across the whole idea_development object.
+Schema:
+"idea_development": {
+  "overall": { "score_0_5": 0, "summary": "string (1–2 sentences)" },
+  "paragraphs": [
+    {
+      "label": "Introduction" | "Body 1" | "Body 2" | "Conclusion" | "Other",
+      "main_idea": "string",
+      "missing": ["mechanism" | "example" | "impact" | "link_to_prompt" | "specificity"],
+      "upgrades": ["string", "string"]
+    }
+  ]
+}
+
+CRITICAL (Task 2 only): Your "suggested_rewrite" MUST reflect the idea depth feedback you gave in "idea_development".
+- If a body paragraph is missing "mechanism": add 1–2 causal links (why/how → effect) using clear cause→effect logic.
+- If missing "example": add one specific mini-example (realistic scenario; 1–2 sentences).
+- If missing "impact": add a concrete consequence (psychological / social / economic) that links back to the prompt.
+- If missing "link_to_prompt": add an explicit sentence that ties the paragraph back to the question.
+Do not bloat the essay: improve depth efficiently, without adding new unrelated ideas.
 
 Return a Band 9.0–level "suggested_rewrite" with paragraphs separated by \\n\\n; no bullets or markdown inside the essay body. Rewrite the essay to Band 9.0 level. Wrap every improved phrase, advanced word, or structural change in <mark>...</mark> tags (lowercase only) so the UI can highlight them; do not use any other HTML or markdown inside the essay.`;
 
@@ -411,10 +432,26 @@ OUTPUT: Return **ONLY** valid JSON (no markdown fences). Shape:
     "word_repetition": [{ "word": "string", "count": 0, "alternatives": [] }]
   },
   ${checklistOutputExample}
+  "task1_strategy": {
+    "recommended_body_count": 2,
+    "paragraph_plan": ["Intro", "Overview", "Body 1", "Body 2"],
+    "grouping_plan": [
+      { "label": "Body 1", "focus": "string", "comparisons_to_make": ["string"] },
+      { "label": "Body 2", "focus": "string", "comparisons_to_make": ["string"] }
+    ],
+    "what_to_fix": ["string"]
+  },
+  "idea_development": {
+    "overall": { "score_0_5": 0, "summary": "string" },
+    "paragraphs": [
+      { "label": "Body 1", "main_idea": "string", "missing": ["mechanism"], "upgrades": ["string"] }
+    ]
+  },
   "suggested_rewrite": "Intro with <mark>improved phrasing</mark>.\\n\\nBody...\\n\\nClosing..."
 }
 
-Rules: Whenever the essay has issues, list them in **errors** with **type** ∈ { grammar, logic, lexical }. Use [] only if the essay is genuinely flawless. You MUST also return the **checklist** object with ALL required boolean keys (no missing keys, no nulls, no strings). You may leave **logical_errors**, **highlights**, and **corrections** as empty arrays — the app merges legacy fields if present. Be rigorous; scores must match official descriptor limits.`; 
+Rules: Whenever the essay has issues, list them in **errors** with **type** ∈ { grammar, logic, lexical }. Use [] only if the essay is genuinely flawless. You MUST also return the **checklist** object with ALL required boolean keys (no missing keys, no nulls, no strings). You may leave **logical_errors**, **highlights**, and **corrections** as empty arrays — the app merges legacy fields if present. Be rigorous; scores must match official descriptor limits.
+For Task 1 only, you MUST include "task1_strategy" with the required keys. For Task 2 only, you MUST include "idea_development" with the required keys.`; 
 }
 
 /** Legacy compact API shape → full app shape */
@@ -987,6 +1024,104 @@ Do NOT include "Summarize the information" or "Write at least 150 words".`,
             : 'Task Response',
     }));
     if (!Array.isArray(result.errors)) result.errors = [];
+
+    // Task 1: normalize strategy block (backward-compatible).
+    if (isT1) {
+      const strat = result?.task1_strategy;
+      const groupingRaw = Array.isArray(strat?.grouping_plan) ? strat.grouping_plan : [];
+      const planRaw = Array.isArray(strat?.paragraph_plan) ? strat.paragraph_plan : [];
+      const fixRaw = Array.isArray(strat?.what_to_fix) ? strat.what_to_fix : [];
+      const recBody = Number(strat?.recommended_body_count);
+      const safeRecBody = Number.isFinite(recBody) ? Math.max(1, Math.min(3, Math.round(recBody))) : 2;
+
+      const cleanList = (arr, max) =>
+        (arr || [])
+          .map((s) => (typeof s === 'string' ? s.trim() : ''))
+          .filter(Boolean)
+          .slice(0, max);
+
+      const normalizeLabel = (x, fallback) => {
+        const s = String(x || '').trim();
+        if (!s) return fallback;
+        const lower = s.toLowerCase();
+        if (lower.includes('body 1') || lower.includes('body1')) return 'Body 1';
+        if (lower.includes('body 2') || lower.includes('body2')) return 'Body 2';
+        return fallback;
+      };
+
+      const defaultPlan = ['Intro', 'Overview', 'Body 1', 'Body 2'];
+
+      result.task1_strategy = {
+        recommended_body_count: safeRecBody,
+        paragraph_plan: cleanList(planRaw, 6).length > 0 ? cleanList(planRaw, 6) : defaultPlan,
+        grouping_plan: (groupingRaw.length > 0 ? groupingRaw : [{ label: 'Body 1' }, { label: 'Body 2' }])
+          .slice(0, 2)
+          .map((g, idx) => {
+            const fallback = idx === 0 ? 'Body 1' : 'Body 2';
+            return {
+              label: normalizeLabel(g?.label, fallback),
+              focus: typeof g?.focus === 'string' ? g.focus.trim() : '',
+              comparisons_to_make: cleanList(g?.comparisons_to_make, 4),
+            };
+          }),
+        what_to_fix:
+          cleanList(fixRaw, 8).length > 0
+            ? cleanList(fixRaw, 8)
+            : [
+                'Write a clear overview (main trends / highest vs lowest) without listing all numbers.',
+                'Use 2 body paragraphs with grouping; avoid a third weak body paragraph.',
+                'Prioritise comparisons (higher/lower, larger/smaller, overtook, widened/narrowed gap) over pure listing.',
+              ],
+      };
+    }
+
+    // Task 2: normalize idea development block (optional for older model outputs / backward compatibility).
+    if (!isT1) {
+      const idea = result?.idea_development;
+      const score = Number(idea?.overall?.score_0_5);
+      const safeScore = Number.isFinite(score) ? Math.max(0, Math.min(5, Math.round(score))) : 0;
+      const summary = typeof idea?.overall?.summary === 'string' ? idea.overall.summary.trim() : '';
+      const parasRaw = Array.isArray(idea?.paragraphs) ? idea.paragraphs : [];
+      const allowedMissing = new Set(['mechanism', 'example', 'impact', 'link_to_prompt', 'specificity']);
+      const normalizeLabel = (x) => {
+        const s = String(x || '').trim();
+        if (!s) return 'Other';
+        const lower = s.toLowerCase();
+        if (lower.startsWith('intro')) return 'Introduction';
+        if (lower.includes('body 1') || lower.includes('body1')) return 'Body 1';
+        if (lower.includes('body 2') || lower.includes('body2')) return 'Body 2';
+        if (lower.startsWith('concl')) return 'Conclusion';
+        return ['Introduction', 'Body 1', 'Body 2', 'Conclusion', 'Other'].includes(s) ? s : 'Other';
+      };
+      result.idea_development = {
+        overall: {
+          score_0_5: safeScore,
+          summary: summary || (safeScore >= 4 ? 'Ideas are generally well-developed; add one more concrete example for maximum impact.' : 'Some ideas need deeper development (mechanism, example, and impact) to strengthen Task Response.'),
+        },
+        paragraphs: parasRaw
+          .map((p) => {
+            const main_idea = typeof p?.main_idea === 'string' ? p.main_idea.trim() : '';
+            const missingArr = Array.isArray(p?.missing) ? p.missing : [];
+            const missing = missingArr
+              .map((m) => String(m || '').trim())
+              .filter((m) => allowedMissing.has(m))
+              .slice(0, 5);
+            const upgradesArr = Array.isArray(p?.upgrades) ? p.upgrades : [];
+            const upgrades = upgradesArr
+              .map((u) => (typeof u === 'string' ? u.trim() : ''))
+              .filter(Boolean)
+              .slice(0, 2);
+            return {
+              label: normalizeLabel(p?.label),
+              main_idea: main_idea || '',
+              missing,
+              upgrades,
+            };
+          })
+          .filter((p) => p.main_idea || p.upgrades.length > 0 || (p.missing && p.missing.length > 0))
+          .slice(0, 6),
+      };
+    }
 
     const mergedErrors = mergeUnifiedErrors(result);
     result.errors = mergedErrors;

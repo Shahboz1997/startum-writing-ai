@@ -410,6 +410,16 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
   const lr = criteria.Lexical_Resource?.score ?? 0;
   const gra = criteria.Grammatical_Range_and_Accuracy?.score ?? 0;
   const band = feedback.overall_band != null ? Number(feedback.overall_band) : null;
+  const ideaDevelopment = feedback?.idea_development && typeof feedback.idea_development === 'object'
+    ? feedback.idea_development
+    : null;
+  const ideaDevScore = Number.isFinite(Number(ideaDevelopment?.overall?.score_0_5))
+    ? Math.max(0, Math.min(5, Number(ideaDevelopment.overall.score_0_5)))
+    : null;
+  const ideaDevSummary = typeof ideaDevelopment?.overall?.summary === 'string'
+    ? ideaDevelopment.overall.summary
+    : '';
+  const ideaDevParagraphs = Array.isArray(ideaDevelopment?.paragraphs) ? ideaDevelopment.paragraphs : [];
 
   const highlights = Array.isArray(feedback.highlights) ? feedback.highlights : [];
   const corrections = Array.isArray(feedback.corrections) ? feedback.corrections : [];
@@ -1278,6 +1288,79 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                     <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{ta != null ? ta.toFixed(1) : '—'}</span>
                   </div>
                   <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{criteria[taskKey]?.comment || 'No specific feedback for this criterion.'}</p>
+                  {taskTypeNormalized === 'task2' && ideaDevelopment && (
+                    <div className="mt-4 rounded-2xl border border-slate-100 dark:border-white/5 bg-slate-50/60 dark:bg-white/5 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                            Idea development
+                          </div>
+                          {ideaDevSummary ? (
+                            <p className="mt-1 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                              {ideaDevSummary}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="shrink-0 rounded-xl border border-indigo-200/70 dark:border-indigo-500/30 bg-white/80 dark:bg-slate-950/40 px-3 py-2 text-center">
+                          <div className="text-[9px] font-extrabold uppercase tracking-[0.2em] text-slate-400">
+                            Depth
+                          </div>
+                          <div className="text-lg font-black tracking-tight text-indigo-600 dark:text-indigo-300 tabular-nums">
+                            {ideaDevScore != null ? `${ideaDevScore}/5` : '—'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {ideaDevParagraphs.length > 0 && (
+                        <div className="mt-3 space-y-3">
+                          {ideaDevParagraphs.slice(0, 6).map((p, i) => {
+                            const label = typeof p?.label === 'string' ? p.label : `Paragraph ${i + 1}`;
+                            const mainIdea = typeof p?.main_idea === 'string' ? p.main_idea : '';
+                            const missing = Array.isArray(p?.missing) ? p.missing : [];
+                            const upgrades = Array.isArray(p?.upgrades) ? p.upgrades : [];
+                            return (
+                              <div
+                                key={`${label}-${i}`}
+                                className="rounded-xl border border-slate-200/70 dark:border-slate-800/60 bg-white/70 dark:bg-slate-950/30 p-3"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                                    {label}
+                                  </div>
+                                  {missing.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {missing.slice(0, 5).map((m, mi) => (
+                                        <span
+                                          key={`${m}-${mi}`}
+                                          className="inline-flex items-center rounded-full border border-amber-200/70 dark:border-amber-600/30 bg-amber-50/60 dark:bg-amber-900/10 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-200"
+                                          title="Missing piece to add depth"
+                                        >
+                                          {String(m).replace(/_/g, ' ')}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                {mainIdea ? (
+                                  <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                                    <span className="font-semibold text-slate-900 dark:text-slate-100">Main idea:</span>{' '}
+                                    {mainIdea}
+                                  </p>
+                                ) : null}
+                                {upgrades.length > 0 && (
+                                  <ul className="mt-2 space-y-1.5 text-sm text-slate-700 dark:text-slate-300 list-disc list-inside">
+                                    {upgrades.slice(0, 2).map((u, ui) => (
+                                      <li key={`${label}-u-${ui}`}>{u}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               {rightPanelTab === 'coherence' && (
