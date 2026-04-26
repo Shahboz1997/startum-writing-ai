@@ -181,6 +181,24 @@ export const authOptions = {
             token.language = user.language ?? "en";
           }
         }
+        // `update()` from the client (e.g. after essay check decrements credits in DB) must reload JWT fields.
+        // Without a DB read, token.credits stays stale because `session` is often empty when `update()` is called with no args.
+        const creditUserId = token.id ?? token.sub;
+        if (trigger === "update" && creditUserId) {
+          try {
+            const prisma = getPrisma();
+            const row = await prisma.user.findUnique({
+              where: { id: String(creditUserId) },
+              select: { credits: true, language: true },
+            });
+            if (row) {
+              token.credits = row.credits ?? 0;
+              token.language = row.language ?? token.language ?? "en";
+            }
+          } catch (_) {
+            /* ignore */
+          }
+        }
         if (trigger === "update") {
           if (session?.credits !== undefined) token.credits = session.credits;
           if (session?.language !== undefined) token.language = session.language;

@@ -43,6 +43,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { TASK1_TIPS, TASK2_TIPS } from '@/lib/ieltsGuidelines';
+import { SUPPORT_EMAIL } from '@/lib/support';
 import { useBilling } from '@/components/BillingContext';
 import NeuralSyncShowcase from '@/components/NeuralSyncShowcase';
 
@@ -1185,8 +1186,8 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               Don&apos;t just practice. Evolve. Start your Stratum journey today.
             </p>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              <a href="mailto:support@stratum.ai" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                support@stratum.ai
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                {SUPPORT_EMAIL}
               </a>
             </p>
             <div className="flex flex-wrap justify-center items-center gap-4 pt-2 text-xs font-medium tracking-tight text-slate-400 dark:text-slate-500">

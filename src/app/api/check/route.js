@@ -5,7 +5,6 @@ export const fetchCache = 'force-no-store';
 import { NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 import OpenAI from 'openai';
-import nodemailer from 'nodemailer';
 import https from 'https';
 import http from 'http';
 import { URL as NodeURL } from 'url';
@@ -15,6 +14,8 @@ import {
 } from '@/lib/task1Prompt.js';
 import { normalizeSubtopic } from '@/lib/errorSubtopics.js';
 import { writingProfileTag } from '@/lib/writingProfileCache.js';
+import { CREDITS_EXHAUSTED_CODE } from '@/lib/credits';
+import { SUPPORT_EMAIL } from '@/lib/support';
 
 const API_KEY_ERROR_MSG = 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.';
 
@@ -661,43 +662,7 @@ export async function POST(req) {
       hasEssay2: typeof body?.essay2 === 'string' && body.essay2.trim().length > 0,
       analysisMode: body?.analysisMode,
     });
-     // --- НОВЫЙ РЕЖИМ: Отправка Email (Feedback/Improvement Hub) ---
-    // Проверяем наличие полей, которые приходят из вашей формы
-    if (body.name && body.email && body.message) {
-      try {
-       const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: 'Sashabilov25@gmail.com', // Ваша почта
-    pass: 'lnnr aesp zizm nvvr',    // ВСТАВЬТЕ СЮДА ВАШ 16-ЗНАЧНЫЙ КОД ИЗ GOOGLE
-  },
-});
-await transporter.sendMail({
-  from: process.env.EMAIL_USER, // Это Sashabilov25@gmail.com
-  
-  // ИСПРАВЬТЕ ЭТУ СТРОКУ:
-  to: 'Sashabilov25@gmail.com', // Или любая другая ВАША рабочая почта
-  
-  subject: `🚀 STRATUM.ai Feedback: ${body.name}`,
-  html: `
-    <div style="font-family: sans-serif; border: 1px solid #e2e8f0; padding: 20px; border-radius: 15px;">
-      <h2 style="color: #ef4444; text-transform: uppercase;">New Improvement Suggestion</h2>
-      <p><strong>Name:</strong> ${body.name}</p>
-      <p><strong>Email:</strong> ${body.email}</p>
-      <div style="background: #f8fafc; padding: 15px; border-radius: 10px; border-left: 4px solid #ef4444;">
-        <p style="margin: 0; font-style: italic;">"${body.message}"</p>
-      </div>
-    </div>
-  `,
-});
-
-
-        return NextResponse.json({ success: true });
-      } catch (mailError) {
-        console.error("Mail Error:", mailError);
-        return NextResponse.json({ error: "Mail system error" }, { status: 500 });
-      }
-    }
+    // Footer feedback is handled by POST /api/feedback (no OpenAI key required).
     // --- 1. РЕЖИМ: Глубокий анализ изображения (Vision / OCR) ---
     // Frontend sends POST with { describeImage: true, image: base64OrUrl }. API key is read at request time via getOpenAIClient().
     if (body.describeImage && body.image) {
@@ -909,12 +874,6 @@ Do NOT include "Summarize the information" or "Write at least 150 words".`,
     const userId = session?.user?.id || null;
     const prisma = userId ? getPrisma() : null;
 
-    /**
-     * Persist check + decrement credits only when the DB user exists and has credits.
-     * - Missing user row (stale session): still run analysis, do not 403.
-     * - Out of credits in production: 403 (charge model).
-     * - Out of credits in development: still run analysis, skip save/decrement (local testing).
-     */
     let persistAfterCheck = false;
     if (userId && prisma) {
       const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -923,17 +882,17 @@ Do NOT include "Summarize the information" or "Write at least 150 words".`,
       } else {
         const hasCredits = user.credits == null || user.credits >= 1;
         if (!hasCredits) {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[/api/check] Dev: zero credits — analysis allowed; history/credits unchanged.');
-          } else {
-            return NextResponse.json(
-              { error: 'You have run out of credits. Please refill to continue.' },
-              { status: 403 }
-            );
-          }
-        } else {
-          persistAfterCheck = true;
+          return NextResponse.json(
+            {
+              code: CREDITS_EXHAUSTED_CODE,
+              error:
+                'You have used your included checks and have no credits left. Analysis is not available until you top up. For credit purchases and billing questions, use the support email shown in the site footer.',
+              supportEmail: SUPPORT_EMAIL,
+            },
+            { status: 403 }
+          );
         }
+        persistAfterCheck = true;
       }
     }
     const clientResult = getOpenAIClient();

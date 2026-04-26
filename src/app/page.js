@@ -4,12 +4,14 @@ import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import Navbar from '../components/Navbar';
+import Navbar from '@/components/Navbar';
 import AuthModal from '../components/AuthModal';
 import LandingPage from '../components/LandingPage';
 import GlowFollow from '../components/GlowFollow';
 import ChatAssistantWidget from '../components/ChatAssistantWidget';
 import { LoadingState, EmptyState, ErrorState, SuccessState } from '../components/stratum';
+import CreditsExhaustedCallout from '../components/CreditsExhaustedCallout';
+import { SUPPORT_EMAIL } from '@/lib/support';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
@@ -47,7 +49,10 @@ function interpretAnalyzeFailure(err) {
     if (status === 413) {
       message = 'Request payload too large. Try a shorter essay or a smaller image.';
     } else if (status === 403) {
-      message = 'You have run out of credits. Please refill to continue.';
+      message =
+        typeof dataError === 'string' && dataError
+          ? dataError
+          : 'You have no credits left. For top-ups and billing, use the support email in the site footer.';
     } else if (status === 401) {
       message = 'Please sign in to ANALYZE STRATUM DATA.';
     } else if (status === 503 || status === 502) {
@@ -275,7 +280,7 @@ import 'react-medium-image-zoom/dist/styles.css';
   'money': ['financial resources', 'capital', 'revenue'],
   'think': ['maintain', 'argue', 'assert', 'postulate']
 };
-  const [credits, setCredits] = useState(10);           // Новое
+  const [credits, setCredits] = useState(0);
   const [image, setImage] = useState(null);
   const [isImageCollapsed, setIsImageCollapsed] = useState(false);
   const [tooltipData, setTooltipData] = useState(null);
@@ -308,9 +313,12 @@ import 'react-medium-image-zoom/dist/styles.css';
   const [isDescribing, setIsDescribing] = useState(false);
   const [imageUploadError, setImageUploadError] = useState(null);
   const activeResultsRef = useRef(null);
+  // Prevent double-submits (fast double-click before loading state applies).
+  const analyzeInFlightRef = useRef(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeResultT1, setResultT1] = useState(null);
-  const [status, setStatus] = useState('idle'); // 'idle' | 'sending' | 'success'
+  const [status, setStatus] = useState('idle'); // 'idle' | 'sending' — footer feedback only
+  const [feedbackBanner, setFeedbackBanner] = useState(null); // { kind: 'success'|'error', message }
   const [error, setError] = useState(null);
   const [errorIs401, setErrorIs401] = useState(false);
   const [activeResultT2, setResultT2] = useState(null);
@@ -493,39 +501,51 @@ import 'react-medium-image-zoom/dist/styles.css';
     }, 50);
   }
 
-  // ФУНКЦИЯ ОБРАБОТКИ
-  // Внутри вашего клиентского компонента с формой
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setStatus('sending');
-  setError(null); // Сбрасываем старую ошибку перед новой попыткой
+    e.preventDefault();
+    setStatus('sending');
+    setFeedbackBanner(null);
 
-  const formData = new FormData(e.currentTarget);
-  const data = Object.fromEntries(formData); 
+    const formData = new FormData(e.currentTarget);
+    const data = Object.fromEntries(formData);
 
-  try {
-    const response = await fetch('/api/check', { // Проверьте, что путь совпадает с файлом route.js
-      method: 'POST',
-      // ВАЖНО: Добавлен заголовок, чтобы сервер распознал JSON
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch {
+        payload = {};
+      }
 
-    if (response.ok) {
-      setStatus('success');
-      e.target.reset();
-      setTimeout(() => setStatus('idle'), 3000);
-    } else {
-      // Если сервер ответил ошибкой (например, 500)
-      throw new Error('Server responded with error');
+      if (response.ok) {
+        e.target.reset();
+        setStatus('idle');
+        setFeedbackBanner({ kind: 'success', message: 'Thank you! We received your feedback.' });
+        window.setTimeout(() => {
+          setFeedbackBanner((b) => (b?.kind === 'success' ? null : b));
+        }, 8000);
+        return;
+      }
+
+      setStatus('idle');
+      const msg =
+        typeof payload.error === 'string' && payload.error.trim()
+          ? payload.error.trim()
+          : 'Could not send your message. Please try again.';
+      setFeedbackBanner({ kind: 'error', message: msg });
+    } catch {
+      setStatus('idle');
+      setFeedbackBanner({
+        kind: 'error',
+        message: 'Network error. Check your connection and try again.',
+      });
     }
-  } catch (err) {
-    setError('Failed to send. Please try again.');
-    setStatus('idle');
-  }
-};
+  };
   const scrollToEditor = () => {
     // Находим элемент ввода текста (убедитесь, что у вашего textarea или контейнера есть id="essay-input")
     const element = document.getElementById('essay-editor');
@@ -615,6 +635,12 @@ import 'react-medium-image-zoom/dist/styles.css';
     }
   }, [sessionStatus, session?.user?.credits]);
 
+  const showCreditsExhausted =
+    sessionStatus === 'authenticated' &&
+    Boolean(session?.user) &&
+    credits <= 0 &&
+    (activeTab === 'Task 1' || activeTab === 'Task 2');
+
   useEffect(() => {
     setArchiveSavedT1(false);
   }, [activeResultT1]);
@@ -638,6 +664,12 @@ import 'react-medium-image-zoom/dist/styles.css';
       setIsAuthOpen(true);
       return;
     }
+    if (credits <= 0) {
+      return;
+    }
+    // Extra safety: block duplicate in-flight requests (can otherwise decrement credits twice).
+    if (analyzeInFlightRef.current) return;
+    analyzeInFlightRef.current = true;
     const setCurLoading = mode === 'task1' ? setLoadingT1 : setLoadingT2;
     setCurLoading(true);
     setError(null);
@@ -665,8 +697,30 @@ import 'react-medium-image-zoom/dist/styles.css';
       else setResultT2(resultPayload);
 
       if (savedId) {
-        await update();
         toast.success('Saved to your history.', { duration: 3500 });
+      }
+
+      // Optimistic UI: the server decrements credits for authenticated checks.
+      // Update the local counter immediately so the Navbar reflects it right away,
+      // then sync from DB via session update().
+      if (session?.user) {
+        let nextCredits = 0;
+        setCredits((c) => {
+          const cur = Number.isFinite(c) ? c : 0;
+          nextCredits = Math.max(0, cur - 1);
+          return nextCredits;
+        });
+        // Always refresh JWT credits after a successful check (not only when savedId), so Navbar stays in sync with DB.
+        // Pass the computed value as a fallback to avoid "DB=0 but JWT still shows old credits" UI desync.
+        try {
+          await update({ credits: nextCredits });
+        } catch (_) {
+          try {
+            await update();
+          } catch (_) {
+            /* ignore */
+          }
+        }
       }
       if (typeof playSuccessSound === 'function') playSuccessSound();
     } catch (err) {
@@ -697,12 +751,24 @@ import 'react-medium-image-zoom/dist/styles.css';
       } else if (status === 503) {
         msg = 'Check API Key. Add a valid OPENAI_API_KEY to .env.local.';
       } else if (status === 403) {
-        msg = 'You have run out of credits. Please refill to continue.';
+        msg =
+          typeof dataError === 'string' && dataError
+            ? dataError
+            : 'You have no credits left. For top-ups and billing, use the support email in the site footer.';
+        // DB may already be at 0 while JWT still shows old credits — resync session for Navbar / local credits state.
+        if (session?.user) {
+          try {
+            await update();
+          } catch (_) {
+            /* ignore */
+          }
+        }
       }
 
       setError(msg);
     } finally {
       setCurLoading(false);
+      analyzeInFlightRef.current = false;
     }
   };
   const saveToArchive = (taskType, result, essay, prompt, image) => {
@@ -1694,6 +1760,50 @@ const insertLinkingWord = (word) => {
   return (
       <div className="relative min-h-[100dvh] flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-y-auto overflow-x-hidden transition-colors duration-300 pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-0">
         <GlowFollow />
+        <AnimatePresence>
+          {feedbackBanner && (
+            <motion.div
+              key={`${feedbackBanner.kind}-${feedbackBanner.message}`}
+              role="status"
+              initial={{ opacity: 0, y: -28 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -28 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              className={`fixed left-1/2 top-[max(0.75rem,env(safe-area-inset-top))] z-[240] w-[min(92vw,26rem)] -translate-x-1/2 overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-md ${
+                feedbackBanner.kind === 'success'
+                  ? 'border-emerald-200/90 bg-emerald-50/95 text-emerald-950 dark:border-emerald-800/70 dark:bg-emerald-950/90 dark:text-emerald-50'
+                  : 'border-rose-200/90 bg-rose-50/95 text-rose-950 dark:border-rose-900/60 dark:bg-rose-950/90 dark:text-rose-50'
+              }`}
+            >
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/50 to-transparent dark:from-white/[0.07]" aria-hidden />
+              <div className="relative px-4 py-3.5 sm:px-5 sm:py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold leading-snug tracking-tight pr-2">{feedbackBanner.message}</p>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-600 hover:bg-black/[0.06] dark:text-slate-300 dark:hover:bg-white/10"
+                    onClick={() => setFeedbackBanner(null)}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="mt-3 text-left text-sm font-bold text-indigo-600 underline decoration-2 underline-offset-2 hover:text-indigo-500 dark:text-indigo-300 dark:hover:text-indigo-200"
+                  onClick={() => {
+                    document.getElementById('stratum-feedback-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    window.setTimeout(() => {
+                      document.querySelector('#stratum-feedback-section input[name="name"]')?.focus();
+                    }, 450);
+                    setFeedbackBanner(null);
+                  }}
+                >
+                  Go to feedback form
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="relative z-0 flex flex-col flex-1 min-h-[100dvh]">
         <Navbar 
           activeTab={activeTab}
@@ -2916,6 +3026,8 @@ const insertLinkingWord = (word) => {
       {/* Разделитель */}
       <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-800 to-transparent" />
 
+      {showCreditsExhausted && <CreditsExhaustedCallout className="w-full" />}
+
       {/* Контейнер кнопок: на мобилках в колонку (или ряд), на десктопе по краям */}
     </div>
      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 w-full">
@@ -2958,9 +3070,17 @@ const insertLinkingWord = (word) => {
         {/* ПРАВАЯ КНОПКА: ANALYZE */}
         <div className="w-full sm:w-auto">
           <button 
-            onClick={() => handleAnalyze(activeTab === 'Task 1' ? 'task1' : 'task2')} 
-            disabled={activeTab === 'Task 1' ? loadingT1 : loadingT2} 
-            className="btn-stratum w-full sm:px-10 py-4 rounded-2xl flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]"
+            onClick={() => {
+              if (typeof window !== 'undefined' && typeof window.gtagSendEvent === 'function') {
+                window.gtagSendEvent();
+              }
+              handleAnalyze(activeTab === 'Task 1' ? 'task1' : 'task2');
+            }} 
+            disabled={
+              (activeTab === 'Task 1' ? loadingT1 : loadingT2) ||
+              (sessionStatus === 'authenticated' && Boolean(session?.user) && credits <= 0)
+            }
+            className="btn-stratum w-full sm:px-10 py-4 rounded-2xl flex items-center justify-center gap-3 hover:shadow-[0_0_25px_rgba(79,70,229,0.3)] disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none"
           >
             <div className="shimmer-layer animate-shimmer" aria-hidden />
             {(activeTab === 'Task 1' ? loadingT1 : loadingT2) ? (
@@ -3149,26 +3269,17 @@ const insertLinkingWord = (word) => {
               </div>
 
               {/* Feedback form column */}
-              <div className="relative space-y-4">
+              <div id="stratum-feedback-section" className="relative scroll-mt-24 space-y-4">
                 <h4 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight mb-4">Feedback</h4>
-                <form onSubmit={handleSubmit} className={`space-y-3 transition-opacity ${status === 'success' ? 'opacity-20 pointer-events-none' : ''}`}>
+                <form onSubmit={handleSubmit} className="space-y-3">
                   <input name="name" type="text" placeholder="Name" required className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none transition-colors ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'}`} />
                   <input name="email" type="email" placeholder="Email" required className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none transition-colors ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'}`} />
                   <textarea name="message" placeholder="How can we improve?" required rows={3} className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none resize-none transition-colors ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'}`} />
-                  {error && <p className="text-xs font-medium text-red-600 dark:text-red-400">{error}</p>}
                   <button type="submit" disabled={status === 'sending'} className="btn-stratum w-full py-2.5 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]">
                     <div className="shimmer-layer animate-shimmer" aria-hidden />
                     <span className="btn-stratum-text">{status === 'sending' ? 'SENDING...' : 'SEND · STRATUM'}</span>
                   </button>
                 </form>
-                <AnimatePresence>
-                  {status === 'success' && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm p-6">
-                      <SuccessState message="Thanks for your feedback!" />
-                      <button type="button" onClick={() => setStatus('idle')} className="absolute top-4 right-4 text-xs font-medium tracking-wide text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Close</button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
               {/* Legal & Contact */}
@@ -3196,7 +3307,10 @@ const insertLinkingWord = (word) => {
                 © 2026 STRATUM LLC. Registered in Delaware, USA. All rights reserved.
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                16192 Coastal Highway, Lewes, Delaware 19958, USA · <a href="mailto:support@stratum.ai" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">support@stratum.ai</a>
+                16192 Coastal Highway, Lewes, Delaware 19958, USA ·{' '}
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                  {SUPPORT_EMAIL}
+                </a>
               </p>
               <p className="text-xs text-slate-400 dark:text-slate-500 pt-1">We accept Visa, Mastercard, Apple Pay</p>
             </div>

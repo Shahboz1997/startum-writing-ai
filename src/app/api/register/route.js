@@ -1,4 +1,5 @@
 import { getPrisma } from "@/lib/prisma";
+import { CREDITS_DEFAULT_NEW_USER } from "@/lib/credits";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
@@ -61,6 +62,7 @@ export async function POST(request) {
         email,
         name: name || null,
         password: hashedPassword,
+        credits: CREDITS_DEFAULT_NEW_USER,
       },
     });
 

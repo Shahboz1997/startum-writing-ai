@@ -81,6 +81,28 @@ export default function RootLayout({ children }) {
             gtag('config', 'G-KEPXR00JYF');
           `}
         </Script>
+        <Script id="google-gtag-conversion-helper" strategy="afterInteractive">
+          {`
+            // Delayed navigation helper for Google Ads/GA4 conversions.
+            // Usage: window.gtagSendEvent('/some-url') or window.gtagSendEvent('https://...')
+            window.gtagSendEvent = function (url) {
+              var callback = function () {
+                if (typeof url === 'string') {
+                  window.location = url;
+                }
+              };
+              if (typeof window.gtag === 'function') {
+                window.gtag('event', 'conversion_event_purchase', {
+                  event_callback: callback,
+                  event_timeout: 2000
+                });
+              } else {
+                callback();
+              }
+              return false;
+            };
+          `}
+        </Script>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-[#F9FAFB] text-slate-900 dark:bg-[#050505] dark:text-slate-100 transition-colors duration-500 min-h-screen`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>

@@ -16,7 +16,7 @@ model User {
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  credits       Int       @default(5)   // For essay checks; decremented on each check
+  credits       Int       @default(1)   // New users: free checks; decremented per check
   language      String?   @default("en") // en | ru | uz
   /// Email practice reminders (cron + /settings)
   practiceRemindersEnabled Boolean  @default(false)

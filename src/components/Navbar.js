@@ -33,6 +33,9 @@ const CheckoutForm = ({ plan, darkMode, onClose, isAgreed }) => {
       setError(error.message);
       setProcessing(false);
     } else {
+      if (typeof window !== 'undefined' && typeof window.gtagSendEvent === 'function') {
+        window.gtagSendEvent();
+      }
       alert(`Success! ${plan.name} activated.`);
       setProcessing(false);
       onClose();
@@ -68,7 +71,8 @@ const CheckoutForm = ({ plan, darkMode, onClose, isAgreed }) => {
 };
 const Navbar = ({ 
   activeTab, setActiveTab, darkMode: darkModeProp, setDarkMode: setDarkModeProp, 
-  isMenuOpen, setIsMenuOpen, onLoginClick 
+  isMenuOpen, setIsMenuOpen, onLoginClick,
+  credits: creditsProp,
 }) => {
   const { data: session, status } = useSession();
   const { resolvedTheme, setTheme } = useTheme();
@@ -77,7 +81,10 @@ const Navbar = ({
   const darkMode = darkModeProp !== undefined ? darkModeProp : (themeMounted && resolvedTheme === 'dark');
 
   const isLoggedIn = status === "authenticated";
-  const credits = session?.user?.credits || 0;
+  const credits =
+    typeof creditsProp === 'number'
+      ? creditsProp
+      : (session?.user?.credits || 0);
   const [isPricingOpen, setIsPricingOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -190,13 +197,9 @@ const Navbar = ({
               aria-expanded={isUserMenuOpen}
               aria-haspopup="true"
             >
-              {session.user.image ? (
-                <img src={session.user.image} className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700" alt="profile" />
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-semibold">
-                  {session.user.name?.charAt(0) || 'U'}
-                </div>
-              )}
+              <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-semibold">
+                {session.user.name?.charAt(0) || 'U'}
+              </div>
               <ChevronDown className="w-4 h-4" strokeWidth={1.5} />
             </button>
             <AnimatePresence>
@@ -279,7 +282,7 @@ const Navbar = ({
                   )}
                 </div>
 
-                {/* 2. Блок Pricing внутри бургера */}
+                {/* 2. Блок Pricing внутри бургера
                 <div className={`p-4 rounded-3xl border border-white/5 backdrop-blur-md ${darkMode ? 'bg-white/5' : 'bg-white/80'}`}>
                   <h4 className="text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 mb-3 flex items-center gap-2"><CreditCard className="w-4 h-4" strokeWidth={1.5} /> Subscription Plans</h4>
                   <div className="space-y-2">
@@ -293,7 +296,7 @@ const Navbar = ({
                       </button>
                     ))}
                   </div>
-                </div>
+                </div> */}
 
                 {/* 3. Утилиты: Theme, Login (or Logout when logged in) */}
                 <div className="flex gap-2">

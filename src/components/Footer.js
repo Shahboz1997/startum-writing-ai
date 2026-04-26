@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Layers } from 'lucide-react';
+import { SUPPORT_EMAIL } from '@/lib/support';
 
 export default function Footer() {
   return (
@@ -42,7 +43,7 @@ export default function Footer() {
           <div>
             <h4 className="font-black tracking-tighter uppercase text-slate-900 dark:text-white mb-4 text-sm">Support</h4>
             <ul className="space-y-2">
-              <li><a href="mailto:support@stratum.ai" className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Contact Us</a></li>
+              <li><a href={`mailto:${SUPPORT_EMAIL}`} className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Contact Us</a></li>
               <li><Link href="/#pricing" className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Top-up Credits</Link></li>
             </ul>
           </div>
