@@ -393,6 +393,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
   const [viewMode, setViewMode] = useState('feedback');
   const [rightPanelTab, setRightPanelTab] = useState('task');
   const [focusedId, setFocusedId] = useState(null);
+  const [promptCopied, setPromptCopied] = useState(false);
   /** Краткая подсветка карточки после клика по подсветке в тексте (click-to-focus). */
   const [flashErrorCardId, setFlashErrorCardId] = useState(null);
   const [accordionOpen, setAccordionOpen] = useState(null);
@@ -479,6 +480,30 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     return set;
   }, [lexicalUpgrade]);
   const useTypedErrorHighlight = viewMode === 'feedback' && errors.length > 0;
+  const handleCopyPrompt = useCallback(async () => {
+    if (!promptText) return;
+    try {
+      await navigator.clipboard.writeText(promptText);
+      setPromptCopied(true);
+      window.setTimeout(() => setPromptCopied(false), 1400);
+    } catch {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = promptText;
+        ta.setAttribute('readonly', 'true');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        setPromptCopied(true);
+        window.setTimeout(() => setPromptCopied(false), 1400);
+      } catch {
+        // ignore
+      }
+    }
+  }, [promptText]);
 
   const handleInsertLinkingWord = useCallback((w) => {
     if (!setUserText) return;
@@ -924,21 +949,33 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
           <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-8 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
               <h2 className="text-slate-900 dark:text-white font-bold tracking-tight text-xl">Your Answer</h2>
-              <div className="flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('original')}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'original' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                >
-                  Original
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('feedback')}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'feedback' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
-                >
-                  Feedback
-                </button>
+              <div className="flex items-center gap-2">
+                {promptText && (
+                  <button
+                    type="button"
+                    onClick={handleCopyPrompt}
+                    className="px-3 py-2 rounded-full text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    title="Copy prompt"
+                  >
+                    {promptCopied ? 'Copied' : 'Copy prompt'}
+                  </button>
+                )}
+                <div className="flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('original')}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'original' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                  >
+                    Original
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('feedback')}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'feedback' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                  >
+                    Feedback
+                  </button>
+                </div>
               </div>
             </div>
             {promptText && (

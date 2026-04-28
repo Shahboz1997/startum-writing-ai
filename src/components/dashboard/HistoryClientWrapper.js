@@ -28,7 +28,8 @@ export default function HistoryClientWrapper({ initialData }) {
   const filteredChecks = useMemo(() => {
     return initialData
       .filter(check => {
-        const matchesSearch = check.content.toLowerCase().includes(searchTerm.toLowerCase());
+        const haystack = `${check.content || ''}\n${check.promptText || ''}`.toLowerCase();
+        const matchesSearch = haystack.includes(searchTerm.toLowerCase());
         const matchesScore = (check.score ?? 0) >= parseFloat(minScore);
         return matchesSearch && matchesScore;
       })
@@ -90,6 +91,7 @@ export default function HistoryClientWrapper({ initialData }) {
         ) : (
           filteredChecks.map((check) => {
             const isTask1 = (check.type || 'TASK_2') === 'TASK_1';
+            const prompt = typeof check.promptText === 'string' ? check.promptText.trim() : '';
             let criteriaScores = null;
             try {
               const fb = typeof check.feedback === 'string' ? JSON.parse(check.feedback) : check.feedback || {};
@@ -117,9 +119,15 @@ export default function HistoryClientWrapper({ initialData }) {
                     <span className={`inline-block px-2 py-0.5 rounded-lg text-[9px] font-black uppercase mb-1.5 ${isTask1 ? 'bg-indigo-500/20 text-indigo-400' : 'bg-red-500/20 text-red-400'}`}>
                       {isTask1 ? 'TASK 1' : 'TASK 2'}
                     </span>
-                    <h3 className="font-black text-slate-900 dark:text-white break-words line-clamp-2 sm:truncate sm:max-w-[200px] md:max-w-md">
-                      {check.content}
+                    <h3 className="font-black text-slate-900 dark:text-white break-words line-clamp-2">
+                      {prompt || check.content}
                     </h3>
+                    {prompt && (
+                      <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">
+                        <span className="font-black uppercase text-[9px] tracking-[0.2em] text-slate-400 mr-2">Answer</span>
+                        {check.content}
+                      </p>
+                    )}
                     <p className="text-[10px] text-slate-500 font-black uppercase italic mt-1 flex items-center gap-1 flex-wrap">
                       <Clock className="w-3 h-3 shrink-0" />
                       {format(new Date(check.createdAt), "MMM dd, yyyy • HH:mm")}
