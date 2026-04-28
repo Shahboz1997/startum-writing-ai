@@ -8,6 +8,7 @@ import { useBankTopicsNav } from '@/context/BankTopicsNavContext';
 import styles from '@/components/bank/TopicsBank.module.css';
 
 const PAGE_SIZE = 10;
+const SAVED_KEY = 'ielts_saved_prompts';
 
 function bankUrl(path) {
   const base = process.env.NEXT_PUBLIC_BANK_API_URL || '';
@@ -79,6 +80,7 @@ export default function BankList({ darkMode }) {
   const { setFilters, hydrated: navHydrated } = nav;
 
   const [items, setItems] = useState([]);
+  const [savedPrompts, setSavedPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const fetchGenRef = useRef(0);
@@ -130,12 +132,94 @@ export default function BankList({ darkMode }) {
     }
   }, [type, subtype, dateFrom, dateTo, appliedSearch]);
 
+  const loadSaved = useCallback(() => {
+    try {
+      const raw = localStorage.getItem(SAVED_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      const list = Array.isArray(parsed) ? parsed : [];
+      const normalized = list
+        .map((x) => ({
+          id: String(x?.id || ''),
+          type: String(x?.type || ''),
+          promptText: String(x?.promptText || ''),
+          date: String(x?.date || ''),
+          createdAt: String(x?.createdAt || ''),
+          sourceCheckId: x?.sourceCheckId || null,
+        }))
+        .filter((x) => x.id && x.promptText);
+      setSavedPrompts(normalized);
+    } catch {
+      setSavedPrompts([]);
+    }
+  }, []);
+
+  const removeSaved = useCallback(
+    (id) => {
+      const key = String(id || '');
+      if (!key) return;
+      setSavedPrompts((prev) => {
+        const next = prev.filter((x) => x.id !== key);
+        try {
+          localStorage.setItem(SAVED_KEY, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  const copySaved = useCallback(async (text) => {
+    const t = String(text || '').trim();
+    if (!t) return;
+    try {
+      await navigator.clipboard.writeText(t);
+    } catch {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = t;
+        ta.setAttribute('readonly', 'true');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
   useEffect(() => {
     fetchTopics();
     return () => {
       abortRef.current?.abort();
     };
   }, [fetchTopics]);
+
+  useEffect(() => {
+    loadSaved();
+    const onStorage = (e) => {
+      if (e?.key === SAVED_KEY) loadSaved();
+    };
+    const onCustom = () => loadSaved();
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('ielts_saved_prompts_updated', onCustom);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('ielts_saved_prompts_updated', onCustom);
+    };
+  }, [loadSaved]);
+
+  const visibleSavedPrompts = useMemo(() => {
+    const typed = savedPrompts.filter((x) => (x.type === 'task1' || x.type === 'task2'));
+    const byType = type ? typed.filter((x) => x.type === type) : typed;
+    if (!appliedSearch.trim()) return byType;
+    const needle = appliedSearch.trim().toLowerCase();
+    return byType.filter((x) => x.promptText.toLowerCase().includes(needle));
+  }, [savedPrompts, type, appliedSearch]);
 
   const sortedItems = useMemo(() => {
     const copy = [...items];
@@ -351,6 +435,96 @@ export default function BankList({ darkMode }) {
         </ul>
       ) : (
         <>
+          {visibleSavedPrompts.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+                    Saved prompts
+                  </div>
+                  <div className="text-xs text-slate-600 dark:text-slate-400">
+                    Personal bank (stored in this browser).
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      localStorage.removeItem(SAVED_KEY);
+                    } catch {
+                      // ignore
+                    }
+                    setSavedPrompts([]);
+                  }}
+                  className={`text-xs font-semibold underline underline-offset-4 ${
+                    darkMode ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Clear
+                </button>
+              </div>
+
+              <ul className={styles.grid} role="list" aria-label="Saved prompts">
+                {visibleSavedPrompts.slice(0, 20).map((t) => {
+                  const isT1 = t.type === 'task1';
+                  return (
+                    <li key={t.id}>
+                      <div
+                        className={`text-left w-full ${styles.card} ${
+                          darkMode ? `${styles.cardDark} bg-slate-900/50` : 'bg-white'
+                        }`}
+                      >
+                        <div className={styles.cardHeader}>
+                          <div className={styles.cardMeta}>
+                            <span
+                              className={`${isT1 ? styles.badgeT1 : styles.badgeT2} ${
+                                darkMode ? (isT1 ? styles.badgeT1Dark : styles.badgeT2Dark) : ''
+                              }`}
+                              aria-hidden
+                            >
+                              {taskTypeLabel(t.type)}
+                            </span>
+                            <span className={styles.cardSubtype} aria-hidden>
+                              SAVED
+                            </span>
+                          </div>
+                          <span className={styles.cardDate} aria-hidden>
+                            {t.date || ''}
+                          </span>
+                        </div>
+                        <p className={`${styles.cardPrompt} ${styles.cardPromptClamp}`}>{topicPromptText(t)}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => copySaved(t.promptText)}
+                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${
+                              darkMode
+                                ? 'bg-slate-950/60 border border-slate-700 text-slate-200 hover:border-indigo-500'
+                                : 'bg-white border border-slate-200 text-slate-700 hover:border-indigo-400'
+                            }`}
+                          >
+                            Copy
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeSaved(t.id)}
+                            className={`rounded-lg px-3 py-2 text-xs font-semibold ${
+                              darkMode
+                                ? 'bg-slate-950/60 border border-slate-700 text-slate-200 hover:border-red-500 hover:text-red-200'
+                                : 'bg-white border border-slate-200 text-slate-700 hover:border-red-400 hover:text-red-700'
+                            }`}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
             Showing {slice.length} of {sortedItems.length} topics (page {safePage} / {totalPages})
           </p>

@@ -393,7 +393,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
   const [viewMode, setViewMode] = useState('feedback');
   const [rightPanelTab, setRightPanelTab] = useState('task');
   const [focusedId, setFocusedId] = useState(null);
-  const [promptCopied, setPromptCopied] = useState(false);
+  const [promptSaved, setPromptSaved] = useState(false);
   /** Краткая подсветка карточки после клика по подсветке в тексте (click-to-focus). */
   const [flashErrorCardId, setFlashErrorCardId] = useState(null);
   const [accordionOpen, setAccordionOpen] = useState(null);
@@ -480,30 +480,37 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
     return set;
   }, [lexicalUpgrade]);
   const useTypedErrorHighlight = viewMode === 'feedback' && errors.length > 0;
-  const handleCopyPrompt = useCallback(async () => {
+
+  const handleSavePromptToBank = useCallback(() => {
     if (!promptText) return;
     try {
-      await navigator.clipboard.writeText(promptText);
-      setPromptCopied(true);
-      window.setTimeout(() => setPromptCopied(false), 1400);
-    } catch {
+      const key = 'ielts_saved_prompts';
+      const raw = localStorage.getItem(key);
+      const prev = raw ? JSON.parse(raw) : [];
+      const list = Array.isArray(prev) ? prev : [];
+      const now = new Date();
+      const date = now.toISOString().slice(0, 10);
+      const item = {
+        id: `saved-${now.getTime()}`,
+        type: taskTypeNormalized,
+        promptText,
+        date,
+        sourceCheckId: check?.id || null,
+        createdAt: now.toISOString(),
+      };
+      const next = [item, ...list].slice(0, 200);
+      localStorage.setItem(key, JSON.stringify(next));
       try {
-        const ta = document.createElement('textarea');
-        ta.value = promptText;
-        ta.setAttribute('readonly', 'true');
-        ta.style.position = 'fixed';
-        ta.style.left = '-9999px';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        setPromptCopied(true);
-        window.setTimeout(() => setPromptCopied(false), 1400);
+        window.dispatchEvent(new Event('ielts_saved_prompts_updated'));
       } catch {
         // ignore
       }
+      setPromptSaved(true);
+      window.setTimeout(() => setPromptSaved(false), 1400);
+    } catch {
+      // ignore
     }
-  }, [promptText]);
+  }, [promptText, taskTypeNormalized, check?.id]);
 
   const handleInsertLinkingWord = useCallback((w) => {
     if (!setUserText) return;
@@ -904,11 +911,11 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
 
   if (isLoading || (!check && !analysisProp)) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-32 lg:pb-12" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-32 xl:pb-12" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
         <div className="flex flex-col gap-10 max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
           <div className="h-10 w-32 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
-          <div className="flex flex-col lg:flex-row gap-8">
-            <div className="flex-grow lg:w-3/5 space-y-4">
+          <div className="flex flex-col xl:flex-row gap-8">
+            <div className="flex-grow xl:w-3/5 space-y-4">
               <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-8 shadow-sm animate-pulse">
                 <div className="h-5 w-40 rounded bg-slate-200 dark:bg-slate-700 mb-4" />
                 <div className="h-3 w-28 rounded bg-slate-100 dark:bg-slate-800 mb-2" />
@@ -919,7 +926,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                 <div className="h-4 w-3/4 rounded bg-slate-100 dark:bg-slate-800" />
               </div>
             </div>
-            <div className="flex flex-col gap-6 w-full lg:w-[400px]">
+            <div className="flex flex-col gap-6 w-full xl:w-[400px]">
               <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-6 shadow-sm animate-pulse">
                 <div className="h-4 w-32 rounded bg-slate-200 dark:bg-slate-700 mb-4" />
                 <div className="h-20 w-20 rounded-full bg-slate-200 dark:bg-slate-700 mx-auto" />
@@ -932,10 +939,10 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-32 lg:pb-12" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <div className="flex flex-col lg:flex-row gap-8 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-6 items-start">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-32 xl:pb-12" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div className="flex flex-col xl:flex-row gap-8 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-6 items-start">
         {/* Center: Main Content — Your Answer + Lexical + Action Bar */}
-        <div className="flex-grow w-full lg:w-3/5 order-1 lg:order-1 flex flex-col gap-8 min-w-0">
+        <div className="flex-grow w-full xl:w-3/5 order-1 xl:order-1 flex flex-col gap-8 min-w-0">
           <div className="flex items-center">
             <Link
               href="/history"
@@ -948,17 +955,23 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
           {/* Your Answer — header + toggle + legend + text */}
           <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-8 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-              <h2 className="text-slate-900 dark:text-white font-bold tracking-tight text-xl">Your Answer</h2>
+              {viewMode === 'original' ? (
+                <h2 className="text-slate-900 dark:text-white font-bold tracking-tight text-xl">Your Answer</h2>
+              ) : (
+                <div />
+              )}
               <div className="flex items-center gap-2">
                 {promptText && (
-                  <button
-                    type="button"
-                    onClick={handleCopyPrompt}
-                    className="px-3 py-2 rounded-full text-sm font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                    title="Copy prompt"
-                  >
-                    {promptCopied ? 'Copied' : 'Copy prompt'}
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleSavePromptToBank}
+                      className="px-3 py-2 rounded-full text-xs sm:text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500 transition-colors whitespace-nowrap"
+                      title="Add prompt to Bank"
+                    >
+                      {promptSaved ? 'Saved' : 'Add to Bank'}
+                    </button>
+                  </>
                 )}
                 <div className="flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5">
                   <button
@@ -1007,7 +1020,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
           </div>
 
           {/* Mobile: analytics blocks right after essay */}
-          <div className="lg:hidden flex flex-col gap-6">
+          <div className="xl:hidden flex flex-col gap-6">
             <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 shadow-sm p-6">
               <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-4">Band score</h2>
               <div className="flex items-center gap-4">
@@ -1583,7 +1596,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
         </div>
 
         {/* Right: Detailed Analytics Panel — Band, pill tabs, CEFR bars, errors */}
-        <div className="hidden lg:flex flex-col gap-6 w-full lg:w-[400px] lg:sticky lg:top-24 lg:self-start order-2 lg:order-2">
+        <div className="hidden xl:flex flex-col gap-6 w-full xl:w-[400px] xl:sticky xl:top-24 xl:self-start order-2 xl:order-2">
           <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 shadow-sm p-6">
             <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-4">Band score</h2>
             <div className="flex items-center gap-4">

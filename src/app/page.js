@@ -2172,6 +2172,16 @@ const insertLinkingWord = (word) => {
 </div>
       {/* 2. Блок Вопроса (Нижний элемент) */}
       <div className="animate-in fade-in slide-in-from-top-2 duration-500">
+        {String(promptT1 || '').trim() && (
+          <div className="p-6 bg-indigo-50 dark:bg-indigo-950/20 rounded-3xl border border-indigo-100 dark:border-indigo-900/30">
+            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-2 tracking-tight">
+              Task 1 Prompt
+            </p>
+            <p className="text-sm sm:text-base font-medium text-slate-900 dark:text-white whitespace-pre-wrap leading-relaxed">
+              {promptT1}
+            </p>
+          </div>
+        )}
       </div>
     </div>
     )}
