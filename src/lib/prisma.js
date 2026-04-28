@@ -25,6 +25,10 @@ function createPgPool() {
     connectionString,
     ssl,
     connectionTimeoutMillis: 15000,
+    // Ensure DB calls fail fast instead of hanging the request.
+    // `statement_timeout` is enforced by Postgres; `query_timeout` is a pg client-side safety net.
+    query_timeout: 15000,
+    options: '-c statement_timeout=15000',
   });
 }
 

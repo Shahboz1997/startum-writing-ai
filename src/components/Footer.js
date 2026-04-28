@@ -3,7 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { Layers } from 'lucide-react';
-import { SUPPORT_EMAIL } from '@/lib/support';
 
 export default function Footer() {
   return (
@@ -43,20 +42,13 @@ export default function Footer() {
           <div>
             <h4 className="font-black tracking-tighter uppercase text-slate-900 dark:text-white mb-4 text-sm">Support</h4>
             <ul className="space-y-2">
-              <li><a href={`mailto:${SUPPORT_EMAIL}`} className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Contact Us</a></li>
+              <li><Link href="/#pricing" className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Contact Us</Link></li>
               <li><Link href="/#pricing" className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Top-up Credits</Link></li>
             </ul>
           </div>
         </div>
         <div className="mt-12 pt-8 border-t border-white/5 text-center space-y-2">
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400">
-            <Link href="/privacy" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Privacy Policy</Link>
-            <span aria-hidden>·</span>
-            <Link href="/terms" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Terms of Service</Link>
-            <span aria-hidden>·</span>
-            <Link href="/refund" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Refund Policy</Link>
-          </div>
-            <p className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
+          <p className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
             © 2026 STRATUM LLC. All rights reserved.
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">

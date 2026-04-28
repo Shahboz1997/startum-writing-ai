@@ -319,6 +319,8 @@ import 'react-medium-image-zoom/dist/styles.css';
   const [activeResultT1, setResultT1] = useState(null);
   const [status, setStatus] = useState('idle'); // 'idle' | 'sending' — footer feedback only
   const [feedbackBanner, setFeedbackBanner] = useState(null); // { kind: 'success'|'error', message }
+  const [showSupportModal, setShowSupportModal] = useState(false);
+  const supportFirstFieldRef = useRef(null);
   const [error, setError] = useState(null);
   const [errorIs401, setErrorIs401] = useState(false);
   const [activeResultT2, setResultT2] = useState(null);
@@ -526,6 +528,9 @@ import 'react-medium-image-zoom/dist/styles.css';
         e.target.reset();
         setStatus('idle');
         setFeedbackBanner({ kind: 'success', message: 'Thank you! We received your feedback.' });
+        if (showSupportModal) {
+          window.setTimeout(() => setShowSupportModal(false), 900);
+        }
         window.setTimeout(() => {
           setFeedbackBanner((b) => (b?.kind === 'success' ? null : b));
         }, 8000);
@@ -546,6 +551,30 @@ import 'react-medium-image-zoom/dist/styles.css';
       });
     }
   };
+
+  useEffect(() => {
+    if (!showSupportModal) return;
+
+    // Lock background scroll while modal is open.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // Focus first field (after mount/animation).
+    const t = window.setTimeout(() => {
+      supportFirstFieldRef.current?.focus?.();
+    }, 50);
+
+    const onKeyDown = (ev) => {
+      if (ev.key === 'Escape') setShowSupportModal(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [showSupportModal]);
   const scrollToEditor = () => {
     // Находим элемент ввода текста (убедитесь, что у вашего textarea или контейнера есть id="essay-input")
     const element = document.getElementById('essay-editor');
@@ -2316,16 +2345,6 @@ const insertLinkingWord = (word) => {
       };
       return (
         <div className="mt-4 w-full min-w-0 sm:mt-5">
-          <button
-            type="button"
-            onClick={() => setShowCheatSheet((v) => !v)}
-            aria-expanded={showCheatSheet}
-            className="w-full bg-slate-100 dark:bg-slate-800/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-4 py-2.5 rounded-xl transition-all border border-transparent hover:border-indigo-200/50"
-          >
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-300">
-              {showCheatSheet ? 'Hide cheat sheet' : 'Quick cheat sheet'}
-            </span>
-          </button>
           <AnimatePresence initial={false}>
             {showCheatSheet && (
               <motion.div
@@ -2336,40 +2355,6 @@ const insertLinkingWord = (word) => {
                 transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
                 className="overflow-hidden"
               >
-                <div className="mt-4 w-full p-4 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border-2 border-dashed border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/30 dark:bg-indigo-950/10 shadow-inner">
-                  <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-[9px] font-black inline-block mb-4 shadow-lg shadow-indigo-500/20">
-                    {activeTab === 'Task 1' ? 'Task 1' : 'Task 2'}
-                  </span>
-                  <motion.ul
-                    className="list-none space-y-0 p-0 m-0"
-                    variants={cheatSheetListVariants}
-                    initial="hidden"
-                    animate="show"
-                  >
-                    {cheatTips.map((tip) => {
-                      const TipIcon = cheatIconMap[tip.icon] || Target;
-                      return (
-                        <motion.li
-                          key={tip.id}
-                          variants={cheatSheetItemVariants}
-                          className="bg-white/80 dark:bg-slate-900/50 p-3 rounded-2xl border border-white dark:border-slate-800 shadow-sm mb-2 last:mb-0"
-                        >
-                          <div className="flex items-start gap-3">
-                            <span
-                              className="shrink-0 text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/40 p-1.5 rounded-lg w-7 h-7 flex items-center justify-center"
-                              aria-hidden
-                            >
-                              <TipIcon className="h-4 w-4" strokeWidth={2} />
-                            </span>
-                            <p className="min-w-0 flex-1 text-[12px] font-bold tracking-tight text-slate-700 dark:text-slate-200 pt-0.5">
-                              {tip.label}
-                            </p>
-                          </div>
-                        </motion.li>
-                      );
-                    })}
-                  </motion.ul>
-                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -3026,7 +3011,12 @@ const insertLinkingWord = (word) => {
       {/* Разделитель */}
       <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-800 to-transparent" />
 
-      {showCreditsExhausted && <CreditsExhaustedCallout className="w-full" />}
+      {showCreditsExhausted && (
+        <CreditsExhaustedCallout
+          className="w-full"
+          onContactSupport={() => setShowSupportModal(true)}
+        />
+      )}
 
       {/* Контейнер кнопок: на мобилках в колонку (или ряд), на десктопе по краям */}
     </div>
@@ -3248,7 +3238,7 @@ const insertLinkingWord = (word) => {
               {/* Resources */}
               <div>
                 <h4 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight mb-4">Resources</h4>
-                <ul className="space-y-3">
+                <ul className="grid grid-cols-2 gap-3 sm:block sm:space-y-3">
                   {['Topics', 'Bank', 'Task 1', 'Task 2'].map((t) => (
                     <li key={t}>
                       <button
@@ -3296,25 +3286,142 @@ const insertLinkingWord = (word) => {
               </div>
             </div>
             <div className="mt-12 pt-8 border-t border-white/5 text-center space-y-2">
-              <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400">
-                <Link href="/privacy" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Privacy Policy</Link>
-                <span aria-hidden>·</span>
-                <Link href="/terms" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Terms of Service</Link>
-                <span aria-hidden>·</span>
-                <Link href="/refund" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Refund Policy</Link>
-              </div>
               <p className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
                 © 2026 STRATUM LLC. Registered in Delaware, USA. All rights reserved.
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 16192 Coastal Highway, Lewes, Delaware 19958, USA ·{' '}
-                <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                  {SUPPORT_EMAIL}
-                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowSupportModal(true)}
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                >
+                  Contact support
+                </button>
               </p>
               <p className="text-xs text-slate-400 dark:text-slate-500 pt-1">We accept Visa, Mastercard, Apple Pay</p>
             </div>
           </div>
+          <AnimatePresence>
+            {showSupportModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Contact support"
+              >
+                <button
+                  type="button"
+                  className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                  aria-label="Close support form"
+                  onClick={() => setShowSupportModal(false)}
+                />
+
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96, y: 12 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.98, y: 8 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                  className={`relative w-full max-w-lg rounded-[2rem] border shadow-2xl overflow-hidden ${
+                    darkMode ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-200'
+                  }`}
+                >
+                  <div className={`px-6 sm:px-8 pt-7 pb-5 ${darkMode ? 'bg-slate-950' : 'bg-white'}`}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <h3 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                          Contact support
+                        </h3>
+                        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                          Tell us what happened — we usually reply within 24 hours. You can also email{' '}
+                          <span className="font-semibold text-slate-900 dark:text-slate-200">{SUPPORT_EMAIL}</span>.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowSupportModal(false)}
+                        className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-2xl border transition-colors ${
+                          darkMode
+                            ? 'bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800'
+                            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                        aria-label="Close"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {feedbackBanner && (
+                      <div
+                        className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                          feedbackBanner.kind === 'success'
+                            ? darkMode
+                              ? 'bg-emerald-950/40 border-emerald-900 text-emerald-200'
+                              : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                            : darkMode
+                              ? 'bg-rose-950/40 border-rose-900 text-rose-200'
+                              : 'bg-rose-50 border-rose-200 text-rose-800'
+                        }`}
+                        role="status"
+                      >
+                        {feedbackBanner.message}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={`px-6 sm:px-8 pb-8 ${darkMode ? 'bg-slate-950' : 'bg-white'}`}>
+                    <form onSubmit={handleSubmit} className="space-y-3">
+                      <input
+                        ref={supportFirstFieldRef}
+                        name="name"
+                        type="text"
+                        placeholder="Name"
+                        required
+                        className={`w-full px-4 py-3 text-sm rounded-2xl border outline-none transition-colors ${
+                          darkMode
+                            ? 'bg-slate-900 border-slate-800 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                            : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'
+                        }`}
+                      />
+                      <input
+                        name="email"
+                        type="email"
+                        placeholder="Email"
+                        required
+                        className={`w-full px-4 py-3 text-sm rounded-2xl border outline-none transition-colors ${
+                          darkMode
+                            ? 'bg-slate-900 border-slate-800 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                            : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'
+                        }`}
+                      />
+                      <textarea
+                        name="message"
+                        placeholder="How can we help?"
+                        required
+                        rows={4}
+                        className={`w-full px-4 py-3 text-sm rounded-2xl border outline-none resize-none transition-colors ${
+                          darkMode
+                            ? 'bg-slate-900 border-slate-800 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                            : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'
+                        }`}
+                      />
+                      <button
+                        type="submit"
+                        disabled={status === 'sending'}
+                        className="btn-stratum w-full py-3 rounded-2xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]"
+                      >
+                        <div className="shimmer-layer animate-shimmer" aria-hidden />
+                        <span className="btn-stratum-text">{status === 'sending' ? 'SENDING...' : 'SEND · STRATUM'}</span>
+                      </button>
+                    </form>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
   <AnimatePresence>
   {showScrollTop && (
     <motion.div

@@ -252,7 +252,13 @@ const Navbar = ({
           </div>
 
           {/* КНОПКА БУРГЕРА (Только мобильные, <768px) */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
+            {/* Кредиты (mobile) */}
+            {isLoggedIn && (
+              <div className="flex items-center gap-1 font-semibold text-[11px] text-indigo-600 bg-indigo-600/10 px-2 py-1 rounded-lg tracking-tight whitespace-nowrap">
+                {credits} <Zap className="w-3 h-3 inline-block" strokeWidth={1.5} />
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}

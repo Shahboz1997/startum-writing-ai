@@ -1,5 +1,4 @@
 import LegalPageLayout from '@/components/LegalPageLayout';
-import { SUPPORT_EMAIL } from '@/lib/support';
 
 export const metadata = {
   title: 'Refund Policy | STRATUM.ai',
@@ -26,11 +25,7 @@ export default function RefundPage() {
           If you purchase a subscription (e.g. monthly or yearly plan), you may cancel before the next
           billing cycle. Refunds for the current billing period are considered on a case-by-case basis
           and are not guaranteed. Subscription fees are generally non-refundable once the billing period
-          has started. Contact us at{' '}
-          <a href={`mailto:${SUPPORT_EMAIL}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
-            {SUPPORT_EMAIL}
-          </a>{' '}
-          for billing questions.
+          has started. Contact support for billing questions.
         </p>
       </section>
 
@@ -46,11 +41,8 @@ export default function RefundPage() {
       <section>
         <h2>Contact</h2>
         <p>
-          For refund requests or questions about this policy, contact us at{' '}
-          <a href={`mailto:${SUPPORT_EMAIL}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
-            {SUPPORT_EMAIL}
-          </a>{' '}
-          or at our business address: 16192 Coastal Highway, Lewes, Delaware 19958, USA.
+          For refund requests or questions about this policy, contact support or write to our business address:
+          16192 Coastal Highway, Lewes, Delaware 19958, USA.
         </p>
       </section>
     </LegalPageLayout>

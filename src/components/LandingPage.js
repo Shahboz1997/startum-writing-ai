@@ -1186,9 +1186,9 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               Don&apos;t just practice. Evolve. Start your Stratum journey today.
             </p>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-                {SUPPORT_EMAIL}
-              </a>
+              <Link href="/refund" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                Contact support
+              </Link>
             </p>
             <div className="flex flex-wrap justify-center items-center gap-4 pt-2 text-xs font-medium tracking-tight text-slate-400 dark:text-slate-500">
               <span>We accept</span>

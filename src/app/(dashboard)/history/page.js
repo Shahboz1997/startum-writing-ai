@@ -10,10 +10,27 @@ export default async function HistoryPage() {
   let dbError = null;
   try {
     const prisma = getPrisma();
-    initialChecks = await prisma.check.findMany({
+    const query = prisma.check.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: 'desc' },
+      take: 200,
+      select: {
+        id: true,
+        content: true,
+        promptText: true,
+        score: true,
+        createdAt: true,
+        type: true,
+        feedback: true,
+      },
     });
+
+    initialChecks = await Promise.race([
+      query,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Database query timed out")), 12000)
+      ),
+    ]);
   } catch (err) {
     console.error("History DB error:", err);
     dbError = err?.message || "Database unavailable";

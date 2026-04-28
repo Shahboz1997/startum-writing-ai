@@ -1,12 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Mail, Sparkles } from 'lucide-react';
-import { SUPPORT_EMAIL } from '@/lib/support';
+import { LifeBuoy, Sparkles } from 'lucide-react';
 
-export default function CreditsExhaustedCallout({ email = SUPPORT_EMAIL, className = '' }) {
-  const mailHref = `mailto:${email}?subject=${encodeURIComponent('IELTS writing credits')}`;
-
+export default function CreditsExhaustedCallout({ className = '', onContactSupport }) {
   return (
     <div
       className={`relative overflow-hidden rounded-3xl border border-indigo-200/80 dark:border-indigo-500/35 bg-gradient-to-br from-indigo-50/95 via-white to-violet-50/90 dark:from-indigo-950/50 dark:via-slate-900/80 dark:to-violet-950/40 px-5 py-6 sm:px-8 sm:py-8 shadow-[0_20px_50px_-20px_rgba(79,70,229,0.35)] dark:shadow-[0_24px_60px_-24px_rgba(99,102,241,0.25)] ${className}`}
@@ -30,16 +27,26 @@ export default function CreditsExhaustedCallout({ email = SUPPORT_EMAIL, classNa
             top up your credits.
           </p>
           <p className="text-sm sm:text-base font-medium leading-relaxed text-slate-600 dark:text-slate-300">
-            For credit purchases, top-ups, and billing questions, please email us at the address listed in the site
-            footer:
+            For credit purchases, top-ups, and billing questions, contact support.
           </p>
-          <a
-            href={mailHref}
-            className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold tracking-tight text-white shadow-md shadow-indigo-600/25 transition hover:bg-indigo-500 active:scale-[0.98] dark:bg-indigo-500 dark:hover:bg-indigo-400"
-          >
-            <Mail className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
-            {email}
-          </a>
+          {typeof onContactSupport === 'function' ? (
+            <button
+              type="button"
+              onClick={onContactSupport}
+              className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold tracking-tight text-white shadow-md shadow-indigo-600/25 transition hover:bg-indigo-500 active:scale-[0.98] dark:bg-indigo-500 dark:hover:bg-indigo-400"
+            >
+              <LifeBuoy className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
+              Contact support
+            </button>
+          ) : (
+            <a
+              href="/#pricing"
+              className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-bold tracking-tight text-white shadow-md shadow-indigo-600/25 transition hover:bg-indigo-500 active:scale-[0.98] dark:bg-indigo-500 dark:hover:bg-indigo-400"
+            >
+              <LifeBuoy className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
+              Contact support
+            </a>
+          )}
         </div>
       </div>
     </div>

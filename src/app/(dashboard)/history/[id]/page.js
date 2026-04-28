@@ -14,9 +14,15 @@ export default async function HistoryDetailPage({ params }) {
   let check = null;
   try {
     const prisma = getPrisma();
-    check = await prisma.check.findFirst({
+    const query = prisma.check.findFirst({
       where: { id, userId: session.user.id },
     });
+    check = await Promise.race([
+      query,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Database query timed out")), 12000)
+      ),
+    ]);
   } catch (err) {
     console.error("History detail DB error:", err);
     notFound();
