@@ -2170,19 +2170,6 @@ const insertLinkingWord = (word) => {
     )}
   </div>
 </div>
-      {/* 2. Блок Вопроса (Нижний элемент) */}
-      <div className="animate-in fade-in slide-in-from-top-2 duration-500">
-        {String(promptT1 || '').trim() && (
-          <div className="p-6 bg-indigo-50 dark:bg-indigo-950/20 rounded-3xl border border-indigo-100 dark:border-indigo-900/30">
-            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-2 tracking-tight">
-              Task 1 Prompt
-            </p>
-            <p className="text-sm sm:text-base font-medium text-slate-900 dark:text-white whitespace-pre-wrap leading-relaxed">
-              {promptT1}
-            </p>
-          </div>
-        )}
-      </div>
     </div>
     )}
       {activeTab === 'Task 2' && currentTopic && (
@@ -3297,10 +3284,10 @@ const insertLinkingWord = (word) => {
             </div>
             <div className="mt-12 pt-8 border-t border-white/5 text-center space-y-2">
               <p className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
-                © 2026 STRATUM LLC. Registered in Delaware, USA. All rights reserved.
+                © 2026 STRATUM LLC. Registered in Wyoming, USA. All rights reserved. 30 N Gould St Ste R, Sheridan, WY 82801, USA
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                16192 Coastal Highway, Lewes, Delaware 19958, USA ·{' '}
+                30 N Gould St Ste R, Sheridan, WY 82801, USA ·{' '}
                 <button
                   type="button"
                   onClick={() => setShowSupportModal(true)}

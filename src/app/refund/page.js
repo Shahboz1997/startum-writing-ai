@@ -41,8 +41,11 @@ export default function RefundPage() {
       <section>
         <h2>Contact</h2>
         <p>
-          For refund requests or questions about this policy, contact support or write to our business address:
-          16192 Coastal Highway, Lewes, Delaware 19958, USA.
+          For refund requests or questions about this policy, contact us at{' '}
+          <a href="mailto:supportstratum@gmail.com" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            supportstratum@gmail.com
+          </a>{' '}
+          or write to our business address: 30 N Gould St Ste R, Sheridan, WY 82801, USA.
         </p>
       </section>
     </LegalPageLayout>

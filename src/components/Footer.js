@@ -49,10 +49,7 @@ export default function Footer() {
         </div>
         <div className="mt-12 pt-8 border-t border-white/5 text-center space-y-2">
           <p className="text-sm font-semibold tracking-tight text-slate-900 dark:text-white">
-            © 2026 STRATUM LLC. All rights reserved.
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            16192 Coastal Highway, Lewes, Delaware 19958, USA
+            © 2026 STRATUM LLC. Registered in Wyoming, USA. All rights reserved. 30 N Gould St Ste R, Sheridan, WY 82801, USA
           </p>
         </div>
       </div>

@@ -293,69 +293,6 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               Get Free Credits
             </button>
           </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25 }}
-            className="flex flex-wrap justify-center gap-2 mb-8 max-w-2xl mx-auto"
-          >
-            {[
-              { label: 'Writing profile analytics', Icon: LineChart },
-              { label: 'Study plan & focus', Icon: Target },
-              { label: 'Email practice reminders', Icon: BellRing },
-              { label: 'Weak-area resources', Icon: BookOpen },
-            ].map(({ label, Icon }) => (
-              <span
-                key={label}
-                className="inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 dark:border-white/10 bg-white/60 dark:bg-white/5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 shadow-sm"
-              >
-                <Icon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" strokeWidth={2} />
-                {label}
-              </span>
-            ))}
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.28 }}
-            className="flex flex-col items-center gap-3 mb-4"
-          >
-            <button
-              type="button"
-              onClick={async () => {
-                if (status !== 'authenticated') {
-                  setShareInfoOpen((v) => !v);
-                  return;
-                }
-                setShareInfoOpen(false);
-                await shareLanding();
-              }}
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-white/5 text-slate-700 dark:text-slate-300 font-semibold tracking-wide hover:bg-white/80 dark:hover:bg-white/10 transition-colors"
-              title={status === 'authenticated' ? 'Share STRATUM.ai' : 'Info'}
-            >
-              <Share2 className="w-4 h-4" />
-              Share
-            </button>
-
-            <AnimatePresence>
-              {shareInfoOpen && status !== 'authenticated' && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.18 }}
-                  className="w-full max-w-xl px-4"
-                >
-                  <div className="rounded-2xl border border-indigo-200/60 dark:border-indigo-800/40 bg-indigo-50/70 dark:bg-indigo-950/30 px-4 py-3 text-center text-xs sm:text-sm font-medium text-indigo-900/90 dark:text-indigo-200">
-                    Sharing is available after you create an account and sign in.
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-
           {/* Dashboard preview — bento widget */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -585,10 +522,17 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
       <section
         id="study-plan"
         aria-labelledby="section-study-plan"
-        className="py-12 sm:py-16 bg-gradient-to-b from-[#F0F4FF]/60 via-[#F9FAFB] to-[#F9FAFB] dark:from-indigo-950/20 dark:via-[#050505] dark:to-[#050505] border-b border-white/5"
+        className="relative overflow-hidden py-12 sm:py-16 bg-gradient-to-b from-[#EEF3FF] via-[#F9FAFB] to-[#F9FAFB] dark:from-indigo-950/25 dark:via-[#050505] dark:to-[#050505] border-b border-white/5"
       >
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden
+        >
+          <div className="absolute -top-28 left-1/2 h-72 w-[44rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.18)_0%,transparent_60%)] dark:bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.24)_0%,transparent_60%)] blur-2xl" />
+          <div className="absolute -bottom-40 right-[-10rem] h-80 w-80 rounded-full bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.14)_0%,transparent_65%)] dark:bg-[radial-gradient(circle_at_center,rgba(20,184,166,0.16)_0%,transparent_65%)] blur-2xl" />
+        </div>
         <div className="max-w-6xl mx-auto px-4">
-          <motion.div {...fadeInUp} className="text-center mb-10 sm:mb-12">
+          <motion.div {...fadeInUp} className="text-center mb-9 sm:mb-11 relative">
             <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">
               Preparation
             </span>
@@ -603,6 +547,71 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
             </p>
           </motion.div>
 
+          <motion.div {...fadeInUp} className="flex flex-wrap justify-center gap-2.5 mb-6 max-w-2xl mx-auto">
+            {[
+              { label: 'Writing profile analytics', Icon: LineChart },
+              { label: 'Study plan & focus', Icon: Target },
+              { label: 'Email practice reminders', Icon: BellRing },
+              { label: 'Weak-area resources', Icon: BookOpen },
+            ].map(({ label, Icon }) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 dark:border-white/10 bg-white/70 dark:bg-white/5 px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-700 dark:text-slate-200 shadow-sm shadow-black/5 dark:shadow-black/30 backdrop-blur-md"
+              >
+                <Icon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" strokeWidth={2} />
+                {label}
+              </span>
+            ))}
+          </motion.div>
+
+          <motion.div {...fadeInUp} className="mx-auto w-full max-w-2xl mb-8">
+            <div className="rounded-[1.75rem] border border-slate-200/70 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-md shadow-xl shadow-black/5 dark:shadow-black/25 px-4 py-4 sm:px-5 sm:py-5">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/10 dark:bg-indigo-400/10 ring-1 ring-indigo-500/15 dark:ring-indigo-300/15">
+                    <Share2 className="h-5 w-5 text-indigo-700/90 dark:text-indigo-300" />
+                  </span>
+                  <div className="text-center sm:text-left">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-900/80 dark:text-white/80">
+                      Share STRATUM.ai
+                    </p>
+                    <p className="mt-1 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Send the landing link to a friend or your study group.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {shareInfoOpen && status !== 'authenticated' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.18 }}
+                    className="mt-3"
+                  >
+                    <div className="rounded-2xl border border-indigo-200/60 dark:border-indigo-700/30 bg-indigo-50/70 dark:bg-indigo-950/30 px-4 py-3 backdrop-blur-md shadow-sm shadow-black/5 dark:shadow-black/25">
+                      <div className="flex items-start gap-2.5">
+                        <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/70 dark:bg-white/5 ring-1 ring-indigo-500/15 dark:ring-white/10">
+                          <Share2 className="h-4 w-4 text-indigo-700 dark:text-indigo-300" />
+                        </span>
+                        <div className="text-left">
+                          <p className="text-[11px] sm:text-xs font-black uppercase tracking-[0.18em] text-indigo-900/80 dark:text-indigo-200/90">
+                            Sign in required
+                          </p>
+                          <p className="mt-1 text-xs sm:text-sm font-medium text-indigo-900/90 dark:text-indigo-200 leading-relaxed">
+                            Sharing is available after you create an account and sign in.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+
           <div className="grid md:grid-cols-3 gap-5 sm:gap-6">
             {[
               {
@@ -610,34 +619,34 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
                 title: 'Writing profile & charts',
                 blurb:
                   'Criterion averages, flagged issue types, and sub-topic patterns — built from your archive. See where you gain points and where errors repeat.',
-                accent: 'from-indigo-500/15 to-transparent',
+                accent: 'from-indigo-500/16 to-transparent',
               },
               {
                 Icon: BookOpen,
                 title: 'Curated weak-area links',
                 blurb:
                   'The Study plan suggests external materials matched to your profile — turn analytics into targeted practice instead of random essays.',
-                accent: 'from-teal-500/12 to-transparent',
+                accent: 'from-teal-500/14 to-transparent',
               },
               {
                 Icon: CalendarDays,
                 title: 'Timezone-aware email nudges',
                 blurb:
                   'Enable practice reminders in Settings: pick weekdays, local send time, and your timezone. Gentle consistency beats cramming.',
-                accent: 'from-violet-500/15 to-transparent',
+                accent: 'from-violet-500/16 to-transparent',
               },
             ].map(({ Icon, title, blurb, accent }) => (
               <motion.div
                 key={title}
                 {...fadeInUp}
-                className="group relative overflow-hidden rounded-[2rem] border border-white/10 dark:border-white/5 bg-white/85 dark:bg-white/5 backdrop-blur-md p-6 sm:p-7 shadow-2xl shadow-black/5 dark:shadow-black/25 transition-all duration-300 hover:border-indigo-300/30 dark:hover:border-indigo-500/20"
+                className="group relative overflow-hidden rounded-[2rem] border border-slate-200/70 dark:border-white/10 bg-white/85 dark:bg-white/5 backdrop-blur-md p-6 sm:p-7 shadow-2xl shadow-black/5 dark:shadow-black/25 transition-all duration-300 hover:border-indigo-300/40 dark:hover:border-indigo-500/25 hover:shadow-black/10 dark:hover:shadow-black/40"
               >
                 <div
                   className={`pointer-events-none absolute -top-24 -right-24 h-48 w-48 rounded-full bg-gradient-to-br ${accent} blur-2xl opacity-90`}
                   aria-hidden
                 />
                 <div className="relative">
-                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100 dark:bg-indigo-900/40 ring-1 ring-indigo-200/50 dark:ring-indigo-600/30 transition-transform duration-300 group-hover:scale-[1.05]">
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100/90 dark:bg-indigo-900/35 ring-1 ring-indigo-200/60 dark:ring-indigo-600/30 transition-transform duration-300 group-hover:scale-[1.05]">
                     <Icon className="h-6 w-6 text-indigo-600 dark:text-indigo-300" strokeWidth={1.5} />
                   </div>
                   <h3 className="text-base font-semibold tracking-wide text-slate-900 dark:text-white mb-2">{title}</h3>
@@ -649,10 +658,10 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
 
           <motion.div
             {...fadeInUp}
-            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 rounded-[1.75rem] border border-dashed border-indigo-300/40 dark:border-indigo-500/25 bg-indigo-50/50 dark:bg-indigo-950/20 px-6 py-5"
+            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 rounded-[1.85rem] border border-dashed border-indigo-300/50 dark:border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/20 px-6 py-5 shadow-sm shadow-black/5 dark:shadow-black/25"
           >
             <div className="flex items-center gap-3 text-left">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/80 dark:bg-white/10 shadow-sm ring-1 ring-indigo-200/60 dark:ring-white/10">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/85 dark:bg-white/10 shadow-sm ring-1 ring-indigo-200/70 dark:ring-white/10">
                 <BellRing className="h-5 w-5 text-indigo-600 dark:text-indigo-400" strokeWidth={1.5} />
               </div>
               <div>
@@ -668,7 +677,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
             <button
               type="button"
               onClick={onLoginClick}
-              className="shrink-0 rounded-xl border border-indigo-200/80 dark:border-indigo-500/30 bg-white/90 dark:bg-slate-900/80 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-200 shadow-sm transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+              className="shrink-0 rounded-2xl border border-indigo-200/80 dark:border-indigo-500/30 bg-white/90 dark:bg-slate-900/80 px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-indigo-700 dark:text-indigo-200 shadow-sm transition hover:bg-indigo-50 dark:hover:bg-indigo-950/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F9FAFB] dark:focus-visible:ring-offset-[#050505]"
             >
               Sign in to unlock
             </button>
@@ -1180,7 +1189,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
               </Link>
             </div>
             <p className="text-sm font-medium tracking-wide text-slate-900 dark:text-white">
-              © 2026 STRATUM LLC. Registered in Delaware, USA.
+              © 2026 STRATUM LLC. Registered in Wyoming, USA.
             </p>
             <p className="text-xs font-semibold tracking-wide text-slate-500 dark:text-slate-400">
               Don&apos;t just practice. Evolve. Start your Stratum journey today.

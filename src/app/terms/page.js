@@ -51,11 +51,19 @@ export default function TermsPage() {
       </section>
 
       <section>
+        <h2>Governing law</h2>
+        <p>
+          These Terms of Service are governed by the laws of the State of Wyoming, USA, without regard
+          to conflict of law principles.
+        </p>
+      </section>
+
+      <section>
         <h2>Contact</h2>
         <p>
           For questions about these Terms of Service, contact us at{' '}
-          <a href="mailto:legal@stratum.ai" className="text-indigo-600 dark:text-indigo-400 hover:underline">
-            legal@stratum.ai
+          <a href="mailto:supportstratum@gmail.com" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            supportstratum@gmail.com
           </a>.
         </p>
       </section>

@@ -49,11 +49,19 @@ export default function PrivacyPage() {
       </section>
 
       <section>
+        <h2>Governing law</h2>
+        <p>
+          This Privacy Policy is governed by the laws of the State of Wyoming, USA, without regard to
+          conflict of law principles.
+        </p>
+      </section>
+
+      <section>
         <h2>Contact</h2>
         <p>
           If you have questions about this Privacy Policy or your data, contact us at{' '}
-          <a href="mailto:privacy@stratum.ai" className="text-indigo-600 dark:text-indigo-400 hover:underline">
-            privacy@stratum.ai
+          <a href="mailto:supportstratum@gmail.com" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            supportstratum@gmail.com
           </a>.
         </p>
       </section>
