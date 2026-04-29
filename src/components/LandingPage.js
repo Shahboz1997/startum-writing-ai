@@ -203,6 +203,16 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
   const [isSampleOpen, setIsSampleOpen] = useState(false);
   const [shareInfoOpen, setShareInfoOpen] = useState(false);
   useEffect(() => setThemeMounted(true), []);
+
+  useEffect(() => {
+    if (!isSampleOpen || typeof window === 'undefined') return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setIsSampleOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isSampleOpen]);
+
   const darkMode = themeMounted && resolvedTheme === 'dark';
 
   const shareLanding = async () => {
@@ -750,19 +760,22 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
             ))}
           </motion.div>
 
-          <motion.div {...fadeInUp} className="mt-10 sm:mt-12 flex flex-col items-center gap-4">
+          <motion.div
+            {...fadeInUp}
+            className="mt-10 sm:mt-12 flex flex-col items-stretch sm:items-center gap-3 sm:gap-4 w-full"
+          >
             <button
               type="button"
               onClick={() => setIsSampleOpen(true)}
-              className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 text-white px-6 py-3 text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-slate-800 hover:shadow-[0_0_25px_rgba(79,70,229,0.22)] active:scale-[0.98]"
+              className="group w-full sm:w-auto sm:max-w-none max-w-md mx-auto inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1.5 rounded-2xl bg-slate-900 text-white px-5 sm:px-6 py-3 sm:py-3.5 text-[11px] sm:text-xs font-black uppercase tracking-[0.18em] sm:tracking-[0.2em] text-center transition-all hover:bg-slate-800 hover:shadow-[0_0_25px_rgba(79,70,229,0.22)] active:scale-[0.98]"
             >
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/10 border border-white/10 group-hover:border-indigo-300/40 transition-colors">
-                <Download className="w-4 h-4 text-indigo-300" />
+              <span className="inline-flex items-center justify-center w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-white/10 border border-white/10 group-hover:border-indigo-300/40 transition-colors">
+                <Download className="w-4 h-4 sm:w-4 sm:h-4 text-indigo-300" />
               </span>
               Download Sample Strata
-              <ArrowRight className="w-4 h-4 opacity-70 group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight className="w-4 h-4 sm:w-4 sm:h-4 opacity-70 group-hover:translate-x-0.5 transition-transform" />
             </button>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-wide text-center max-w-xl">
+            <p className="px-2 text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide text-center max-w-xl">
               Preview the STRATUM report format + audio model interface before you generate your first check.
             </p>
           </motion.div>
@@ -771,7 +784,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
         <AnimatePresence>
           {isSampleOpen && (
             <motion.div
-              className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8 bg-black/40 backdrop-blur-sm"
+              className="fixed inset-0 z-50 flex items-start sm:items-center justify-center px-4 py-6 sm:py-8 bg-black/40 backdrop-blur-sm overflow-y-auto"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -784,10 +797,10 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 18, scale: 0.98 }}
                 transition={{ ease: appleEase, duration: 0.35 }}
-                className="w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 backdrop-blur-xl shadow-2xl shadow-black/40"
+                className="w-full max-w-3xl max-h-[calc(100vh-3rem)] sm:max-h-[calc(100vh-4rem)] flex flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/70 backdrop-blur-xl shadow-2xl shadow-black/40"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-950/85 backdrop-blur-xl">
                   <div className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.6)]" />
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/80">
@@ -804,101 +817,103 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-                  {/* Mock PDF */}
-                  <div className="p-6 border-b md:border-b-0 md:border-r border-white/10">
-                    <div className="flex items-center justify-between mb-4">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Mock PDF</p>
-                      <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-white/70">
-                        STRATUM_REPORT.pdf
-                      </span>
+                <div className="overflow-y-auto overscroll-contain">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+                    {/* Mock PDF */}
+                    <div className="p-6 border-b md:border-b-0 md:border-r border-white/10">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Mock PDF</p>
+                        <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-white/70">
+                          STRATUM_REPORT.pdf
+                        </span>
+                      </div>
+                      <div className="aspect-[4/5] rounded-2xl bg-white/5 border border-white/10 overflow-hidden relative">
+                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(99,102,241,0.25)_0%,transparent_55%)]" aria-hidden />
+                        <div className="p-5 space-y-3">
+                          <div className="h-3 w-2/3 rounded bg-white/10" />
+                          <div className="h-2 w-full rounded bg-white/10" />
+                          <div className="h-2 w-11/12 rounded bg-white/10" />
+                          <div className="h-2 w-10/12 rounded bg-white/10" />
+                          <div className="mt-4 h-24 rounded-xl bg-white/5 border border-white/10" />
+                          <div className="h-2 w-9/12 rounded bg-white/10" />
+                          <div className="h-2 w-full rounded bg-white/10" />
+                        </div>
+                        <div className="absolute bottom-4 right-4 px-2 py-1 rounded-lg bg-slate-900/60 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/70">
+                          Page 1/3
+                        </div>
+                      </div>
                     </div>
-                    <div className="aspect-[4/5] rounded-2xl bg-white/5 border border-white/10 overflow-hidden relative">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(99,102,241,0.25)_0%,transparent_55%)]" aria-hidden />
-                      <div className="p-5 space-y-3">
-                        <div className="h-3 w-2/3 rounded bg-white/10" />
-                        <div className="h-2 w-full rounded bg-white/10" />
-                        <div className="h-2 w-11/12 rounded bg-white/10" />
-                        <div className="h-2 w-10/12 rounded bg-white/10" />
-                        <div className="mt-4 h-24 rounded-xl bg-white/5 border border-white/10" />
-                        <div className="h-2 w-9/12 rounded bg-white/10" />
-                        <div className="h-2 w-full rounded bg-white/10" />
-                      </div>
-                      <div className="absolute bottom-4 right-4 px-2 py-1 rounded-lg bg-slate-900/60 border border-white/10 text-[10px] font-black uppercase tracking-widest text-white/70">
-                        Page 1/3
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Mock MP3 */}
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Mock MP3</p>
-                      <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-white/70">
-                        STRATUM_MODEL.mp3
-                      </span>
-                    </div>
-                    <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center">
-                          <Headphones className="w-5 h-5 text-indigo-300" strokeWidth={1.5} />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs font-semibold text-white/90">Band 9.0 Model Voice</p>
-                          <p className="text-[11px] text-white/60">Shadowing-ready pacing &amp; intonation</p>
-                        </div>
-                        <button
-                          type="button"
-                          className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-400/20 text-white hover:bg-indigo-500/25 transition-colors"
-                          aria-label="Play sample"
-                        >
-                          <Volume2 className="w-5 h-5" strokeWidth={1.5} />
-                        </button>
+                    {/* Mock MP3 */}
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Mock MP3</p>
+                        <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-bold text-white/70">
+                          STRATUM_MODEL.mp3
+                        </span>
                       </div>
-
-                      <div className="mt-5 rounded-2xl bg-slate-900/40 border border-white/10 p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">
-                            Audio strata bar
-                          </span>
-                          <span className="text-[10px] font-bold text-white/60">00:15 / 00:45</span>
+                      <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center">
+                            <Headphones className="w-5 h-5 text-indigo-300" strokeWidth={1.5} />
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-white/90">Band 9.0 Model Voice</p>
+                            <p className="text-[11px] text-white/60">Shadowing-ready pacing &amp; intonation</p>
+                          </div>
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-400/20 text-white hover:bg-indigo-500/25 transition-colors"
+                            aria-label="Play sample"
+                          >
+                            <Volume2 className="w-5 h-5" strokeWidth={1.5} />
+                          </button>
                         </div>
-                        <div className="flex items-end gap-[2px] h-8 rounded-2xl bg-white/5 border border-white/10 px-2 overflow-hidden">
-                          {Array.from({ length: 34 }, (_, i) => {
-                            const v = Math.abs(Math.sin(i * 0.92 + 0.7));
-                            const h = 0.28 + v * 0.72;
-                            const filled = i < 12;
-                            return (
-                              <span
-                                key={i}
-                                className={filled ? 'bg-indigo-400/90' : 'bg-white/20'}
-                                style={{
-                                  width: 3,
-                                  height: `${Math.round(h * 100)}%`,
-                                  borderRadius: 999,
-                                }}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
 
-                      <div className="mt-4 flex flex-col sm:flex-row gap-3">
-                        <button
-                          type="button"
-                          className="btn-stratum w-full py-3 rounded-2xl flex items-center justify-center gap-2"
-                          onClick={onFullAnalysisClick}
-                        >
-                          <div className="shimmer-layer animate-shimmer" aria-hidden />
-                          <span className="btn-stratum-text">GET STARTED · STRATUM</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-colors"
-                          onClick={() => setIsSampleOpen(false)}
-                        >
-                          Close
-                        </button>
+                        <div className="mt-5 rounded-2xl bg-slate-900/40 border border-white/10 p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">
+                              Audio strata bar
+                            </span>
+                            <span className="text-[10px] font-bold text-white/60">00:15 / 00:45</span>
+                          </div>
+                          <div className="flex items-end gap-[2px] h-8 rounded-2xl bg-white/5 border border-white/10 px-2 overflow-hidden">
+                            {Array.from({ length: 34 }, (_, i) => {
+                              const v = Math.abs(Math.sin(i * 0.92 + 0.7));
+                              const h = 0.28 + v * 0.72;
+                              const filled = i < 12;
+                              return (
+                                <span
+                                  key={i}
+                                  className={filled ? 'bg-indigo-400/90' : 'bg-white/20'}
+                                  style={{
+                                    width: 3,
+                                    height: `${Math.round(h * 100)}%`,
+                                    borderRadius: 999,
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                          <button
+                            type="button"
+                            className="btn-stratum w-full py-3 rounded-2xl flex items-center justify-center gap-2"
+                            onClick={onFullAnalysisClick}
+                          >
+                            <div className="shimmer-layer animate-shimmer" aria-hidden />
+                            <span className="btn-stratum-text">GET STARTED · STRATUM</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/80 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-colors"
+                            onClick={() => setIsSampleOpen(false)}
+                          >
+                            Close
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
