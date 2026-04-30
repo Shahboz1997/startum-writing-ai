@@ -9,7 +9,7 @@
 export function ensureAuthPublicUrl() {
   if (typeof process === "undefined") return;
 
-  const raw = (process.env.AUTH_URL || process.env.NEXTAUTH_URL || "").replace(/^\uFEFF/, "").trim();
+  const raw = normalizeEnvOrigin(process.env.AUTH_URL || process.env.NEXTAUTH_URL || "");
   // In production (e.g. Vercel), AUTH_URL/NEXTAUTH_URL is sometimes not set.
   // Prefer the platform-provided public hostname, but never override an explicit setting.
   if (!raw) {
@@ -53,4 +53,21 @@ export function ensureAuthPublicUrl() {
       process.env.NEXTAUTH_URL = base;
     }
   }
+}
+
+function normalizeEnvOrigin(value) {
+  // Common local dev mistakes:
+  // - accidental leading ":" (e.g. ":NEXTAUTH_URL=...")
+  // - trailing notes like "http://localhost:3000 (dev)"
+  // - copying full URLs with paths (/api/auth) instead of origin
+  const raw = String(value ?? "").replace(/^\uFEFF/, "").trim().replace(/^:+/, "");
+  if (!raw) return "";
+  const firstToken = raw.split(/\s+/)[0] || "";
+  const withoutParens = firstToken.split("(")[0] || firstToken;
+  let cleaned = withoutParens.trim().replace(/\/+$/, "");
+  if (!cleaned) return "";
+  if (cleaned.endsWith("/api/auth")) {
+    cleaned = cleaned.slice(0, -"/api/auth".length).replace(/\/+$/, "");
+  }
+  return cleaned;
 }

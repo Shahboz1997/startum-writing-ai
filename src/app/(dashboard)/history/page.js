@@ -10,10 +10,13 @@ export default async function HistoryPage() {
   let dbError = null;
   try {
     const prisma = getPrisma();
+    // History list can get heavy fast (content + JSON feedback). Keep it snappy and avoid dev "cold DB" flakiness.
+    const TAKE = 75;
+    const DB_TIMEOUT_MS = 25_000;
     const query = prisma.check.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: 'desc' },
-      take: 200,
+      take: TAKE,
       select: {
         id: true,
         content: true,
@@ -28,7 +31,7 @@ export default async function HistoryPage() {
     initialChecks = await Promise.race([
       query,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Database query timed out")), 12000)
+        setTimeout(() => reject(new Error("Database query timed out")), DB_TIMEOUT_MS)
       ),
     ]);
   } catch (err) {

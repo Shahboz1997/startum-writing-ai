@@ -142,8 +142,8 @@ export default function SettingsClient({ user, reminders }) {
         </div>
         <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
           {isRu
-            ? "Нужны CRON_SECRET и EMAIL_USER / EMAIL_PASS на сервере. Cron: каждые 15 минут."
-            : "Requires CRON_SECRET and EMAIL_USER / EMAIL_PASS on the server. Cron runs every 15 minutes."}
+            ? "Напоминания отправляются с сервера по расписанию. Если письмо не приходит в выбранное время, значит расписание на хостинге ограничено — подключите внешний планировщик или используйте тариф/настройку с более частыми запусками."
+            : "Reminders are sent from the server on a schedule. If emails don’t arrive at the selected time, the hosting schedule is likely limited — use an external scheduler or a plan/config that runs more frequently."}
         </p>
 
         <label className="flex items-center gap-3 cursor-pointer mb-4">
