@@ -53,13 +53,12 @@ export const metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.png', type: 'image/png', sizes: '32x32' },
-      { url: '/favicon.png', type: 'image/png', sizes: '48x48' },
-      { url: '/favicon.png', type: 'image/png', sizes: '96x96' },
-      { url: '/favicon.png', type: 'image/png', sizes: '192x192' },
+      { url: '/favicon.ico', type: 'image/x-icon' },
+      { url: '/favicon-16x16.png', type: 'image/png', sizes: '16x16' },
+      { url: '/favicon-32x32.png', type: 'image/png', sizes: '32x32' },
       { url: '/favicon.png', type: 'image/png', sizes: '512x512' },
     ],
-    shortcut: [{ url: '/favicon.png', type: 'image/png', sizes: '48x48' }],
+    shortcut: [{ url: '/favicon.ico', type: 'image/x-icon' }],
     apple: [{ url: '/favicon.png', type: 'image/png', sizes: '180x180' }],
   },
   robots: { index: true, follow: true },
