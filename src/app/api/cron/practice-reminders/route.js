@@ -30,9 +30,12 @@ export async function GET(request) {
   const secret = process.env.CRON_SECRET;
   const authHeader = request.headers.get('authorization');
   const q = request.nextUrl.searchParams.get('secret');
+  // Vercel Cron calls this endpoint without custom headers/query.
+  // It sets `x-vercel-cron: 1`, so we can trust that in production.
+  const isVercelCron = request.headers.get('x-vercel-cron') === '1';
   const ok =
-    secret &&
-    (authHeader === `Bearer ${secret}` || (q && q === secret));
+    isVercelCron ||
+    (secret && (authHeader === `Bearer ${secret}` || (q && q === secret)));
   if (!ok) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
