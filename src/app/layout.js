@@ -52,9 +52,15 @@ export const metadata = {
     images: ['/og-image.png'],
   },
   icons: {
-    icon: '/icon.png',
-    shortcut: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    icon: [
+      { url: '/favicon.png', type: 'image/png', sizes: '32x32' },
+      { url: '/favicon.png', type: 'image/png', sizes: '48x48' },
+      { url: '/favicon.png', type: 'image/png', sizes: '96x96' },
+      { url: '/favicon.png', type: 'image/png', sizes: '192x192' },
+      { url: '/favicon.png', type: 'image/png', sizes: '512x512' },
+    ],
+    shortcut: [{ url: '/favicon.png', type: 'image/png', sizes: '48x48' }],
+    apple: [{ url: '/favicon.png', type: 'image/png', sizes: '180x180' }],
   },
   robots: { index: true, follow: true },
 };
