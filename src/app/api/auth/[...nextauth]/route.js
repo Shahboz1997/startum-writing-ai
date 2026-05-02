@@ -5,9 +5,10 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-// import { ensureAuthPublicUrl } from "@/lib/ensureAuthPublicUrl";
+import { ensureAuthPublicUrl } from "@/lib/ensureAuthPublicUrl";
 
-// ensureAuthPublicUrl();
+// Vercel: set AUTH_URL/NEXTAUTH_URL from VERCEL_URL when unset — avoids Auth.js error=Configuration
+ensureAuthPublicUrl();
 
 // Force dynamic so env vars are read at request time (avoids stale/empty secret)
 export const dynamic = "force-dynamic";
