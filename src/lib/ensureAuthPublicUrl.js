@@ -1,42 +1,121 @@
 /**
  * Auth.js v5: AUTH_URL / NEXTAUTH_URL must be the **site origin only** (e.g. http://localhost:3000).
- * Any path (including /api/auth or /en) makes next-auth/lib/env.js derive a wrong basePath → error=Configuration.
+ * Any path (including /api/auth or /en) makes next-auth derive a wrong basePath → error=Configuration.
  *
  * Do **not** auto-set localhost when unset: Next may show Network as http://10.x.x.x:3000; forcing localhost
  * breaks OAuth PKCE cookies when the browser uses the LAN IP (reqWithEnvURL vs real Host mismatch).
  * Set AUTH_URL explicitly to the origin you open in the browser (localhost or IP), and add that redirect URI in Google Cloud.
  */
+
+function stripTrailingSlashes(s) {
+  return String(s ?? "").replace(/\/+$/, "");
+}
+
+/** Host or origin → https://host (no path). */
+function toHttpsOrigin(hostOrUrl) {
+  let h = String(hostOrUrl ?? "").trim().replace(/^\uFEFF/, "").replace(/^:+/, "");
+  if (!h) return "";
+  h = h.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  const hostOnly = h.split("/")[0] || "";
+  if (!hostOnly) return "";
+  return `https://${hostOnly}`;
+}
+
+function parseOriginOnly(raw) {
+  const cleaned = normalizeEnvOrigin(raw);
+  if (!cleaned) return "";
+  const hasProto = /^https?:\/\//i.test(cleaned);
+  const withProto = hasProto
+    ? cleaned
+    : /^(localhost|127\.0\.0\.1)(:\d+)?/i.test(cleaned.trim())
+      ? `http://${cleaned}`
+      : `https://${cleaned}`;
+  try {
+    const u = new URL(withProto);
+    return stripTrailingSlashes(`${u.protocol}//${u.host}`);
+  } catch {
+    let base = cleaned.replace(/\/+$/, "");
+    if (base.endsWith("/api/auth")) {
+      base = base.slice(0, -"/api/auth".length).replace(/\/+$/, "");
+    }
+    if (/^https?:\/\//i.test(base)) {
+      try {
+        const u = new URL(base);
+        return stripTrailingSlashes(`${u.protocol}//${u.host}`);
+      } catch {
+        return "";
+      }
+    }
+    return "";
+  }
+}
+
+/**
+ * Best public origin for this Vercel deployment (when env vars omit AUTH_URL).
+ * Preview: always the current deployment host (VERCEL_URL).
+ * Production: custom production host if Vercel exposes it, else deployment URL.
+ */
+function getVercelSuggestedOrigin() {
+  if (!process.env.VERCEL) return "";
+  const vercelEnv = process.env.VERCEL_ENV || "";
+  const deploymentOrigin = toHttpsOrigin(process.env.VERCEL_URL || "");
+  if (vercelEnv === "preview") {
+    return deploymentOrigin;
+  }
+  const prodRaw = (process.env.VERCEL_PROJECT_PRODUCTION_URL || "").trim();
+  if (prodRaw) {
+    const fromEnv = parseOriginOnly(prodRaw);
+    if (fromEnv) return fromEnv;
+  }
+  return deploymentOrigin;
+}
+
 export function ensureAuthPublicUrl() {
   if (typeof process === "undefined") return;
 
   const raw = normalizeEnvOrigin(process.env.AUTH_URL || process.env.NEXTAUTH_URL || "");
-  // In production (e.g. Vercel), AUTH_URL/NEXTAUTH_URL is sometimes not set.
-  // Prefer the platform-provided public hostname, but never override an explicit setting.
-  if (!raw) {
-    const vercel = (process.env.VERCEL_URL || "").trim();
-    if (vercel) {
-      const originOnly = `https://${vercel.replace(/^https?:\/\//i, "").replace(/\/+$/, "")}`;
-      process.env.AUTH_URL = originOnly;
-      process.env.NEXTAUTH_URL = originOnly;
+  const vercelSuggested = getVercelSuggestedOrigin();
+
+  // Preview (or any Vercel deploy): production NEXTAUTH_URL (e.g. stratum.ai) breaks OAuth on *.vercel.app
+  if (vercelSuggested && process.env.VERCEL_ENV === "preview" && raw) {
+    const configured = parseOriginOnly(raw);
+    if (configured) {
+      try {
+        const want = new URL(vercelSuggested).host;
+        const have = new URL(configured).host;
+        if (have !== want) {
+          process.env.AUTH_URL = vercelSuggested;
+          process.env.NEXTAUTH_URL = vercelSuggested;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  const effectiveRaw = normalizeEnvOrigin(process.env.AUTH_URL || process.env.NEXTAUTH_URL || "");
+
+  if (!effectiveRaw) {
+    if (vercelSuggested) {
+      process.env.AUTH_URL = vercelSuggested;
+      process.env.NEXTAUTH_URL = vercelSuggested;
     }
     return;
   }
 
   try {
-    const hasProto = /^https?:\/\//i.test(raw);
+    const hasProto = /^https?:\/\//i.test(effectiveRaw);
     const withProto = hasProto
-      ? raw
-      : /^(localhost|127\.0\.0\.1)(:\d+)?/i.test(raw.trim())
-        ? `http://${raw}`
-        : `https://${raw}`;
+      ? effectiveRaw
+      : /^(localhost|127\.0\.0\.1)(:\d+)?/i.test(effectiveRaw.trim())
+        ? `http://${effectiveRaw}`
+        : `https://${effectiveRaw}`;
     const u = new URL(withProto);
-    const originOnly = `${u.protocol}//${u.host}`;
-    // If deployed on Vercel but env mistakenly points to localhost,
-    // override to the real public hostname to avoid Auth.js Configuration errors.
+    const originOnly = stripTrailingSlashes(`${u.protocol}//${u.host}`);
     const vercel = (process.env.VERCEL_URL || "").trim();
     const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(originOnly);
     if (vercel && isLocalhost && process.env.NODE_ENV !== "development") {
-      const vercelOrigin = `https://${vercel.replace(/^https?:\/\//i, "").replace(/\/+$/, "")}`;
+      const vercelOrigin = toHttpsOrigin(vercel);
       process.env.AUTH_URL = vercelOrigin;
       process.env.NEXTAUTH_URL = vercelOrigin;
     } else {
@@ -44,7 +123,7 @@ export function ensureAuthPublicUrl() {
       process.env.NEXTAUTH_URL = originOnly;
     }
   } catch {
-    let base = raw.replace(/\/+$/, "");
+    let base = effectiveRaw.replace(/\/+$/, "");
     if (base.endsWith("/api/auth")) {
       base = base.slice(0, -"/api/auth".length).replace(/\/+$/, "");
     }
@@ -56,10 +135,6 @@ export function ensureAuthPublicUrl() {
 }
 
 function normalizeEnvOrigin(value) {
-  // Common local dev mistakes:
-  // - accidental leading ":" (e.g. ":NEXTAUTH_URL=...")
-  // - trailing notes like "http://localhost:3000 (dev)"
-  // - copying full URLs with paths (/api/auth) instead of origin
   const raw = String(value ?? "").replace(/^\uFEFF/, "").trim().replace(/^:+/, "");
   if (!raw) return "";
   const firstToken = raw.split(/\s+/)[0] || "";

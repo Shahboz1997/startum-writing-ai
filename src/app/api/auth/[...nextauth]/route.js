@@ -1,3 +1,4 @@
+import util from "node:util";
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -6,8 +7,8 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { getPrisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { ensureAuthPublicUrl } from "@/lib/ensureAuthPublicUrl";
+import { formatAuthErrorCause } from "@/lib/formatAuthErrorCause";
 
-// Vercel: set AUTH_URL/NEXTAUTH_URL from VERCEL_URL when unset — avoids Auth.js error=Configuration
 ensureAuthPublicUrl();
 
 // Force dynamic so env vars are read at request time (avoids stale/empty secret)
@@ -48,7 +49,21 @@ export const authOptions = {
   adapter: PrismaAdapter(getPrisma()),
   logger: {
     error(code, ...message) {
-      console.error("[auth] error", code, ...message);
+      const extra = message
+        .map((m) => {
+          if (m instanceof Error) return formatAuthErrorCause(m);
+          if (m != null && typeof m === "object") {
+            try {
+              return formatAuthErrorCause(m);
+            } catch {
+              return String(m);
+            }
+          }
+          return String(m);
+        })
+        .filter(Boolean)
+        .join(" | ");
+      console.error("[auth] error", code, extra || message.join(" "));
     },
     warn(code, ...message) {
       console.warn("[auth] warn", code, ...message);
@@ -66,6 +81,8 @@ export const authOptions = {
   providers: [
     ...(googleClientId && googleClientSecret
       ? [
+          // The name Google shows on the consent screen (e.g. fix "iltes-app" → "ielts-app" / "STRATUM.ai")
+          // is NOT set here — edit Google Cloud Console → APIs & Services → OAuth consent screen → App name.
           GoogleProvider({
             clientId: googleClientId,
             clientSecret: googleClientSecret,
@@ -323,6 +340,22 @@ function jsonError(message, status = 500) {
   return NextResponse.json({ error: message }, { status });
 }
 
+function logHandlerError(routeLabel, err) {
+  const chain = formatAuthErrorCause(err);
+  console.error(`[auth] ${routeLabel}:`, chain || err?.message || String(err));
+  if (isDev) {
+    console.error(
+      `[auth] ${routeLabel} (inspect):`,
+      util.inspect(err, { depth: 15, colors: false, breakLength: 100 })
+    );
+  }
+}
+
+function chainOrAuthMessage(err) {
+  const c = formatAuthErrorCause(err);
+  return c && c.trim().length > 0 ? c : err?.message ?? "Authentication error";
+}
+
 /**
  * Auth.js catches many failures and redirects to /api/auth/error?error=Configuration (no throw).
  * After OAuth callback, recover by clearing cookies so the user can retry (fixes PKCE / host mismatch).
@@ -345,8 +378,18 @@ function shouldRecoverOAuthCallbackRedirect(request, response) {
 
 // App Router requires named GET and POST exports; delegate to NextAuth handlers
 export async function GET(request) {
+  const t0 = Date.now();
+  const isOAuthCallback = request.nextUrl.pathname.includes("/callback/");
   try {
     const res = await handlers.GET(request);
+    if (isOAuthCallback) {
+      console.log(
+        "[auth] OAuth callback timing:",
+        request.nextUrl.pathname,
+        `${Date.now() - t0}ms`,
+        res.status
+      );
+    }
     // Don't silently swallow Configuration errors on OAuth callbacks.
     // Let Auth.js redirect to our custom /auth/error page so the real cause is visible in production.
     return res;
@@ -365,8 +408,17 @@ export async function GET(request) {
       }
       return clearAuthCookiesAndRedirect(request);
     }
-    if (isDev) console.error("[auth] GET error:", err?.message ?? err);
-    return jsonError(err?.message ?? "Authentication error");
+    if (isOAuthCallback) {
+      console.warn(
+        "[auth] OAuth callback error after",
+        `${Date.now() - t0}ms`,
+        request.nextUrl.pathname
+      );
+    }
+    logHandlerError("GET unhandled", err);
+    return jsonError(
+      isDev ? chainOrAuthMessage(err) : "Authentication error"
+    );
   }
 }
 
@@ -388,8 +440,10 @@ export async function POST(request) {
       }
       return clearAuthCookiesAndRedirect(request);
     }
-    if (isDev) console.error("[auth] POST error:", err?.message ?? err);
-    return jsonError(err?.message ?? "Authentication error");
+    logHandlerError("POST unhandled", err);
+    return jsonError(
+      isDev ? chainOrAuthMessage(err) : "Authentication error"
+    );
   }
 }
 

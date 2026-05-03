@@ -17,12 +17,6 @@ const withPWA = withPWAInit({
   },
 });
 
-function normalizeAllowedOrigin(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return null;
-  return raw.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ['@prisma/client', 'prisma', 'pg'],
@@ -34,14 +28,7 @@ const nextConfig = {
     cpus: 1,
     
     serverActions: {
-      allowedOrigins: [
-        "10.165.239.173",
-        "10.187.95.173",
-        "localhost:3000",
-        // Vercel provides the public hostname without protocol.
-        // If it's not allowed, Server Actions will respond 403 Forbidden in production.
-        normalizeAllowedOrigin(process.env.VERCEL_URL),
-      ].filter(Boolean),
+      allowedOrigins: ["10.165.239.173", "10.187.95.173", "localhost:3000"],
     },
   },
   

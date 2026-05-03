@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, User, AlertTriangle } from 'lucide-react';
 import { signIn, getProviders } from 'next-auth/react';
-import { ErrorState } from '@/components/stratum'; 
+import { ErrorState } from '@/components/stratum';
+import { clientApiUrl } from '@/lib/clientApiUrl'; 
 
 const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -61,7 +62,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
         if (res?.error) {
           // Try to differentiate: account not found vs Google-only vs wrong password.
           try {
-            const stRes = await fetch('/api/auth/credentials-status', {
+            const stRes = await fetch(clientApiUrl('/api/auth/credentials-status'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email: normalizedEmail }),
@@ -93,7 +94,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
     } else {
       // --- РЕГИСТРАЦИЯ ---
       try {
-        const res = await fetch('/api/register', {
+        const res = await fetch(clientApiUrl('/api/register'), {
           method: 'POST',
           body: JSON.stringify({
             email: normalizedEmail,
@@ -250,12 +251,17 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
 
               <button
                 type="button"
-                onClick={() =>
-                  signIn('google', {
+                onClick={async () => {
+                  try {
+                    await fetch(clientApiUrl("/api/auth/warm-db"), { cache: "no-store" });
+                  } catch {
+                    /* best-effort: still try Google */
+                  }
+                  signIn("google", {
                     // Relative URL: same tab origin as the OAuth redirect (avoids localhost vs 127.0.0.1 / LAN IP mismatches).
-                    callbackUrl: '/',
-                  })
-                }
+                    callbackUrl: "/",
+                  });
+                }}
                 className="w-full min-h-[44px] flex items-center justify-center gap-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-100 dark:border-slate-700 text-slate-800 dark:text-white font-medium py-4 rounded-xl transition-all"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">

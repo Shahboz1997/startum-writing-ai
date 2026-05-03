@@ -1,9 +1,13 @@
+import { ensureAuthPublicUrl } from '@/lib/ensureAuthPublicUrl';
+
 /**
  * Runs once when the Next.js server starts. Use for startup logging (e.g. env checks).
  * OPENAI_API_KEY is only read here for logging; actual usage is in app/api/... routes only.
  */
 export function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
+
+  ensureAuthPublicUrl();
 
   const apiKey = (process.env.OPENAI_API_KEY || '').trim();
   const status = apiKey.length > 0 ? 'loaded' : 'missing';
@@ -15,4 +19,13 @@ export function register() {
 
   console.log('[Server start] OPENAI_API_KEY:', status);
   console.log('[Server start] OpenAI baseURL:', baseURLNormalized);
+
+  if ((process.env.DATABASE_URL || process.env.DIRECT_URL || "").trim()) {
+    void import("@/lib/prisma")
+      .then(({ getPrisma }) => getPrisma().$queryRaw`SELECT 1`)
+      .then(() => console.log("[Server start] DB: reachable"))
+      .catch((e) =>
+        console.warn("[Server start] DB warmup failed:", e?.message ?? e)
+      );
+  }
 }

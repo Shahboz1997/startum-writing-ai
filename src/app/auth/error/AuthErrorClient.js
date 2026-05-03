@@ -11,7 +11,7 @@ function humanizeAuthError(code) {
     return "Auth configuration error. This usually means missing/incorrect environment variables (AUTH_URL/NEXTAUTH_URL, AUTH_SECRET/NEXTAUTH_SECRET, Google credentials) or a host/redirect mismatch.";
   }
   if (c === "OAuthSignin" || c === "OAuthCallback") {
-    return "OAuth sign-in failed. Check Google OAuth redirect URI and AUTH_URL/NEXTAUTH_URL.";
+    return "OAuth sign-in failed. Check Google redirect URI and AUTH_URL, DATABASE_URL / Prisma (adapter errors), and the server log line \"[auth] error\" for the underlying cause.";
   }
   if (c === "OAuthAccountNotLinked") {
     return "This email is already registered with a different sign-in method. Use the same method you used originally.";
