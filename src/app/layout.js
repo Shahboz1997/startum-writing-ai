@@ -3,6 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { Providers } from "../components/Providers";
+import { getMetadataBaseUrl } from "@/lib/publicSiteUrl";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -13,7 +14,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const baseUrl = process.env.NODE_ENV === 'development' ? 'http://localhost:3000' : 'https://stratum.ai';
+const baseUrl = getMetadataBaseUrl();
 
 export const metadata = {
   metadataBase: new URL(baseUrl),

@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 import { notFound } from "next/navigation";
 import { getPrisma } from "@/lib/prisma";
 import { verifyShareToken } from "@/lib/shareToken";
+import { resolvePublicSiteOrigin } from "@/lib/publicSiteUrl";
 import CompareDraftRewrite from "./CompareDraftRewrite";
 
 function safeJsonParse(str) {
@@ -145,13 +146,7 @@ export default async function SharePage({ params }) {
   const hasT1 = tasks.some((t) => t.type === "TASK_1");
   const hasT2 = tasks.some((t) => t.type === "TASK_2");
 
-  // Avoid hardcoding a specific *.vercel.app deployment host; deployments can be deleted/renamed,
-  // which makes old hosts return platform errors like DEPLOYMENT_NOT_FOUND.
-  const publicBase =
-    (process.env.NEXT_PUBLIC_APP_URL || "").trim() ||
-    (process.env.AUTH_URL || "").trim() ||
-    (process.env.NEXTAUTH_URL || "").trim() ||
-    (process.env.VERCEL_URL ? `https://${String(process.env.VERCEL_URL).trim()}` : "");
+  const publicBase = resolvePublicSiteOrigin();
 
   const qs = new URLSearchParams();
   if (ref) qs.set("ref", ref);

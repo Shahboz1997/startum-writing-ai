@@ -81,7 +81,7 @@ export const authOptions = {
   providers: [
     ...(googleClientId && googleClientSecret
       ? [
-          // The name Google shows on the consent screen (e.g. fix "iltes-app" → "ielts-app" / "STRATUM.ai")
+          // The name Google shows on the consent screen (e.g. "STRATUM.ai")
           // is NOT set here — edit Google Cloud Console → APIs & Services → OAuth consent screen → App name.
           GoogleProvider({
             clientId: googleClientId,
