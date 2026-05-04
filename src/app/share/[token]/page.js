@@ -144,11 +144,19 @@ export default async function SharePage({ params }) {
 
   const hasT1 = tasks.some((t) => t.type === "TASK_1");
   const hasT2 = tasks.some((t) => t.type === "TASK_2");
-  const vercelBase = "https://my-ielts-app-omega.vercel.app";
+
+  // Avoid hardcoding a specific *.vercel.app deployment host; deployments can be deleted/renamed,
+  // which makes old hosts return platform errors like DEPLOYMENT_NOT_FOUND.
+  const publicBase =
+    (process.env.NEXT_PUBLIC_APP_URL || "").trim() ||
+    (process.env.AUTH_URL || "").trim() ||
+    (process.env.NEXTAUTH_URL || "").trim() ||
+    (process.env.VERCEL_URL ? `https://${String(process.env.VERCEL_URL).trim()}` : "");
+
   const qs = new URLSearchParams();
   if (ref) qs.set("ref", ref);
   qs.set("landing", "1");
-  const landingHref = `${vercelBase}/?${qs.toString()}`;
+  const landingHref = publicBase ? `${publicBase}/?${qs.toString()}` : `/?${qs.toString()}`;
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
