@@ -2,6 +2,18 @@ import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { getPrisma } from "@/lib/prisma";
 import HistoryClientWrapper from "@/components/dashboard/HistoryClientWrapper";
 
+function isTransientDbError(err) {
+  const msg = String(err?.message || "").toLowerCase();
+  return (
+    msg.includes("connection terminated unexpectedly") ||
+    msg.includes("server has closed the connection") ||
+    msg.includes("tls") ||
+    msg.includes("self-signed certificate") ||
+    msg.includes("timeout") ||
+    msg.includes("econnreset")
+  );
+}
+
 export default async function HistoryPage() {
   const session = await auth();
   if (!session?.user?.id) return null;
@@ -12,28 +24,43 @@ export default async function HistoryPage() {
     const prisma = getPrisma();
     // History list can get heavy fast (content + JSON feedback). Keep it snappy and avoid dev "cold DB" flakiness.
     const TAKE = 75;
-    const DB_TIMEOUT_MS = 25_000;
-    const query = prisma.check.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: 'desc' },
-      take: TAKE,
-      select: {
-        id: true,
-        content: true,
-        promptText: true,
-        score: true,
-        createdAt: true,
-        type: true,
-        feedback: true,
-      },
-    });
+    const DB_TIMEOUT_MS = 35_000;
+    const runQuery = () =>
+      prisma.check.findMany({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "desc" },
+        take: TAKE,
+        select: {
+          id: true,
+          content: true,
+          promptText: true,
+          score: true,
+          createdAt: true,
+          type: true,
+          feedback: true,
+        },
+      });
 
-    initialChecks = await Promise.race([
-      query,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Database query timed out")), DB_TIMEOUT_MS)
-      ),
-    ]);
+    async function withTimeout(promise, ms) {
+      return await Promise.race([
+        promise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Database query timed out")), ms)
+        ),
+      ]);
+    }
+
+    try {
+      initialChecks = await withTimeout(runQuery(), DB_TIMEOUT_MS);
+    } catch (e) {
+      // One retry helps with transient PgBouncer/VPN drops.
+      if (isTransientDbError(e)) {
+        await new Promise((r) => setTimeout(r, 350));
+        initialChecks = await withTimeout(runQuery(), DB_TIMEOUT_MS);
+      } else {
+        throw e;
+      }
+    }
   } catch (err) {
     console.error("History DB error:", err);
     dbError = err?.message || "Database unavailable";

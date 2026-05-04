@@ -106,6 +106,12 @@ export const authOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        function looksLikeBcryptHash(value) {
+          const v = String(value ?? "");
+          // bcrypt prefixes: $2a$, $2b$, $2y$
+          return /^\$2[aby]\$\d{2}\$/.test(v);
+        }
+
         const email = credentials?.email?.trim().toLowerCase();
         const password = credentials?.password;
 
@@ -119,7 +125,28 @@ export const authOptions = {
         // Если пользователя нет или он зашел через Google (нет пароля в базе)
         if (!user || !user.password) return null;
 
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+        const stored = String(user.password ?? "");
+        let isPasswordValid = false;
+
+        if (looksLikeBcryptHash(stored)) {
+          isPasswordValid = await bcrypt.compare(String(password), stored);
+        } else {
+          // Backward compatibility: old accounts may have plain text passwords.
+          isPasswordValid = String(password) === stored;
+          // If the plain password matched, upgrade to bcrypt hash.
+          if (isPasswordValid) {
+            try {
+              const hashed = await bcrypt.hash(String(password), 10);
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { password: hashed },
+              });
+            } catch {
+              // best-effort: do not block login if upgrade fails
+            }
+          }
+        }
+
         if (!isPasswordValid) return null;
 
         return {

@@ -56,6 +56,21 @@ function ensureSupabaseDefaultDatabase(connectionString) {
   }
 }
 
+/**
+ * Recent pg / pg-connection-string versions may treat sslmode=require/prefer/verify-ca as aliases for verify-full,
+ * which breaks Supabase/Neon chains on many dev machines (self-signed / missing intermediate CA).
+ * Opt into libpq-compatible semantics when the URL explicitly requests sslmode=require.
+ */
+function ensureLibpqCompatSslMode(connectionString) {
+  if (!connectionString) return connectionString;
+  // Only adjust when sslmode is explicitly set to a "non-verify-full" value.
+  if (!/\bsslmode=(?:require|prefer|verify-ca)\b/i.test(connectionString)) return connectionString;
+  if (/\buselibpqcompat=true\b/i.test(connectionString)) return connectionString;
+  return connectionString.includes("?")
+    ? `${connectionString}&uselibpqcompat=true`
+    : `${connectionString}?uselibpqcompat=true`;
+}
+
 function createPgPool() {
   // PRISMA_RUNTIME_DATABASE_URL overrides everything (e.g. force transaction pooler only).
   // Supabase: use DATABASE_URL = **Transaction** pooler URI for the app; DIRECT_URL = direct (migrations).
@@ -66,6 +81,7 @@ function createPgPool() {
     (process.env.DIRECT_URL || "").trim();
   connectionString = normalizeSupabasePooledUrl(connectionString);
   connectionString = ensureSupabaseDefaultDatabase(connectionString);
+  connectionString = ensureLibpqCompatSslMode(connectionString);
   const isTcpLocal = /localhost|127\.0\.0\.1|@127\.0\.0\.1|@localhost/i.test(
     connectionString || ""
   );
