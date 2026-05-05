@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
+import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "../components/Providers";
 import { getMetadataBaseUrl } from "@/lib/publicSiteUrl";
 const geistSans = Geist({
@@ -116,6 +117,7 @@ export default function RootLayout({ children }) {
             {children}
           </Providers>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
