@@ -26,6 +26,7 @@
     "@supabase/supabase-js": "^2.105.1",
     "@vercel/analytics": "^2.0.1",
     "@vercel/blob": "^2.2.0",
+    "@vercel/speed-insights": "^2.0.0",
     "ai": "^6.0.67",
     "axios": "^1.15.2",
     "bcryptjs": "^3.0.3",
