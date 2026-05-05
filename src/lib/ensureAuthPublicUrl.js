@@ -76,14 +76,25 @@ export function ensureAuthPublicUrl() {
   const raw = normalizeEnvOrigin(process.env.AUTH_URL || process.env.NEXTAUTH_URL || "");
   const vercelSuggested = getVercelSuggestedOrigin();
 
-  // Preview (or any Vercel deploy): production NEXTAUTH_URL (e.g. stratum.ai) breaks OAuth on *.vercel.app
+  // Preview: using the **production** site origin in AUTH_URL breaks OAuth on this deployment (wrong redirect_uri).
+  // Only replace when the configured origin matches the project's production hostname (VERCEL_PROJECT_PRODUCTION_URL).
+  // Stable preview domains (e.g. preview.*.vercel.app) must NOT be overwritten with VERCEL_URL, or Google sees
+  // redirect_uri_mismatch vs URLs registered for the preview alias.
   if (vercelSuggested && process.env.VERCEL_ENV === "preview" && raw) {
     const configured = parseOriginOnly(raw);
     if (configured) {
       try {
-        const want = new URL(vercelSuggested).host;
-        const have = new URL(configured).host;
-        if (have !== want) {
+        const deploymentHost = new URL(vercelSuggested).host;
+        const configuredHost = new URL(configured).host;
+
+        const prodRaw = (process.env.VERCEL_PROJECT_PRODUCTION_URL || "").trim();
+        const prodConfigured = prodRaw ? parseOriginOnly(prodRaw) : "";
+        const prodHost = prodConfigured ? new URL(prodConfigured).host : "";
+
+        const mistakenProductionOrigin =
+          prodHost.length > 0 && configuredHost === prodHost;
+
+        if (mistakenProductionOrigin && configuredHost !== deploymentHost) {
           process.env.AUTH_URL = vercelSuggested;
           process.env.NEXTAUTH_URL = vercelSuggested;
         }
