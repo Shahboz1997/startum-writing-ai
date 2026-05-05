@@ -5,19 +5,38 @@ import { Pool } from 'pg';
 
 const globalForPrisma = globalThis;
 
-/** Hosted Postgres (Supabase, etc.) + Windows often hangs on IPv6; IPv4 avoids bad routes. */
-function shouldPreferIpv4() {
-  if (process.env.PG_IPV4_FIRST === "0") return false;
-  if (process.env.PG_IPV4_FIRST === "1") return true;
-  return process.platform === "win32";
-}
-
-if (typeof dns.setDefaultResultOrder === "function" && shouldPreferIpv4()) {
-  dns.setDefaultResultOrder("ipv4first");
-}
-
 function isSupabaseCloudHost(url) {
   return /supabase\.(com|co)\b/i.test(String(url ?? ""));
+}
+
+/**
+ * Prefer IPv4 for DB connections when:
+ * - explicit PG_IPV4_FIRST=1, or Windows dev (IPv6 hangs on some LANs), or
+ * - Vercel + Supabase (intermittent IPv6 / routing → RST / ERR_CONNECTION_CLOSED during cold OAuth).
+ */
+function preferIpv4ForDatabase(connectionString) {
+  if (process.env.PG_IPV4_FIRST === "0") return false;
+  if (process.env.PG_IPV4_FIRST === "1") return true;
+  if (process.platform === "win32") return true;
+  if (
+    process.env.VERCEL === "1" &&
+    connectionString &&
+    isSupabaseCloudHost(connectionString)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+const earlyDbUrl = (
+  process.env.PRISMA_RUNTIME_DATABASE_URL ||
+  process.env.DATABASE_URL ||
+  process.env.DIRECT_URL ||
+  ""
+).trim();
+
+if (typeof dns.setDefaultResultOrder === "function" && preferIpv4ForDatabase(earlyDbUrl)) {
+  dns.setDefaultResultOrder("ipv4first");
 }
 
 /**
@@ -86,8 +105,14 @@ function createPgPool() {
     connectionString || ""
   );
 
-  // verify-full only in production for remote hosts; dev keeps URL as-is (corporate TLS, Supabase dev).
-  if (!isTcpLocal && connectionString && process.env.NODE_ENV === "production") {
+  // verify-full in production for generic Postgres; skip for Supabase hosts — upgrading sslmode here combined with
+  // Pool TLS options caused intermittent handshake failures / dropped connections on some hosted setups (OAuth callbacks).
+  if (
+    !isTcpLocal &&
+    connectionString &&
+    process.env.NODE_ENV === "production" &&
+    !isSupabaseCloudHost(connectionString)
+  ) {
     connectionString = connectionString.replace(
       /\bsslmode=(?:prefer|require|verify-ca)\b/i,
       "sslmode=verify-full"
@@ -121,7 +146,7 @@ function createPgPool() {
     )
   );
 
-  const preferIpv4 = shouldPreferIpv4() && !isTcpLocal;
+  const preferIpv4 = !isTcpLocal && preferIpv4ForDatabase(connectionString);
 
   return new Pool({
     connectionString,
