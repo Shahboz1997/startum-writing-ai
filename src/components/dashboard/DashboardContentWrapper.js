@@ -14,7 +14,7 @@ export default function DashboardContentWrapper({ children }) {
       initial={slideUp.initial}
       animate={slideUp.animate}
       transition={slideUp.transition}
-      className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full"
+      className="box-border w-full min-w-0 max-w-7xl mx-auto px-0 sm:px-3 md:px-5 lg:px-8 xl:px-10"
     >
       {children}
     </motion.div>

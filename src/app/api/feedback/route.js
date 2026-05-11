@@ -37,7 +37,8 @@ export async function POST(req) {
     }
 
     const smtpUser = (process.env.EMAIL_USER || '').trim();
-    const smtpPass = (process.env.EMAIL_PASSWORD || '').trim();
+    // Align with reminder/cron (EMAIL_PASS); keep EMAIL_PASSWORD for older deploy configs
+    const smtpPass = (process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD || '').trim();
     if (!smtpUser || !smtpPass) {
       return NextResponse.json(
         {

@@ -153,6 +153,11 @@ function createPgPool() {
     ssl: poolSsl(connectionString),
     max,
     ...(preferIpv4 ? { family: 4 } : {}),
+    // Recycle clients before hosted poolers close them server-side → fewer Prisma P1017 ("Server has closed the connection").
+    maxUses: Math.max(
+      50,
+      Number.parseInt(process.env.PG_POOL_MAX_USES || "250", 10) || 250
+    ),
     // Default pg-pool idle reap (10s) + PrismaPg can drop all clients when idle → reconnect storms / checkout timeouts.
     idleTimeoutMillis: 300_000,
     connectionTimeoutMillis: ms,
@@ -172,5 +177,50 @@ export function getPrisma() {
     globalForPrisma.prisma = createPrismaClient();
   }
   return globalForPrisma.prisma;
+}
+
+/** Serialized teardown so concurrent requests do not create a new pool while the old one is still ending. */
+let resetPrismaChain = Promise.resolve();
+
+/**
+ * Close Prisma + pg Pool (e.g. after P1017). Next getPrisma() builds a fresh pool.
+ */
+export function resetPrismaClients() {
+  resetPrismaChain = resetPrismaChain.then(async () => {
+    const prisma = globalForPrisma.prisma;
+    const pool = globalForPrisma.pgPool;
+    globalForPrisma.prisma = undefined;
+    globalForPrisma.pgPool = undefined;
+    if (prisma) {
+      await prisma.$disconnect().catch(() => {});
+    }
+    if (pool) {
+      await pool.end().catch(() => {});
+    }
+  });
+  return resetPrismaChain;
+}
+
+const TRANSIENT_PRISMA_CODES = new Set(["P1017", "P1001", "P1008"]);
+
+/**
+ * Retry DB work when the pool returns a connection the server already closed (common with Supabase transaction pooler).
+ */
+export async function withPrismaRetry(operation, opts = {}) {
+  const attempts = Math.max(1, Number(opts.attempts) || 3);
+  let lastError;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await operation();
+    } catch (e) {
+      lastError = e;
+      const code = e?.code;
+      if (!TRANSIENT_PRISMA_CODES.has(code)) throw e;
+      if (i === attempts - 1) throw e;
+      await resetPrismaClients();
+      await new Promise((r) => setTimeout(r, 60 + 80 * i));
+    }
+  }
+  throw lastError;
 }
 

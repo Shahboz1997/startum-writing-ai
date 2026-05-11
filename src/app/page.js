@@ -3011,7 +3011,16 @@ const insertLinkingWord = (word) => {
       {showCreditsExhausted && (
         <CreditsExhaustedCallout
           className="w-full"
-          onContactSupport={() => setShowSupportModal(true)}
+          onContactSupport={() => {
+            setShowSupportModal(false);
+            document.getElementById('stratum-feedback-section')?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center',
+            });
+            window.setTimeout(() => {
+              document.querySelector('#stratum-feedback-section input[name="name"]')?.focus();
+            }, 400);
+          }}
         />
       )}
 
@@ -3259,10 +3268,44 @@ const insertLinkingWord = (word) => {
               <div id="stratum-feedback-section" className="relative scroll-mt-24 space-y-4">
                 <h4 className="text-sm font-semibold text-slate-900 dark:text-white tracking-tight mb-4">Feedback</h4>
                 <form onSubmit={handleSubmit} className="space-y-3">
-                  <input name="name" type="text" placeholder="Name" required className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none transition-colors ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'}`} />
-                  <input name="email" type="email" placeholder="Email" required className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none transition-colors ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'}`} />
-                  <textarea name="message" placeholder="How can we improve?" required rows={3} className={`w-full px-4 py-2.5 text-sm rounded-xl border outline-none resize-none transition-colors ${darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500' : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'}`} />
-                  <button type="submit" disabled={status === 'sending'} className="btn-stratum w-full py-2.5 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]">
+                  <input
+                    name="name"
+                    type="text"
+                    placeholder="Name"
+                    required
+                    className={`w-full px-4 py-3 text-sm rounded-2xl border outline-none transition-colors ${
+                      darkMode
+                        ? 'bg-slate-900 border-slate-800 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                        : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'
+                    }`}
+                  />
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="Email"
+                    required
+                    className={`w-full px-4 py-3 text-sm rounded-2xl border outline-none transition-colors ${
+                      darkMode
+                        ? 'bg-slate-900 border-slate-800 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                        : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'
+                    }`}
+                  />
+                  <textarea
+                    name="message"
+                    placeholder="How can we help?"
+                    required
+                    rows={4}
+                    className={`w-full px-4 py-3 text-sm rounded-2xl border outline-none resize-none transition-colors ${
+                      darkMode
+                        ? 'bg-slate-900 border-slate-800 text-white placeholder:text-slate-500 focus:border-indigo-500'
+                        : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500'
+                    }`}
+                  />
+                  <button
+                    type="submit"
+                    disabled={status === 'sending'}
+                    className="btn-stratum w-full py-3 rounded-2xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]"
+                  >
                     <div className="shimmer-layer animate-shimmer" aria-hidden />
                     <span className="btn-stratum-text">{status === 'sending' ? 'SENDING...' : 'SEND · STRATUM'}</span>
                   </button>

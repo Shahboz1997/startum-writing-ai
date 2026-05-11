@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Volume2, Play } from 'lucide-react';
+import { Volume2, Play, Pause } from 'lucide-react';
 import { getWordTimings } from '@/components/dashboard/SuggestedRewriteKaraoke';
 
 const DEMO_DURATION = 30;
@@ -11,58 +11,104 @@ const BAND_9_SAMPLE =
 
 const VISUALIZER_BARS = 24;
 
+/** idle | playing | paused | ended */
 export default function NeuralSyncShowcase({ onCtaClick }) {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [runState, setRunState] = useState('idle');
   const [currentTime, setCurrentTime] = useState(0);
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
-  const scrollContainerRef = useRef(null);
   const activeWordRef = useRef(null);
-  const timerRef = useRef(null);
+  const rafRef = useRef(null);
+  const lastFrameRef = useRef(null);
+  const didScrollAfterEndRef = useRef(false);
 
   const wordTimings = useMemo(() => getWordTimings(BAND_9_SAMPLE, DEMO_DURATION), []);
 
-  const startDemo = useCallback(() => {
-    if (isPlaying) return;
-    setCurrentTime(0);
-    setActiveWordIndex(-1);
-    setIsPlaying(true);
-  }, [isPlaying]);
+  const isPlaying = runState === 'playing';
 
-  useEffect(() => {
-    if (!isPlaying) return;
-    const start = performance.now();
-    const tick = () => {
-      const elapsed = (performance.now() - start) / 1000;
-      if (elapsed >= DEMO_DURATION) {
-        setCurrentTime(DEMO_DURATION);
-        setActiveWordIndex(wordTimings.length - 1);
-        setIsPlaying(false);
-        if (timerRef.current) cancelAnimationFrame(timerRef.current);
-        return;
-      }
-      setCurrentTime(elapsed);
-      let idx = -1;
-      for (let i = 0; i < wordTimings.length; i++) {
-        const w = wordTimings[i];
-        if (elapsed >= w.start && elapsed < w.end + 0.05) {
-          idx = i;
-          break;
-        }
-      }
-      setActiveWordIndex(idx);
-      timerRef.current = requestAnimationFrame(tick);
-    };
-    timerRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (timerRef.current) cancelAnimationFrame(timerRef.current);
-    };
-  }, [isPlaying, wordTimings]);
-
-  useEffect(() => {
-    if (activeWordIndex >= 0 && activeWordRef.current && scrollContainerRef.current) {
-      activeWordRef.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  const togglePlayPause = useCallback(() => {
+    if (runState === 'playing') {
+      setRunState('paused');
+      return;
     }
-  }, [activeWordIndex]);
+    if (runState === 'paused') {
+      lastFrameRef.current = null;
+      setRunState('playing');
+      return;
+    }
+    if (runState === 'idle' || runState === 'ended') {
+      setCurrentTime(0);
+      setActiveWordIndex(-1);
+      lastFrameRef.current = null;
+      setRunState('playing');
+    }
+  }, [runState]);
+
+  useEffect(() => {
+    if (runState !== 'playing') return;
+
+    const tick = (t) => {
+      const last = lastFrameRef.current ?? t;
+      lastFrameRef.current = t;
+      const dt = Math.min(0.12, Math.max(0, (t - last) / 1000));
+
+      setCurrentTime((ct) => {
+        const next = Math.min(DEMO_DURATION, ct + dt);
+        return next;
+      });
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
+  }, [runState]);
+
+  useEffect(() => {
+    if (runState !== 'playing') return;
+    if (currentTime >= DEMO_DURATION) {
+      setRunState('ended');
+      setActiveWordIndex(wordTimings.length - 1);
+      setCurrentTime(DEMO_DURATION);
+    }
+  }, [currentTime, runState, wordTimings.length]);
+
+  useEffect(() => {
+    let idx = -1;
+    for (let i = 0; i < wordTimings.length; i++) {
+      const w = wordTimings[i];
+      if (currentTime >= w.start && currentTime < w.end + 0.05) {
+        idx = i;
+        break;
+      }
+    }
+    setActiveWordIndex(idx);
+  }, [currentTime, wordTimings]);
+
+  /** No per-word scroll while audio runs; one gentle scroll after the demo ends. */
+  useEffect(() => {
+    if (runState !== 'ended') {
+      didScrollAfterEndRef.current = false;
+      return;
+    }
+    if (didScrollAfterEndRef.current) return;
+    didScrollAfterEndRef.current = true;
+    const id = window.requestAnimationFrame(() => {
+      activeWordRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [runState]);
+
+  const statusLabel =
+    runState === 'playing'
+      ? 'Neural Voice Active'
+      : runState === 'paused'
+        ? 'Paused — tap play to resume'
+        : runState === 'ended'
+          ? 'Demo finished — tap to replay'
+          : 'Preview Intelligence';
 
   return (
     <section
@@ -100,24 +146,34 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
           className="rounded-[2rem] border border-white/10 dark:border-white/5 bg-white/5 dark:bg-white/[0.02] backdrop-blur-2xl shadow-2xl shadow-black/5 dark:shadow-black/20 p-6 sm:p-8 md:p-10"
         >
           <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-center">
-            {/* Left: Glowing Play Button + Visualizer */}
-            <div className="flex flex-col items-center gap-6 shrink-0">
+            {/* Left: Play / Pause + Visualizer */}
+            <div className="flex flex-col items-center gap-4 sm:gap-6 shrink-0">
               <button
                 type="button"
-                onClick={startDemo}
-                disabled={isPlaying}
-                className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-[0_0_40px_rgba(79,70,229,0.5)] hover:shadow-[0_0_50px_rgba(79,70,229,0.6)] hover:scale-105 active:scale-100 transition-all duration-300 disabled:opacity-90 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 dark:focus:ring-offset-slate-950"
-                aria-label="Preview Intelligence — play Neural Sync demo"
+                onClick={togglePlayPause}
+                className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-[0_0_40px_rgba(79,70,229,0.5)] hover:shadow-[0_0_50px_rgba(79,70,229,0.6)] hover:scale-105 active:scale-100 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 dark:focus:ring-offset-slate-950"
+                aria-label={
+                  isPlaying ? 'Pause Neural Sync demo' : runState === 'paused' ? 'Resume Neural Sync demo' : 'Play Neural Sync demo'
+                }
               >
-                <span className="absolute inset-0 rounded-full bg-indigo-500/30 animate-ping opacity-30" aria-hidden />
+                {!isPlaying && (
+                  <span className="absolute inset-0 rounded-full bg-indigo-500/30 animate-ping opacity-30" aria-hidden />
+                )}
                 {isPlaying ? (
-                  <Volume2 className="w-10 h-10 sm:w-12 sm:h-12 relative z-10 animate-pulse" strokeWidth={1.5} />
+                  <Pause className="w-10 h-10 sm:w-12 sm:h-12 relative z-10" strokeWidth={1.75} fill="currentColor" />
                 ) : (
                   <Play className="w-10 h-10 sm:w-12 sm:h-12 relative z-10 ml-1" strokeWidth={1.5} fill="currentColor" />
                 )}
               </button>
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                {isPlaying ? 'Neural Voice Active' : 'Preview Intelligence'}
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 text-center max-w-[14rem]">
+                {isPlaying ? (
+                  <span className="inline-flex items-center gap-1.5 justify-center">
+                    <Volume2 className="w-3.5 h-3.5 opacity-80" strokeWidth={1.5} />
+                    {statusLabel}
+                  </span>
+                ) : (
+                  statusLabel
+                )}
               </p>
 
               {/* Visualizer: moving bars */}
@@ -152,10 +208,7 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
                     Band 9.0 Sample
                   </span>
                 </div>
-                <p
-                  ref={scrollContainerRef}
-                  className="text-slate-700 dark:text-slate-600 text-sm sm:text-base leading-relaxed font-medium tracking-wide"
-                >
+                <p className="text-slate-700 dark:text-slate-600 text-sm sm:text-base leading-relaxed font-medium tracking-wide">
                   {wordTimings.map((w, i) => {
                     const active = i === activeWordIndex;
                     return (

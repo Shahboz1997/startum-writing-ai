@@ -35,5 +35,6 @@ export function getMetadataBaseUrl() {
   const resolved = resolvePublicSiteOrigin();
   if (resolved) return resolved;
   if (process.env.NODE_ENV === "development") return "http://localhost:3000";
-  return "https://stratum.ai";
+  /* Production fallback when no NEXT_PUBLIC_APP_URL / VERCEL_URL (e.g. static export). */
+  return "https://startum-writing-ai.vercel.app";
 }

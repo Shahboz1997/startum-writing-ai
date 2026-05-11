@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { getPrisma } from "@/lib/prisma";
+import { getPrisma, withPrismaRetry } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { ensureAuthPublicUrl } from "@/lib/ensureAuthPublicUrl";
 import { formatAuthErrorCause } from "@/lib/formatAuthErrorCause";
@@ -117,10 +117,11 @@ export const authOptions = {
 
         if (!email || !password) return null;
 
-        const prisma = getPrisma();
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
+        const user = await withPrismaRetry(() =>
+          getPrisma().user.findUnique({
+            where: { email },
+          })
+        );
 
         // Если пользователя нет или он зашел через Google (нет пароля в базе)
         if (!user || !user.password) return null;
@@ -137,10 +138,12 @@ export const authOptions = {
           if (isPasswordValid) {
             try {
               const hashed = await bcrypt.hash(String(password), 10);
-              await prisma.user.update({
-                where: { id: user.id },
-                data: { password: hashed },
-              });
+              await withPrismaRetry(() =>
+                getPrisma().user.update({
+                  where: { id: user.id },
+                  data: { password: hashed },
+                })
+              );
             } catch {
               // best-effort: do not block login if upgrade fails
             }

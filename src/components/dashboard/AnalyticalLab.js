@@ -74,6 +74,16 @@ function normalizeClientErrorType(t) {
 /** Main essay panel: map segments from buildSegmentsFromErrors to colored spans (IELTS error types). */
 function renderHighlighterSpans(segments, { handleAutoFix, setUserText, scrollToErrorCard }) {
   return segments.map((seg, i) => {
+    if (seg.kind === 'highlight' || seg.kind === 'correction') {
+      const errType = normalizeClientErrorType(seg.type ?? 'grammar');
+      const cls = ERROR_TYPE_HIGHLIGHT_CLASS[errType] || ERROR_TYPE_HIGHLIGHT_CLASS.grammar;
+      const tip = String(seg.suggestion ?? seg.impact ?? '').trim();
+      return (
+        <span key={`hc-${i}`} className={`${cls} rounded px-0.5`} title={tip || undefined}>
+          {seg.text}
+        </span>
+      );
+    }
     if (seg.kind !== 'error') {
       return <span key={`t-${i}`}>{seg.text}</span>;
     }
@@ -391,6 +401,14 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
   const taskTypeForAudio = taskTypeNormalized === 'task1' ? 'TASK_1' : 'TASK_2';
 
   const [viewMode, setViewMode] = useState('feedback');
+  /** On small screens, feedback lives below the fold — scroll so the toggle feels responsive. */
+  const scrollMobileFeedbackInsights = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.setTimeout(() => {
+      if (!window.matchMedia('(max-width: 1279px)').matches) return;
+      document.getElementById('archive-feedback-insights')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+  }, []);
   const [rightPanelTab, setRightPanelTab] = useState('task');
   const [focusedId, setFocusedId] = useState(null);
   const [promptSaved, setPromptSaved] = useState(false);
@@ -459,13 +477,19 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
   const audioRef = useRef(null);
   const audioFilenameBase = getAudioFilenameBase(taskTypeForAudio);
   const audioDownloadName = `${audioFilenameBase}.mp3`;
-  const segments = useMemo(
-    () => buildSegments(userText, highlights, corrections),
-    [userText, highlights, corrections]
-  );
-  const errorSegments = useMemo(
-    () => buildSegmentsFromErrors(userText, errors),
-    [userText, errors]
+  /** Prefer error-based spans; if none match the saved text, fall back to highlights/corrections. */
+  const feedbackEssaySegments = useMemo(() => {
+    const fromErrors = buildSegmentsFromErrors(userText, errors);
+    if (fromErrors.some((s) => s.kind === 'error')) return fromErrors;
+    const merged = buildSegments(userText, highlights, corrections);
+    return merged.map((s) => (s.kind ? s : { ...s, kind: 'text', text: s.text ?? '' }));
+  }, [userText, errors, highlights, corrections]);
+  const hasFeedbackInlineDecor = useMemo(
+    () =>
+      feedbackEssaySegments.some(
+        (s) => s.kind === 'error' || s.kind === 'highlight' || s.kind === 'correction'
+      ),
+    [feedbackEssaySegments]
   );
   const cefrStats = useMemo(() => normalizeCefrStats(feedback.cefr_stats), [feedback.cefr_stats]);
 
@@ -912,11 +936,11 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
   if (isLoading || (!check && !analysisProp)) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-32 xl:pb-12" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-        <div className="flex flex-col gap-10 max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
+        <div className="flex flex-col gap-10 max-w-[1400px] mx-auto min-w-0 px-3 sm:px-5 md:px-6 py-4 sm:py-6">
           <div className="h-10 w-32 rounded-xl bg-slate-200 dark:bg-slate-800 animate-pulse" />
           <div className="flex flex-col xl:flex-row gap-8">
             <div className="flex-grow xl:w-3/5 space-y-4">
-              <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-8 shadow-sm animate-pulse">
+              <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-4 sm:p-6 lg:p-8 shadow-sm animate-pulse">
                 <div className="h-5 w-40 rounded bg-slate-200 dark:bg-slate-700 mb-4" />
                 <div className="h-3 w-28 rounded bg-slate-100 dark:bg-slate-800 mb-2" />
                 <div className="h-4 w-full rounded bg-slate-100 dark:bg-slate-800 mb-2" />
@@ -940,7 +964,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-32 xl:pb-12" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <div className="flex flex-col xl:flex-row gap-8 w-full max-w-[1400px] mx-auto px-4 sm:px-6 py-6 items-start">
+      <div className="flex flex-col xl:flex-row gap-8 w-full min-w-0 max-w-[1400px] mx-auto px-3 sm:px-5 md:px-6 py-4 sm:py-6 items-start">
         {/* Center: Main Content — Your Answer + Lexical + Action Bar */}
         <div className="flex-grow w-full xl:w-3/5 order-1 xl:order-1 flex flex-col gap-8 min-w-0">
           <div className="flex items-center">
@@ -953,38 +977,41 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
             </Link>
           </div>
           {/* Your Answer — header + toggle + legend + text */}
-          <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-8 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-              {viewMode === 'original' ? (
-                <h2 className="text-slate-900 dark:text-white font-bold tracking-tight text-xl">Your Answer</h2>
-              ) : (
-                <div />
-              )}
-              <div className="flex items-center gap-2">
+          <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-4 sm:p-6 lg:p-8 shadow-sm min-w-0 overflow-x-hidden">
+            <div className="mb-4 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-4 sm:gap-y-2">
+              <div className="min-w-0">
+                {viewMode === 'original' ? (
+                  <h2 className="text-slate-900 dark:text-white font-bold tracking-tight text-lg sm:text-xl break-words">
+                    Your Answer
+                  </h2>
+                ) : null}
+              </div>
+              <div className="flex min-w-0 w-full flex-wrap items-center gap-2 sm:w-auto sm:max-w-full sm:justify-self-end sm:justify-end">
                 {promptText && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleSavePromptToBank}
-                      className="px-3 py-2 rounded-full text-xs sm:text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-500 transition-colors whitespace-nowrap"
-                      title="Add prompt to Bank"
-                    >
-                      {promptSaved ? 'Saved' : 'Add to Bank'}
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={handleSavePromptToBank}
+                    className="shrink-0 rounded-full bg-indigo-600 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-indigo-500 sm:px-3 sm:py-2 sm:text-sm whitespace-nowrap"
+                    title="Add prompt to Bank"
+                  >
+                    {promptSaved ? 'Saved' : 'Add to Bank'}
+                  </button>
                 )}
-                <div className="flex rounded-full bg-slate-100 dark:bg-slate-800 p-0.5">
+                <div className="flex min-w-0 flex-1 basis-[12rem] rounded-full bg-slate-100 p-0.5 dark:bg-slate-800 sm:flex-none sm:basis-auto">
                   <button
                     type="button"
                     onClick={() => setViewMode('original')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'original' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    className={`min-w-0 flex-1 rounded-full px-2 py-1.5 text-xs font-medium transition-colors sm:flex-none sm:px-4 sm:py-2 sm:text-sm ${viewMode === 'original' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                   >
                     Original
                   </button>
                   <button
                     type="button"
-                    onClick={() => setViewMode('feedback')}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${viewMode === 'feedback' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                    onClick={() => {
+                      setViewMode('feedback');
+                      scrollMobileFeedbackInsights();
+                    }}
+                    className={`min-w-0 flex-1 rounded-full px-2 py-1.5 text-xs font-medium transition-colors sm:flex-none sm:px-4 sm:py-2 sm:text-sm ${viewMode === 'feedback' ? 'bg-indigo-600 text-white' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                   >
                     Feedback
                   </button>
@@ -1006,12 +1033,19 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
                 <ErrorHighlightLegend />
               </div>
             )}
+            {viewMode === 'feedback' && !useWordLevelRendering && !hasFeedbackInlineDecor && (
+              <p className="mb-3 text-sm text-slate-600 dark:text-slate-400 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-50 dark:bg-white/5 px-4 py-3 leading-relaxed">
+                No inline highlights match this saved text. Use{' '}
+                <strong className="text-slate-800 dark:text-slate-200">band scores and the tabs below</strong> for full
+                feedback.
+              </p>
+            )}
             <div className="text-slate-800 dark:text-slate-200 text-base leading-relaxed whitespace-pre-wrap break-words transition-all duration-200" spellCheck={false}>
               {viewMode === 'original'
                 ? userText
                 : useWordLevelRendering
                   ? renderTextWithWordLevels(userText, wordLevelsMap, errorWordsSet, () => setRightPanelTab('vocabulary'), weakWordsSet)
-                  : renderHighlighterSpans(errorSegments, {
+                  : renderHighlighterSpans(feedbackEssaySegments, {
                       handleAutoFix,
                       setUserText,
                       scrollToErrorCard,
@@ -1020,7 +1054,7 @@ export default function AnalyticalLab({ handleReplaceWord, ...props }) {
           </div>
 
           {/* Mobile: analytics blocks right after essay */}
-          <div className="xl:hidden flex flex-col gap-6">
+          <div id="archive-feedback-insights" className="xl:hidden flex flex-col gap-6 scroll-mt-24">
             <div className="rounded-3xl bg-white dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 shadow-sm p-6">
               <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-4">Band score</h2>
               <div className="flex items-center gap-4">

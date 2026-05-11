@@ -1,4 +1,5 @@
 import LegalPageLayout from '@/components/LegalPageLayout';
+import { SUPPORT_EMAIL } from '@/lib/support';
 
 export const metadata = {
   title: 'Terms of Service | STRATUM.ai',
@@ -62,8 +63,8 @@ export default function TermsPage() {
         <h2>Contact</h2>
         <p>
           For questions about these Terms of Service, contact us at{' '}
-          <a href="mailto:supportstratum@gmail.com" className="text-indigo-600 dark:text-indigo-400 hover:underline">
-            supportstratum@gmail.com
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            {SUPPORT_EMAIL}
           </a>.
         </p>
       </section>

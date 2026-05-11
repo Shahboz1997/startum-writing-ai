@@ -1,4 +1,5 @@
 import LegalPageLayout from '@/components/LegalPageLayout';
+import { SUPPORT_EMAIL } from '@/lib/support';
 
 export const metadata = {
   title: 'Privacy Policy | STRATUM.ai',
@@ -60,8 +61,8 @@ export default function PrivacyPage() {
         <h2>Contact</h2>
         <p>
           If you have questions about this Privacy Policy or your data, contact us at{' '}
-          <a href="mailto:supportstratum@gmail.com" className="text-indigo-600 dark:text-indigo-400 hover:underline">
-            supportstratum@gmail.com
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            {SUPPORT_EMAIL}
           </a>.
         </p>
       </section>

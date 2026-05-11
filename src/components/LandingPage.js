@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,6 +34,8 @@ import {
   Target,
   Zap,
   Volume2,
+  Play,
+  Pause,
   Headphones,
   Share2,
   X,
@@ -202,7 +204,46 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
   const [faqOpenIndex, setFaqOpenIndex] = useState(null);
   const [isSampleOpen, setIsSampleOpen] = useState(false);
   const [shareInfoOpen, setShareInfoOpen] = useState(false);
+  /** Mock MP3 strata preview in sample modal — play/pause + no page scroll while “playing”. */
+  const [sampleStrataFilled, setSampleStrataFilled] = useState(12);
+  const [sampleMockPlaying, setSampleMockPlaying] = useState(false);
+  const sampleMockIntervalRef = useRef(null);
   useEffect(() => setThemeMounted(true), []);
+
+  useEffect(() => {
+    if (!isSampleOpen) {
+      setSampleMockPlaying(false);
+      setSampleStrataFilled(12);
+    }
+  }, [isSampleOpen]);
+
+  useEffect(() => {
+    if (!sampleMockPlaying) {
+      if (typeof document !== 'undefined') document.body.style.overflow = '';
+      if (sampleMockIntervalRef.current) {
+        clearInterval(sampleMockIntervalRef.current);
+        sampleMockIntervalRef.current = null;
+      }
+      return;
+    }
+    if (typeof document !== 'undefined') document.body.style.overflow = 'hidden';
+    sampleMockIntervalRef.current = setInterval(() => {
+      setSampleStrataFilled((n) => {
+        if (n >= 33) {
+          setSampleMockPlaying(false);
+          return 34;
+        }
+        return n + 1;
+      });
+    }, 260);
+    return () => {
+      if (sampleMockIntervalRef.current) {
+        clearInterval(sampleMockIntervalRef.current);
+        sampleMockIntervalRef.current = null;
+      }
+      if (typeof document !== 'undefined') document.body.style.overflow = '';
+    };
+  }, [sampleMockPlaying]);
 
   useEffect(() => {
     if (!isSampleOpen || typeof window === 'undefined') return;
@@ -853,20 +894,28 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
                         </span>
                       </div>
                       <div className="rounded-2xl bg-white/5 border border-white/10 p-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center">
+                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-11 h-11 shrink-0 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center">
                             <Headphones className="w-5 h-5 text-indigo-300" strokeWidth={1.5} />
                           </div>
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold text-white/90">Band 9.0 Model Voice</p>
                             <p className="text-[11px] text-white/60">Shadowing-ready pacing &amp; intonation</p>
                           </div>
                           <button
                             type="button"
-                            className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-400/20 text-white hover:bg-indigo-500/25 transition-colors"
-                            aria-label="Play sample"
+                            onClick={() => {
+                              if (sampleStrataFilled >= 34) setSampleStrataFilled(12);
+                              setSampleMockPlaying((p) => !p);
+                            }}
+                            className="inline-flex shrink-0 items-center justify-center w-11 h-11 rounded-2xl bg-indigo-500/20 border border-indigo-400/20 text-white hover:bg-indigo-500/25 transition-colors"
+                            aria-label={sampleMockPlaying ? 'Pause sample preview' : 'Play sample preview'}
                           >
-                            <Volume2 className="w-5 h-5" strokeWidth={1.5} />
+                            {sampleMockPlaying ? (
+                              <Pause className="w-5 h-5" strokeWidth={1.75} />
+                            ) : (
+                              <Play className="w-5 h-5 ml-0.5" strokeWidth={1.5} fill="currentColor" />
+                            )}
                           </button>
                         </div>
 
@@ -875,13 +924,15 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
                             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">
                               Audio strata bar
                             </span>
-                            <span className="text-[10px] font-bold text-white/60">00:15 / 00:45</span>
+                            <span className="text-[10px] font-bold text-white/60 tabular-nums">
+                              {`00:${String(Math.min(45, Math.round((sampleStrataFilled / 34) * 45))).padStart(2, '0')} / 00:45`}
+                            </span>
                           </div>
                           <div className="flex items-end gap-[2px] h-8 rounded-2xl bg-white/5 border border-white/10 px-2 overflow-hidden">
                             {Array.from({ length: 34 }, (_, i) => {
                               const v = Math.abs(Math.sin(i * 0.92 + 0.7));
                               const h = 0.28 + v * 0.72;
-                              const filled = i < 12;
+                              const filled = i < sampleStrataFilled;
                               return (
                                 <span
                                   key={i}

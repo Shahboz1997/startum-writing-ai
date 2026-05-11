@@ -1,4 +1,5 @@
 import LegalPageLayout from '@/components/LegalPageLayout';
+import { SUPPORT_EMAIL } from '@/lib/support';
 
 export const metadata = {
   title: 'Refund Policy | STRATUM.ai',
@@ -42,8 +43,8 @@ export default function RefundPage() {
         <h2>Contact</h2>
         <p>
           For refund requests or questions about this policy, contact us at{' '}
-          <a href="mailto:supportstratum@gmail.com" className="text-indigo-600 dark:text-indigo-400 hover:underline">
-            supportstratum@gmail.com
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            {SUPPORT_EMAIL}
           </a>{' '}
           or write to our business address: 30 N Gould St Ste R, Sheridan, WY 82801, USA.
         </p>
