@@ -4,6 +4,10 @@
  */
 
 const REPLICATE_MODEL = 'minimax/speech-2.8-turbo';
+/** Clear British “exam lecturer” voice — close to IELTS Listening narrators. */
+const DEFAULT_VOICE_ID = 'English_Wiselady';
+/** Slightly under 1.0 matches typical IELTS Listening pacing. */
+const DEFAULT_SPEED = 0.94;
 const POLL_MS = 2000;
 const MAX_WAIT_MS = 90_000;
 
@@ -95,11 +99,19 @@ export async function synthesizeWithReplicateTts(text) {
     return { ok: false, reason: 'bad_input' };
   }
 
+  const voiceId =
+    (process.env.REPLICATE_TTS_VOICE || '').trim() || DEFAULT_VOICE_ID;
+  const speedRaw = Number(process.env.REPLICATE_TTS_SPEED);
+  const speed =
+    Number.isFinite(speedRaw) && speedRaw >= 0.5 && speedRaw <= 2
+      ? speedRaw
+      : DEFAULT_SPEED;
+
   try {
     const prediction = await createPrediction(token, {
       text: inputText,
-      voice_id: 'English_Trustworth_Man',
-      speed: 1,
+      voice_id: voiceId,
+      speed,
       volume: 1,
       pitch: 0,
       emotion: 'neutral',
@@ -131,7 +143,11 @@ export async function synthesizeWithReplicateTts(text) {
       return { ok: false, reason: 'empty_audio' };
     }
 
-    return { ok: true, buffer, via: `replicate:${REPLICATE_MODEL}` };
+    return {
+      ok: true,
+      buffer,
+      via: `replicate:${REPLICATE_MODEL}:${voiceId}`,
+    };
   } catch (err) {
     console.error('[replicateTts]', err?.message || err);
     return { ok: false, reason: err?.message || 'replicate_failed' };

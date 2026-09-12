@@ -74,9 +74,12 @@ export async function POST(req) {
     if (openai) {
       for (const ttsModel of ttsModels) {
         try {
+          // `fable` is the clearest British-leaning OpenAI preset (IELTS Listening-like).
+          const openaiVoice =
+            (process.env.OPENAI_TTS_VOICE || '').trim() || 'fable';
           const mp3 = await openai.audio.speech.create({
             model: ttsModel,
-            voice: 'alloy',
+            voice: openaiVoice,
             input: ttsInput,
           });
           buffer = Buffer.from(await mp3.arrayBuffer());

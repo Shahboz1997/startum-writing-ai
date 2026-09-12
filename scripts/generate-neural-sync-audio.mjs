@@ -125,8 +125,8 @@ async function synthesizeWithReplicate(token, text) {
   console.log(`TTS via Replicate ${REPLICATE_MODEL}…`);
   const prediction = await createReplicatePrediction(token, {
     text,
-    voice_id: 'English_Trustworth_Man',
-    speed: 1,
+    voice_id: process.env.REPLICATE_TTS_VOICE || 'English_Wiselady',
+    speed: Number(process.env.REPLICATE_TTS_SPEED) || 0.94,
     volume: 1,
     pitch: 0,
     emotion: 'neutral',
