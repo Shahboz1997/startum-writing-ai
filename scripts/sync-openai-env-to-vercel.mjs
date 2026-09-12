@@ -60,9 +60,11 @@ if (!apiKey || apiKey.length < 20) {
 }
 
 const projectId = (local.OPENAI_PROJECT_ID || '').trim();
+const ttsModel = (local.OPENAI_TTS_MODEL || 'tts-1').trim();
 const targets = ['production'];
 
 upsertEnv('OPENAI_API_KEY', apiKey, targets);
+upsertEnv('OPENAI_TTS_MODEL', ttsModel, targets);
 
 if (projectId) {
   upsertEnv('OPENAI_PROJECT_ID', projectId, targets);
@@ -71,3 +73,4 @@ if (projectId) {
 }
 
 console.log('OpenAI env synced from .env.local to Vercel.');
+console.log('OPENAI_TTS_MODEL:', ttsModel);

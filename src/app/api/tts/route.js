@@ -40,30 +40,61 @@ export async function POST(req) {
         ? `${cleanText.slice(0, TTS_MAX_CHARS - 1).trim()}…`
         : cleanText;
 
-    const ttsModel = (process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts').trim();
+    // Some OpenAI projects allow tts-1 but not gpt-4o-mini-tts (and vice versa).
+    const preferred = (process.env.OPENAI_TTS_MODEL || '').trim();
+    const ttsModels = [
+      ...new Set(
+        [preferred, 'tts-1', 'gpt-4o-mini-tts', 'tts-1-hd'].filter(Boolean)
+      ),
+    ];
 
     let buffer;
-    try {
-      const mp3 = await openai.audio.speech.create({
-        model: ttsModel,
-        voice: 'alloy',
-        input: ttsInput,
-      });
-      buffer = Buffer.from(await mp3.arrayBuffer());
-    } catch (ttsErr) {
-      console.error('[api/tts] speech.create failed:', {
-        status: ttsErr?.status ?? ttsErr?.statusCode,
-        code: ttsErr?.code ?? ttsErr?.error?.code,
-        message: ttsErr?.message ?? ttsErr?.error?.message,
-        ttsModel,
+    let usedModel = ttsModels[0];
+    let lastTtsErr = null;
+    for (const ttsModel of ttsModels) {
+      try {
+        const mp3 = await openai.audio.speech.create({
+          model: ttsModel,
+          voice: 'alloy',
+          input: ttsInput,
+        });
+        buffer = Buffer.from(await mp3.arrayBuffer());
+        usedModel = ttsModel;
+        lastTtsErr = null;
+        break;
+      } catch (ttsErr) {
+        lastTtsErr = ttsErr;
+        const code = ttsErr?.code ?? ttsErr?.error?.code;
+        const msg = String(ttsErr?.message ?? ttsErr?.error?.message ?? '');
+        const modelDenied =
+          code === 'model_not_found' || /does not have access to model/i.test(msg);
+        console.warn('[api/tts] speech.create failed:', {
+          status: ttsErr?.status ?? ttsErr?.statusCode,
+          code,
+          message: msg.slice(0, 200),
+          ttsModel,
+          chars: ttsInput.length,
+          willRetry: modelDenied && ttsModel !== ttsModels[ttsModels.length - 1],
+        });
+        if (!modelDenied) break;
+      }
+    }
+
+    if (!buffer) {
+      console.error('[api/tts] all TTS models failed', {
+        tried: ttsModels,
         chars: ttsInput.length,
       });
-      const mapped = openAIErrorToJsonResponse(ttsErr);
+      const mapped = openAIErrorToJsonResponse(lastTtsErr);
       if (mapped) return mapped;
       return NextResponse.json(
-        { error: ttsErr?.message || 'TTS speech generation failed' },
+        { error: lastTtsErr?.message || 'TTS speech generation failed' },
         { status: 502 }
       );
+    }
+
+    if (usedModel !== preferred && preferred) {
+      console.info('[api/tts] using fallback model', { preferred, usedModel });
     }
 
     let wordTimestamps = [];

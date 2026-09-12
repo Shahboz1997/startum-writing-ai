@@ -158,7 +158,9 @@ export function openAIErrorToJsonResponse(err) {
     return NextResponse.json(
       {
         error:
-          'OpenAI project has no access to the requested model. For voice, set OPENAI_TTS_MODEL=gpt-4o-mini-tts in .env.local (or enable tts-1 in the OpenAI project), then restart npm run dev.',
+          process.env.VERCEL === '1'
+            ? 'OpenAI project has no access to any TTS model we tried (gpt-4o-mini-tts / tts-1 / tts-1-hd). In OpenAI → Project → Limits, enable speech models, or set OPENAI_TTS_MODEL to an allowed model and redeploy.'
+            : 'OpenAI project has no access to the requested TTS model. Set OPENAI_TTS_MODEL=tts-1 (or gpt-4o-mini-tts) in .env.local, enable the model in the OpenAI project, then restart npm run dev.',
         code: 'MODEL_NOT_FOUND',
       },
       { status: 403 }
