@@ -159,8 +159,8 @@ export function openAIErrorToJsonResponse(err) {
       {
         error:
           process.env.VERCEL === '1'
-            ? 'OpenAI project has no access to any TTS model we tried (gpt-4o-mini-tts / tts-1 / tts-1-hd). In OpenAI → Project → Limits, enable speech models, or set OPENAI_TTS_MODEL to an allowed model and redeploy.'
-            : 'OpenAI project has no access to the requested TTS model. Set OPENAI_TTS_MODEL=tts-1 (or gpt-4o-mini-tts) in .env.local, enable the model in the OpenAI project, then restart npm run dev.',
+            ? 'OpenAI project has no speech models enabled. Voice now falls back to Replicate when REPLICATE_API_TOKEN is set — redeploy after adding it, or enable tts-1 in OpenAI → Project → Limits.'
+            : 'OpenAI project has no access to speech models. Set REPLICATE_API_TOKEN in .env.local (recommended), or enable tts-1 in the OpenAI project, then restart npm run dev.',
         code: 'MODEL_NOT_FOUND',
       },
       { status: 403 }
