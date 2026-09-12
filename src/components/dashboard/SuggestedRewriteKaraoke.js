@@ -8,6 +8,7 @@ import {
   normalizeWordToken,
   alignTextTokensToWhisper,
   findActiveWordIndexFromTimings,
+  scaleTimingsToAudioDuration,
   tokenizePlainText,
 } from '@/lib/karaokeWordAlign';
 
@@ -28,10 +29,13 @@ export function getWordTimings(text, totalDuration) {
   const words = (text || '').split(' ').filter(Boolean);
   if (words.length === 0 || !Number.isFinite(totalDuration) || totalDuration <= 0) return [];
   const multipliers = words.map((w) => {
+    const letters = w.replace(/[^a-zA-Z0-9']/g, '').length;
+    // Longer words take longer to say than short ones (fixes “highlight races ahead”).
+    let weight = Math.max(1, letters * 0.55 + 0.45);
     const last = w.slice(-1);
-    if (last === '.' || last === '?') return 1.4;
-    if (last === ',') return 1.2;
-    return 1;
+    if (last === '.' || last === '?' || last === '!') weight *= 1.45;
+    else if (last === ',' || last === ';') weight *= 1.2;
+    return weight;
   });
   const totalMultipliers = multipliers.reduce((a, b) => a + b, 0);
   const baseUnit = totalDuration / totalMultipliers;
@@ -140,6 +144,9 @@ export function resolveWordTimings({ plainText, wordTimestamps, audioDuration })
   }
   if (fromWhisper && timings.length > 0 && Number.isFinite(audioDuration) && audioDuration > 0) {
     timings = finalizeWhisperTimings(timings, audioDuration);
+  }
+  if (timings.length > 0 && Number.isFinite(audioDuration) && audioDuration > 0) {
+    timings = scaleTimingsToAudioDuration(timings, audioDuration);
   }
   return timings;
 }

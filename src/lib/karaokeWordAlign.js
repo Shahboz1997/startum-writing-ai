@@ -164,18 +164,54 @@ export function mapProportionalTimings(inputTokens, whisperWords) {
   return result;
 }
 
-/** Active word = whose [start, end) contains audio currentTime (no manual offset). */
-export function findActiveWordIndexFromTimings(timings, currentSec) {
+/** Active word for karaoke. A small lag keeps the highlight from racing ahead of speech. */
+export const KARAOKE_HIGHLIGHT_LAG_SEC = 0.22;
+
+/**
+ * Stretch/compress Whisper timings so the last word ends with the real audio file.
+ * Without this, truncated aligners finish the highlight while audio is still playing.
+ */
+export function scaleTimingsToAudioDuration(timings, audioDuration) {
+  if (!Array.isArray(timings) || timings.length === 0) return timings;
+  if (!Number.isFinite(audioDuration) || audioDuration <= 0.2) return timings;
+
+  const lastEnd = Number(timings[timings.length - 1]?.end);
+  if (!Number.isFinite(lastEnd) || lastEnd <= 0.05) return timings;
+
+  const drift = audioDuration - lastEnd;
+  // Ignore tiny drift; only rescale when highlight would clearly lead or lag the file.
+  if (Math.abs(drift) < 0.35) return timings;
+
+  const scale = audioDuration / lastEnd;
+  if (!Number.isFinite(scale) || scale <= 0) return timings;
+
+  return timings.map((t) => {
+    const start = Math.max(0, Number(t.start) * scale);
+    let end = Math.max(start + 0.04, Number(t.end) * scale);
+    if (end > audioDuration) end = audioDuration;
+    return { ...t, start, end };
+  });
+}
+
+/** Active word = whose [start, end) contains (audio currentTime − lag). */
+export function findActiveWordIndexFromTimings(
+  timings,
+  currentSec,
+  lagSec = KARAOKE_HIGHLIGHT_LAG_SEC
+) {
   if (!timings?.length || !Number.isFinite(currentSec)) return -1;
+
+  const t = Math.max(0, currentSec - (Number.isFinite(lagSec) ? Math.max(0, lagSec) : 0));
 
   for (let i = 0; i < timings.length; i++) {
     const start = Number(timings[i].start);
     const end = Number(timings[i].end);
-    if (currentSec >= start && currentSec < end) return i;
+    if (t >= start && t < end) return i;
   }
 
+  // In gaps between words, keep the previous word (do not jump ahead).
   for (let i = timings.length - 1; i >= 0; i--) {
-    if (currentSec >= Number(timings[i].start)) return i;
+    if (t >= Number(timings[i].start)) return i;
   }
   return -1;
 }
