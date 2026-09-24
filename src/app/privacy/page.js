@@ -6,7 +6,7 @@ export const metadata = {
   description: 'STRATUM privacy policy: how we collect, use, and protect your data.',
 };
 
-const LAST_UPDATED = 'February 19, 2026';
+const LAST_UPDATED = 'September 24, 2026';
 
 export default function PrivacyPage() {
   return (
@@ -41,11 +41,16 @@ export default function PrivacyPage() {
       </section>
 
       <section>
-        <h2>Credits</h2>
+        <h2>Credits &amp; payments</h2>
         <p>
-          We store your credit balance so you can use AI writing checks. We do not store payment card
-          details on our servers. If you need more credits, contact us using the support email in the
-          site footer.
+          We store your credit balance so you can use AI writing checks. Payment card details are
+          processed by our payment provider (Lemon Squeezy) — we do not store card numbers on our
+          servers. Purchased credits are added to your account automatically after a successful
+          payment. See{' '}
+          <a href="/pricing" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            Pricing
+          </a>{' '}
+          for available packs.
         </p>
       </section>
 

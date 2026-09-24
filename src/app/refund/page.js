@@ -6,7 +6,7 @@ export const metadata = {
   description: 'STRATUM refund policy: credits, subscriptions, and refund eligibility.',
 };
 
-const LAST_UPDATED = 'February 19, 2026';
+const LAST_UPDATED = 'September 24, 2026';
 
 export default function RefundPage() {
   return (
@@ -14,9 +14,15 @@ export default function RefundPage() {
       <section>
         <h2>Credit purchases</h2>
         <p>
-          Credits are consumed when you submit an essay for AI analysis. Once a credit has been used,
-          it cannot be refunded or restored. <strong>Non-refundable once credits are used.</strong> Unused
-          credits may be eligible for refund or transfer only as described below and in our Terms of Service.
+          Credits are digital software access for AI essay analysis. They are consumed when you
+          submit an essay for analysis. Once a credit has been used, it cannot be refunded or
+          restored. <strong>Non-refundable once credits are used.</strong> Unused credits may be
+          eligible for refund or transfer only as described below and in our Terms of Service. Current
+          packs are listed on the{' '}
+          <a href="/pricing" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            pricing page
+          </a>
+          .
         </p>
       </section>
 

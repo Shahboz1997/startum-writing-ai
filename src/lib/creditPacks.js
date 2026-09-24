@@ -1,6 +1,9 @@
 import { SUPPORT_MAILTO } from '@/lib/support';
 
-/** Manual top-up packs (Visa transfer → claim paid → admin credits). */
+/**
+ * Credit packs sold via Lemon Squeezy.
+ * Set LEMON_SQUEEZY_VARIANT_* in .env to the Lemon variant IDs for each pack.
+ */
 export const CREDIT_PACKS = [
   {
     id: 'starter',
@@ -9,6 +12,7 @@ export const CREDIT_PACKS = [
     priceUsd: 9.99,
     blurb: 'Try a few full Task 1 & Task 2 checks',
     popular: false,
+    lemonVariantEnv: 'LEMON_SQUEEZY_VARIANT_STARTER',
   },
   {
     id: 'monthly',
@@ -17,6 +21,7 @@ export const CREDIT_PACKS = [
     priceUsd: 14.99,
     blurb: 'Exam-month plan — about one check every other day',
     popular: true,
+    lemonVariantEnv: 'LEMON_SQUEEZY_VARIANT_MONTHLY',
   },
   {
     id: 'intensive',
@@ -25,8 +30,24 @@ export const CREDIT_PACKS = [
     priceUsd: 24.99,
     blurb: 'Best value for Task 1 + Task 2 drills',
     popular: false,
+    lemonVariantEnv: 'LEMON_SQUEEZY_VARIANT_INTENSIVE',
   },
 ];
+
+/** Lemon Squeezy variant id for a pack (server-side; empty until env is set). */
+export function getLemonVariantIdForPack(pack) {
+  const envKey = pack?.lemonVariantEnv;
+  if (!envKey) return '';
+  return String(process.env[envKey] || '').trim();
+}
+
+export function getCreditPackByVariantId(variantId) {
+  const id = String(variantId ?? '').trim();
+  if (!id) return null;
+  return (
+    CREDIT_PACKS.find((p) => getLemonVariantIdForPack(p) === id) || null
+  );
+}
 
 /** Display-only regions for pack prices (settlement stays USD). */
 export const DISPLAY_CURRENCIES = [
@@ -87,10 +108,10 @@ export function buildCreditPackMailto(pack, accountEmail = '') {
 }
 
 export const CREDITS_TOP_UP_NOTICE =
-  'Choose a pack — invoice with Visa card details. Credits after payment check.';
+  'Choose a pack — secure checkout via Lemon Squeezy. Credits are added automatically after payment.';
 
 export const CREDITS_TOP_UP_FOOTER =
-  'Keep the receipt until credits appear in your account.';
+  'After payment you will return here; credits appear within a few seconds.';
 
 export const CREDITS_INVOICE_HINT =
   'Transfer the exact amount using the details below. Include your STRATUM.ai email in the payment comment.';

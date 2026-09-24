@@ -215,3 +215,61 @@ export function findActiveWordIndexFromTimings(
   }
   return -1;
 }
+
+/** True when a display token ends a sentence (. ? ! …). */
+export function isSentenceEndToken(word) {
+  return /[.!?…]["')\]]*$/.test(String(word || ''));
+}
+
+/**
+ * Group word indices into sentences. More stable than per-word karaoke when
+ * Whisper alignment drifts — highlight stays on the whole clause being spoken.
+ * @param {{word?: string}[]|string[]} tokensOrTimings
+ * @returns {{ start: number, end: number }[]} half-open [start, end) ranges
+ */
+export function buildSentenceRanges(tokensOrTimings) {
+  const n = Array.isArray(tokensOrTimings) ? tokensOrTimings.length : 0;
+  if (n === 0) return [];
+
+  const ranges = [];
+  let start = 0;
+  for (let i = 0; i < n; i++) {
+    const raw = tokensOrTimings[i];
+    const word = typeof raw === 'string' ? raw : raw?.word;
+    if (isSentenceEndToken(word) || i === n - 1) {
+      ranges.push({ start, end: i + 1 });
+      start = i + 1;
+    }
+  }
+  return ranges;
+}
+
+/**
+ * Active sentence index from word timings (sentence spans use first-word start → last-word end).
+ * @returns {number} sentence index, or -1
+ */
+export function findActiveSentenceIndexFromTimings(
+  timings,
+  currentSec,
+  lagSec = KARAOKE_HIGHLIGHT_LAG_SEC,
+  sentenceRanges = null
+) {
+  if (!timings?.length || !Number.isFinite(currentSec)) return -1;
+  const ranges = sentenceRanges || buildSentenceRanges(timings);
+  if (ranges.length === 0) return -1;
+
+  const t = Math.max(0, currentSec - (Number.isFinite(lagSec) ? Math.max(0, lagSec) : 0));
+
+  for (let si = 0; si < ranges.length; si++) {
+    const { start, end } = ranges[si];
+    const s = Number(timings[start]?.start);
+    const e = Number(timings[end - 1]?.end);
+    if (Number.isFinite(s) && Number.isFinite(e) && t >= s && t < e) return si;
+  }
+
+  for (let si = ranges.length - 1; si >= 0; si--) {
+    const s = Number(timings[ranges[si].start]?.start);
+    if (Number.isFinite(s) && t >= s) return si;
+  }
+  return -1;
+}

@@ -7,11 +7,13 @@ import {
   getWordTimings,
   resolveWordTimings,
 } from '@/components/dashboard/SuggestedRewriteKaraoke';
-import { findActiveWordIndexFromTimings } from '@/lib/karaokeWordAlign';
+import {
+  buildSentenceRanges,
+  findActiveSentenceIndexFromTimings,
+} from '@/lib/karaokeWordAlign';
 import {
   NEURAL_SYNC_SAMPLE_TEXT,
   NEURAL_SYNC_AUDIO_SRC,
-  NEURAL_SYNC_AUDIO_FALLBACK_SRC,
   NEURAL_SYNC_TIMINGS_SRC,
 } from '@/lib/neuralSyncSample';
 
@@ -22,11 +24,11 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
   const [runState, setRunState] = useState('idle');
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
-  const [activeWordIndex, setActiveWordIndex] = useState(-1);
+  const [activeSentenceIndex, setActiveSentenceIndex] = useState(-1);
   const [bakedTimings, setBakedTimings] = useState(null);
   const [audioReady, setAudioReady] = useState(false);
   const [audioError, setAudioError] = useState('');
-  const activeWordRef = useRef(null);
+  const activeSentenceRef = useRef(null);
   const audioRef = useRef(null);
   const didScrollAfterEndRef = useRef(false);
   const rafRef = useRef(null);
@@ -62,6 +64,8 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
     return getWordTimings(NEURAL_SYNC_SAMPLE_TEXT, 20);
   }, [bakedTimings, audioDuration]);
 
+  const sentenceRanges = useMemo(() => buildSentenceRanges(wordTimings), [wordTimings]);
+
   const isPlaying = runState === 'playing';
 
   const stopRaf = useCallback(() => {
@@ -76,8 +80,10 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
     if (!el) return;
     const t = el.currentTime || 0;
     setCurrentTime(t);
-    setActiveWordIndex(findActiveWordIndexFromTimings(wordTimings, t));
-  }, [wordTimings]);
+    setActiveSentenceIndex(
+      findActiveSentenceIndexFromTimings(wordTimings, t, undefined, sentenceRanges)
+    );
+  }, [wordTimings, sentenceRanges]);
 
   useEffect(() => {
     if (runState !== 'playing') {
@@ -107,7 +113,7 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
       if (runState === 'ended' || runState === 'idle') {
         el.currentTime = 0;
         setCurrentTime(0);
-        setActiveWordIndex(-1);
+        setActiveSentenceIndex(-1);
       }
       await el.play();
       setRunState('playing');
@@ -133,7 +139,9 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
     };
     const onEnded = () => {
       setRunState('ended');
-      setActiveWordIndex((idx) => (idx >= 0 ? idx : wordTimings.length - 1));
+      setActiveSentenceIndex((idx) =>
+        idx >= 0 ? idx : Math.max(0, sentenceRanges.length - 1)
+      );
       setCurrentTime(el.duration || 0);
     };
     const onError = () => {
@@ -157,9 +165,9 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
       el.removeEventListener('ended', onEnded);
       el.removeEventListener('error', onError);
     };
-  }, [wordTimings.length]);
+  }, [wordTimings.length, sentenceRanges.length]);
 
-  /** No per-word scroll while audio runs; one gentle scroll after the demo ends. */
+  /** No per-sentence scroll while audio runs; one gentle scroll after the demo ends. */
   useEffect(() => {
     if (runState !== 'ended') {
       didScrollAfterEndRef.current = false;
@@ -168,7 +176,11 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
     if (didScrollAfterEndRef.current) return;
     didScrollAfterEndRef.current = true;
     const id = window.requestAnimationFrame(() => {
-      activeWordRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      activeSentenceRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'nearest',
+      });
     });
     return () => window.cancelAnimationFrame(id);
   }, [runState]);
@@ -194,7 +206,6 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
     >
       <audio ref={audioRef} preload="metadata" playsInline>
         <source src={NEURAL_SYNC_AUDIO_SRC} type="audio/mpeg" />
-        <source src={NEURAL_SYNC_AUDIO_FALLBACK_SRC} type="audio/wav" />
       </audio>
       <div className="max-w-6xl mx-auto px-4">
         <motion.div
@@ -284,7 +295,7 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
               </div>
             </div>
 
-            {/* Right: Glassmorphism text block — Band 9 sample + word highlight */}
+            {/* Right: Glassmorphism text block — Band 9 sample + sentence highlight */}
             <div className="flex-1 min-w-0 w-full">
               <div className="rounded-2xl bg-white/5 dark:bg-white/5 backdrop-blur-2xl border border-white/10 dark:border-white/10 p-5 sm:p-6 max-h-[280px] overflow-y-auto overflow-x-hidden custom-scrollbar">
                 <div className="flex items-center gap-2 mb-3">
@@ -293,21 +304,28 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
                   </span>
                 </div>
                 <p className="text-slate-700 dark:text-slate-600 text-sm sm:text-base leading-relaxed font-medium tracking-wide">
-                  {wordTimings.map((w, i) => {
-                    const active = i === activeWordIndex;
+                  {sentenceRanges.map((range, si) => {
+                    const active = si === activeSentenceIndex;
+                    const played = activeSentenceIndex >= 0 && si < activeSentenceIndex;
+                    const sentenceText = wordTimings
+                      .slice(range.start, range.end)
+                      .map((w) => w.word)
+                      .join(' ');
                     return (
-                      <span key={`${w.word}-${i}`}>
+                      <span key={`sent-${si}`}>
                         <span
-                          ref={active ? activeWordRef : undefined}
+                          ref={active ? activeSentenceRef : undefined}
                           className={
                             active
-                              ? 'text-white bg-indigo-600 rounded px-0.5 py-px shadow-[0_0_20px_rgba(79,70,229,0.5)] transition-all duration-150 inline-block'
-                              : 'text-slate-700 dark:text-slate-600 transition-colors duration-300'
+                              ? 'text-white bg-indigo-600/90 rounded-md px-1 py-0.5 shadow-[0_0_20px_rgba(79,70,229,0.45)] transition-all duration-200'
+                              : played
+                                ? 'text-slate-800 dark:text-slate-400 transition-colors duration-300'
+                                : 'text-slate-700 dark:text-slate-600 transition-colors duration-300'
                           }
                         >
-                          {w.word}
+                          {sentenceText}
                         </span>
-                        {i < wordTimings.length - 1 ? ' ' : ''}
+                        {si < sentenceRanges.length - 1 ? ' ' : ''}
                       </span>
                     );
                   })}

@@ -153,10 +153,11 @@ async function synthesizeWithReplicate(token, text) {
 
 async function synthesizeWithOpenAI(openai, text) {
   const ttsModel = (process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts').trim();
-  console.log(`TTS via OpenAI ${ttsModel}…`);
+  const voice = (process.env.OPENAI_TTS_VOICE || 'fable').trim();
+  console.log(`TTS via OpenAI ${ttsModel} / ${voice}…`);
   const mp3 = await openai.audio.speech.create({
     model: ttsModel,
-    voice: 'alloy',
+    voice,
     input: text,
   });
   return Buffer.from(await mp3.arrayBuffer());

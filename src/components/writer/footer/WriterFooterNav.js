@@ -81,6 +81,14 @@ export function WriterFooterLegal() {
       <ul className="space-y-3">
         <li>
           <Link
+            href="/pricing"
+            className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+          >
+            Pricing
+          </Link>
+        </li>
+        <li>
+          <Link
             href="/privacy"
             className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
           >

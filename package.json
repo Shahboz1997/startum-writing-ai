@@ -23,6 +23,7 @@
     "@auth/prisma-adapter": "^2.11.1",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@heroicons/react": "^2.2.0",
+    "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
     "@prisma/adapter-pg": "^7.4.0",
     "@prisma/client": "^7.8.0",
     "@vercel/analytics": "^2.0.1",

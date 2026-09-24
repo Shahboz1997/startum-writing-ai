@@ -1,6 +1,6 @@
 /** Site-wide legal entity & support contact (footer, emails, legal pages, API). */
 
-export const LEGAL_COMPANY_NAME = 'Stratum Technologies LLC';
+export const LEGAL_COMPANY_NAME = 'ESD Media LLC';
 
 export const SUPPORT_EMAIL = 'supportstratum@gmail.com';
 export const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
@@ -40,10 +40,10 @@ export const FACEBOOK_PAGE_LABEL = 'Follow us on Facebook';
 export const INSTAGRAM_PAGE_URL = 'https://www.instagram.com/stratum573?igsh=MXJrZzZ5Y2JkaXMweA==';
 export const INSTAGRAM_PAGE_LABEL = 'Follow us on Instagram';
 
-export const REGISTERED_AGENT_NAME = 'Registered Agents Inc';
-export const REGISTERED_AGENT_ADDRESS = '30 N Gould St Ste R, Sheridan, WY 82801, USA';
+export const REGISTERED_AGENT_NAME = 'ESD Media LLC';
+export const REGISTERED_AGENT_ADDRESS = '30 N Gould St Ste N, Sheridan, WY 82801, USA';
 
-export const MAILING_ADDRESS = '30 N Gould St #28330, Sheridan, WY 82801, USA';
+export const MAILING_ADDRESS = '30 N Gould St Ste N, Sheridan, WY 82801, USA';
 export const PRINCIPAL_OFFICE_ADDRESS = MAILING_ADDRESS;
 
 /** Public-facing business / correspondence address (principal office). */

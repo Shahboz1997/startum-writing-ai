@@ -322,6 +322,36 @@ export function useWriterWorkspace() {
     });
   }, [update, router]);
 
+  // After Lemon Squeezy redirect (?credits=success) refresh balance from DB.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('credits') !== 'success') return;
+
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const res = await fetch('/api/user/credits', { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!cancelled && typeof data?.credits === 'number') {
+          setCredits(data.credits);
+          setCreditsSynced(true);
+        }
+        await update();
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) {
+          router.replace('/?app=1', { scroll: false });
+        }
+      }
+    };
+    void refresh();
+    return () => {
+      cancelled = true;
+    };
+  }, [update, router]);
+
   useEffect(() => {
     setAppliedCorrections([]);
   }, [activeResult]);

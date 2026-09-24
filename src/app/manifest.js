@@ -1,7 +1,9 @@
+import { LEGAL_COMPANY_NAME } from '@/lib/support';
+
 /** @type {import('next').MetadataRoute.Manifest} */
 export default function manifest() {
   return {
-    name: 'STRATUM — Stratum Technologies LLC',
+    name: `STRATUM — ${LEGAL_COMPANY_NAME}`,
     short_name: 'STRATUM',
     description:
       'Elevate your IELTS score with Stratum. Precision AI-driven evaluation for Task 1 and Task 2.',

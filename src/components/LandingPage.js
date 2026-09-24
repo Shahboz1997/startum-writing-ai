@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from '@wrksz/themes/client';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -36,6 +36,8 @@ import {
 import { TASK1_TIPS, TASK2_TIPS, LETTER_TIPS } from '@/lib/ieltsGuidelines';
 import NeuralSyncShowcase from '@/components/NeuralSyncShowcase';
 import LandingSampleReports from '@/components/landing/LandingSampleReports';
+import LandingPricing from '@/components/landing/LandingPricing';
+import LandingLemonTestCheckout from '@/components/landing/LandingLemonTestCheckout';
 import TelegramIcon from '@/components/icons/TelegramIcon';
 import {
   TELEGRAM_BOT_URL,
@@ -57,7 +59,7 @@ import {
 
 const WORKFLOW_ICONS = [Sparkles, PenTool, BarChart3, Wrench];
 
-export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
+export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLoggedIn = false }) {
   const router = useRouter();
   const { copy: abCopy } = useLandingAbVariant();
   const { resolvedTheme } = useTheme();
@@ -386,6 +388,12 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick }) {
           ))}
         </div>
       </LandingSection>
+
+      <LandingPricing isLoggedIn={isLoggedIn} onLoginClick={onLoginClick} />
+
+      <Suspense fallback={null}>
+        <LandingLemonTestCheckout isLoggedIn={isLoggedIn} onLoginClick={onLoginClick} />
+      </Suspense>
 
       {/* Final CTA */}
       <section className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-slate-200/50 dark:border-white/5">

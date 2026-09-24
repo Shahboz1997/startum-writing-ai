@@ -6,7 +6,7 @@ export const metadata = {
   description: 'STRATUM terms of service: service description, credits, and user conduct.',
 };
 
-const LAST_UPDATED = 'February 19, 2026';
+const LAST_UPDATED = 'September 24, 2026';
 
 export default function TermsPage() {
   return (
@@ -27,7 +27,12 @@ export default function TermsPage() {
           One (1) credit equals one (1) essay check (either Task 1 or Task 2). Credits are consumed
           when you submit an essay for analysis. <strong>Non-refundable once credits are used.</strong> Once a
           credit has been used, it cannot be refunded or restored. Unused credits may be subject to
-          expiry depending on your plan; see the pricing page for details.
+          expiry depending on your plan; see the{' '}
+          <a href="/pricing" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            pricing page
+          </a>{' '}
+          for current packs and prices. Credit packs are digital products fulfilled automatically to
+          your account after successful payment.
         </p>
       </section>
 

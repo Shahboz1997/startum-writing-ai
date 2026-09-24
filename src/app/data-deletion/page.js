@@ -1,5 +1,10 @@
 import LegalPageLayout from '@/components/LegalPageLayout';
-import { SUPPORT_EMAIL, SUPPORT_PHONE_TEL, CONTACT_SUPPORT_LABEL } from '@/lib/support';
+import {
+  LEGAL_COMPANY_NAME,
+  SUPPORT_EMAIL,
+  SUPPORT_PHONE_TEL,
+  CONTACT_SUPPORT_LABEL,
+} from '@/lib/support';
 
 export const metadata = {
   title: 'Data Deletion | STRATUM',
@@ -15,7 +20,7 @@ export default function DataDeletionPage() {
       <section>
         <h2>Overview</h2>
         <p>
-          stratum (stratumielts.com) is operated by Stratum Technologies LLC. This page explains how
+          stratum (stratumielts.com) is operated by {LEGAL_COMPANY_NAME}. This page explains how
           you can request deletion of personal data we hold about you.
         </p>
       </section>

@@ -1,224 +1,224 @@
 {
   "text": "The graph illustrates significant shifts in cinema attendance between 1990 and 2010. Overall, attendance rose substantially over the period, with a particularly sharp increase in the final decade. These trends suggest a growing preference for theatrical viewing despite the rise of streaming platforms.",
-  "duration": 17.564,
-  "provider": "replicate:minimax/speech-2.8-turbo+whisper-align",
-  "generatedAt": "2026-07-14T18:39:53.785Z",
+  "duration": 16.538461538461537,
+  "provider": "replicate:minimax/speech-2.8-turbo",
+  "generatedAt": "2026-09-24T19:09:11.631Z",
   "words": [
     {
       "word": "The",
-      "start": 0.171,
-      "end": 0.251
+      "start": 0,
+      "end": 0.3708
     },
     {
       "word": "graph",
-      "start": 0.291,
-      "end": 0.592
+      "start": 0.3708,
+      "end": 0.7416
     },
     {
       "word": "illustrates",
-      "start": 0.652,
-      "end": 1.073
+      "start": 0.7416,
+      "end": 1.1125
     },
     {
       "word": "significant",
-      "start": 1.133,
-      "end": 1.634
+      "start": 1.1125,
+      "end": 1.4833
     },
     {
       "word": "shifts",
-      "start": 1.674,
-      "end": 1.895
+      "start": 1.4833,
+      "end": 1.8541
     },
     {
       "word": "in",
-      "start": 1.955,
-      "end": 2.035
+      "start": 1.8541,
+      "end": 2.2249
     },
     {
       "word": "cinema",
-      "start": 2.055,
-      "end": 2.355
+      "start": 2.2249,
+      "end": 2.5957
     },
     {
       "word": "attendance",
-      "start": 2.375,
-      "end": 2.716
+      "start": 2.5957,
+      "end": 2.9665
     },
     {
       "word": "between",
-      "start": 2.756,
-      "end": 3.257
+      "start": 2.9665,
+      "end": 3.3374
     },
     {
       "word": "1990",
-      "start": 3.257,
-      "end": 3.8785
+      "start": 3.3374,
+      "end": 3.7082
     },
     {
       "word": "and",
-      "start": 4.5,
-      "end": 4.56
+      "start": 3.7082,
+      "end": 4.079
     },
     {
       "word": "2010.",
-      "start": 4.68,
-      "end": 6.203
+      "start": 4.079,
+      "end": 4.5981
     },
     {
       "word": "Overall,",
-      "start": 6.624,
-      "end": 7.024
+      "start": 4.5981,
+      "end": 5.0431
     },
     {
       "word": "attendance",
-      "start": 7.345,
-      "end": 7.726
+      "start": 5.0431,
+      "end": 5.4139
     },
     {
       "word": "rose",
-      "start": 7.766,
-      "end": 7.986
+      "start": 5.4139,
+      "end": 5.7848
     },
     {
       "word": "substantially",
-      "start": 8.006,
-      "end": 8.627
+      "start": 5.7848,
+      "end": 6.1556
     },
     {
       "word": "over",
-      "start": 8.728,
-      "end": 8.848
+      "start": 6.1556,
+      "end": 6.5264
     },
     {
       "word": "the",
-      "start": 8.868,
-      "end": 8.968
+      "start": 6.5264,
+      "end": 6.8972
     },
     {
       "word": "period,",
-      "start": 8.988,
-      "end": 9.349
+      "start": 6.8972,
+      "end": 7.3422
     },
     {
       "word": "with",
-      "start": 9.569,
-      "end": 9.689
+      "start": 7.3422,
+      "end": 7.713
     },
     {
       "word": "a",
-      "start": 9.729,
-      "end": 9.77
+      "start": 7.713,
+      "end": 8.0838
     },
     {
       "word": "particularly",
-      "start": 9.81,
-      "end": 10.451
+      "start": 8.0838,
+      "end": 8.4546
     },
     {
       "word": "sharp",
-      "start": 10.511,
-      "end": 10.751
+      "start": 8.4546,
+      "end": 8.8255
     },
     {
       "word": "increase",
-      "start": 10.832,
-      "end": 11.172
+      "start": 8.8255,
+      "end": 9.1963
     },
     {
       "word": "in",
-      "start": 11.232,
-      "end": 11.292
+      "start": 9.1963,
+      "end": 9.5671
     },
     {
       "word": "the",
-      "start": 11.312,
-      "end": 11.393
+      "start": 9.5671,
+      "end": 9.9379
     },
     {
       "word": "final",
-      "start": 11.433,
-      "end": 11.693
+      "start": 9.9379,
+      "end": 10.3087
     },
     {
       "word": "decade.",
-      "start": 11.733,
-      "end": 12.074
+      "start": 10.3087,
+      "end": 10.8279
     },
     {
       "word": "These",
-      "start": 12.515,
-      "end": 12.675
+      "start": 10.8279,
+      "end": 11.1987
     },
     {
       "word": "trends",
-      "start": 12.735,
-      "end": 13.016
+      "start": 11.1987,
+      "end": 11.5695
     },
     {
       "word": "suggest",
-      "start": 13.036,
-      "end": 13.457
+      "start": 11.5695,
+      "end": 11.9403
     },
     {
       "word": "a",
-      "start": 13.477,
-      "end": 13.497
+      "start": 11.9403,
+      "end": 12.3111
     },
     {
       "word": "growing",
-      "start": 13.657,
-      "end": 13.978
+      "start": 12.3111,
+      "end": 12.682
     },
     {
       "word": "preference",
-      "start": 14.018,
-      "end": 14.438
+      "start": 12.682,
+      "end": 13.0528
     },
     {
       "word": "for",
-      "start": 14.479,
-      "end": 14.639
+      "start": 13.0528,
+      "end": 13.4236
     },
     {
       "word": "theatrical",
-      "start": 14.719,
-      "end": 15.18
+      "start": 13.4236,
+      "end": 13.7944
     },
     {
       "word": "viewing",
-      "start": 15.22,
-      "end": 15.541
+      "start": 13.7944,
+      "end": 14.1652
     },
     {
       "word": "despite",
-      "start": 15.601,
-      "end": 16.082
+      "start": 14.1652,
+      "end": 14.536
     },
     {
       "word": "the",
-      "start": 16.122,
-      "end": 16.202
+      "start": 14.536,
+      "end": 14.9069
     },
     {
       "word": "rise",
-      "start": 16.242,
-      "end": 16.522
+      "start": 14.9069,
+      "end": 15.2777
     },
     {
       "word": "of",
-      "start": 16.583,
-      "end": 16.623
+      "start": 15.2777,
+      "end": 15.6485
     },
     {
       "word": "streaming",
-      "start": 16.683,
-      "end": 17.023
+      "start": 15.6485,
+      "end": 16.0193
     },
     {
       "word": "platforms.",
-      "start": 17.063,
-      "end": 17.564
+      "start": 16.0193,
+      "end": 16.5385
     }
   ],
-  "alignment": "replicate:victor-upmeet/whisperx"
+  "note": "Proportional timings — re-run with OPENAI_API_KEY or REPLICATE_API_TOKEN for Whisper word sync."
 }

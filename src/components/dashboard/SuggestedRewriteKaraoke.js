@@ -7,7 +7,8 @@ import { SUGGESTED_REWRITE_MODEL_LABEL } from '@/lib/suggestedRewrite';
 import {
   normalizeWordToken,
   alignTextTokensToWhisper,
-  findActiveWordIndexFromTimings,
+  buildSentenceRanges,
+  findActiveSentenceIndexFromTimings,
   scaleTimingsToAudioDuration,
   tokenizePlainText,
 } from '@/lib/karaokeWordAlign';
@@ -241,10 +242,10 @@ export default function SuggestedRewriteKaraoke({
   /** Archive / dashboard: stretch to parent column (no max-w shrink). */
   fillWidth = false,
 }) {
-  const [activeWordIndex, setActiveWordIndex] = useState(-1);
-  const activeWordIndexRef = useRef(-1);
+  const [activeSentenceIndex, setActiveSentenceIndex] = useState(-1);
+  const activeSentenceIndexRef = useRef(-1);
   const karaokeScrollRef = useRef(null);
-  const activeWordRef = useRef(null);
+  const activeSentenceRef = useRef(null);
 
   const segmentedRewrite = useMemo(() => insertLogicalParagraphBreaks(suggestedRewrite || ''), [suggestedRewrite]);
 
@@ -274,18 +275,22 @@ export default function SuggestedRewriteKaraoke({
     return ranges;
   }, [segmentedRewrite, wordTimings.length]);
 
+  const sentenceRanges = useMemo(() => buildSentenceRanges(wordTimings), [wordTimings]);
+
   const linkingWordMask = useMemo(() => buildLinkingWordMask(wordTimings), [wordTimings]);
 
-  const handleWordClick = useCallback(
-    (index) => {
-      if (!audioRef?.current || index < 0 || index >= wordTimings.length) return;
-      const w = wordTimings[index];
+  const handleSentenceClick = useCallback(
+    (sentenceIndex) => {
+      if (!audioRef?.current || sentenceIndex < 0 || sentenceIndex >= sentenceRanges.length) return;
+      const range = sentenceRanges[sentenceIndex];
+      const w = wordTimings[range.start];
+      if (!w) return;
       audioRef.current.currentTime = w.start;
-      activeWordIndexRef.current = index;
-      setActiveWordIndex(index);
+      activeSentenceIndexRef.current = sentenceIndex;
+      setActiveSentenceIndex(sentenceIndex);
       audioRef.current.play().then(() => {}).catch(() => {});
     },
-    [audioRef, wordTimings]
+    [audioRef, wordTimings, sentenceRanges]
   );
 
   useEffect(() => {
@@ -296,10 +301,15 @@ export default function SuggestedRewriteKaraoke({
     const syncHighlightToAudio = () => {
       const current = el.currentTime || 0;
       if (wordTimings.length === 0) return;
-      const idx = findActiveWordIndexFromTimings(wordTimings, current);
-      if (idx !== activeWordIndexRef.current) {
-        activeWordIndexRef.current = idx;
-        setActiveWordIndex(idx);
+      const idx = findActiveSentenceIndexFromTimings(
+        wordTimings,
+        current,
+        undefined,
+        sentenceRanges
+      );
+      if (idx !== activeSentenceIndexRef.current) {
+        activeSentenceIndexRef.current = idx;
+        setActiveSentenceIndex(idx);
       }
     };
 
@@ -331,8 +341,8 @@ export default function SuggestedRewriteKaraoke({
     const onTimeUpdate = () => syncHighlightToAudio();
     const onEnded = () => {
       stopRaf();
-      activeWordIndexRef.current = -1;
-      setActiveWordIndex(-1);
+      activeSentenceIndexRef.current = -1;
+      setActiveSentenceIndex(-1);
     };
 
     el.addEventListener('play', onPlay);
@@ -350,13 +360,13 @@ export default function SuggestedRewriteKaraoke({
       el.removeEventListener('timeupdate', onTimeUpdate);
       el.removeEventListener('ended', onEnded);
     };
-  }, [audioUrl, wordTimings]);
+  }, [audioUrl, wordTimings, sentenceRanges]);
 
   useEffect(() => {
-    if (activeWordIndex >= 0 && activeWordRef.current && karaokeScrollRef.current) {
-      activeWordRef.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    if (activeSentenceIndex >= 0 && activeSentenceRef.current && karaokeScrollRef.current) {
+      activeSentenceRef.current.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
     }
-  }, [activeWordIndex]);
+  }, [activeSentenceIndex]);
 
   const staticParas = segmentedRewrite.split(/\n\s*\n/).filter(Boolean);
 
@@ -469,45 +479,56 @@ export default function SuggestedRewriteKaraoke({
 
           {audioUrl && wordTimings.length > 0 ? (
             <div className="not-prose h-auto overflow-visible">
-              {karaokeParagraphRanges.map((range, pi) => (
-                <p key={pi} className={paraClass}>
-                  {wordTimings.slice(range.start, range.end).map((w, i) => {
-                    const globalIndex = range.start + i;
-                    const isActive = globalIndex === activeWordIndex;
-                    const isPlayed = activeWordIndex >= 0 && globalIndex < activeWordIndex;
-                    return (
-                      <span key={globalIndex} className="inline-block mr-1.5 mb-1">
-                        <span
-                          ref={isActive ? activeWordRef : undefined}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => handleWordClick(globalIndex)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              handleWordClick(globalIndex);
-                            }
-                          }}
-                          className={[
-                            'inline-block px-1 rounded transition-all cursor-pointer',
-                            linkingWordMask[globalIndex] ? 'font-bold' : '',
-                            isActive
-                              ? 'bg-indigo-500 text-white'
-                              : isPlayed
-                                ? 'text-slate-900 dark:text-slate-100 underline decoration-indigo-500/40'
-                                : 'text-slate-700 dark:text-slate-300',
-                          ]
-                            .filter(Boolean)
-                            .join(' ')}
-                          aria-label={`Word: ${w.word}, click to seek`}
-                        >
-                          {w.word}
+              {karaokeParagraphRanges.map((range, pi) => {
+                const sentencesInPara = sentenceRanges
+                  .map((sRange, si) => ({ sRange, si }))
+                  .filter(({ sRange }) => sRange.start < range.end && sRange.end > range.start);
+
+                return (
+                  <p key={pi} className={paraClass}>
+                    {sentencesInPara.map(({ sRange, si }, localIdx) => {
+                      const start = Math.max(sRange.start, range.start);
+                      const end = Math.min(sRange.end, range.end);
+                      const isActive = si === activeSentenceIndex;
+                      const isPlayed = activeSentenceIndex >= 0 && si < activeSentenceIndex;
+                      const sentenceWords = wordTimings.slice(start, end);
+                      const hasLinking = sentenceWords.some((_, i) => linkingWordMask[start + i]);
+
+                      return (
+                        <span key={`sent-${si}`}>
+                          <span
+                            ref={isActive ? activeSentenceRef : undefined}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleSentenceClick(si)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleSentenceClick(si);
+                              }
+                            }}
+                            className={[
+                              'inline rounded-md px-1 py-0.5 transition-all cursor-pointer',
+                              hasLinking ? 'font-semibold' : '',
+                              isActive
+                                ? 'bg-indigo-500 text-white shadow-sm'
+                                : isPlayed
+                                  ? 'text-slate-900 dark:text-slate-100 underline decoration-indigo-500/40'
+                                  : 'text-slate-700 dark:text-slate-300',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            aria-label={`Sentence ${si + 1}, click to seek`}
+                          >
+                            {sentenceWords.map((w) => w.word).join(' ')}
+                          </span>
+                          {localIdx < sentencesInPara.length - 1 ? ' ' : ''}
                         </span>
-                      </span>
-                    );
-                  })}
-                </p>
-              ))}
+                      );
+                    })}
+                  </p>
+                );
+              })}
             </div>
           ) : staticParas.length > 0 ? (
             <div className="not-prose h-auto overflow-visible">

@@ -34,8 +34,8 @@ export default function LandingMarketingShell({ isAuthenticated, children }) {
       <div className="relative z-0 min-h-screen">
         {typeof children === 'function'
           ? children({
-              onLoginClick: () => {
-                setAuthModalMessage(null);
+              onLoginClick: (message) => {
+                setAuthModalMessage(typeof message === 'string' ? message : null);
                 setIsAuthOpen(true);
               },
               onFullAnalysisClick: () => {

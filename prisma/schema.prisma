@@ -34,7 +34,7 @@ model User {
   depositRequests   DepositRequest[]
 }
 
-/// Manual top-up claims (Visa P2P / bank transfer). Admin credits after verification.
+/// Manual top-up claims + Lemon Squeezy purchases. Credits applied when status = credited.
 model DepositRequest {
   id          String    @id @default(cuid())
   userId      String
@@ -48,6 +48,8 @@ model DepositRequest {
   status      String    @default("paid_claimed")
   note        String?   @db.Text
   adminNote   String?   @db.Text
+  /// Lemon Squeezy order id — unique for webhook idempotency
+  lemonOrderId String?  @unique
   notifySentAt DateTime?
   creditedAt  DateTime?
   createdAt   DateTime  @default(now())
