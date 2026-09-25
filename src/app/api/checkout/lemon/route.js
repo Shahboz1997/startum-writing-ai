@@ -22,60 +22,60 @@ import { getMetadataBaseUrl } from '@/lib/publicSiteUrl';
  * Returns: { checkoutUrl }
  */
 export async function POST(request) {
-  const session = await safeAuth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  if (!isLemonSqueezyConfigured()) {
-    return NextResponse.json(
-      {
-        error:
-          'Lemon Squeezy is not configured. Set LEMON_SQUEEZY_API_KEY and LEMON_SQUEEZY_STORE_ID.',
-        code: 'LEMON_NOT_CONFIGURED',
-      },
-      { status: 503 }
-    );
-  }
-
-  let body;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  }
+    const session = await safeAuth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const packId = typeof body?.packId === 'string' ? body.packId.trim() : '';
-  const pack = getCreditPackById(packId);
-  if (!pack) {
-    return NextResponse.json({ error: 'Unknown credit pack' }, { status: 400 });
-  }
+    if (!isLemonSqueezyConfigured()) {
+      return NextResponse.json(
+        {
+          error:
+            'Lemon Squeezy is not configured. Set LEMON_SQUEEZY_API_KEY and LEMON_SQUEEZY_STORE_ID.',
+          code: 'LEMON_NOT_CONFIGURED',
+        },
+        { status: 503 }
+      );
+    }
 
-  const variantId = getLemonVariantIdForPack(pack);
-  if (!variantId) {
-    return NextResponse.json(
-      {
-        error: `Missing Lemon variant id for pack "${pack.id}". Set ${pack.lemonVariantEnv} in env.`,
-        code: 'LEMON_VARIANT_MISSING',
-      },
-      { status: 503 }
-    );
-  }
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    }
 
-  const prisma = getPrisma();
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, email: true, name: true },
-  });
-  if (!user?.email) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 });
-  }
+    const packId = typeof body?.packId === 'string' ? body.packId.trim() : '';
+    const pack = getCreditPackById(packId);
+    if (!pack) {
+      return NextResponse.json({ error: 'Unknown credit pack' }, { status: 400 });
+    }
 
-  try {
+    const variantId = getLemonVariantIdForPack(pack);
+    if (!variantId) {
+      return NextResponse.json(
+        {
+          error: `Missing Lemon variant id for pack "${pack.id}". Set ${pack.lemonVariantEnv} in env.`,
+          code: 'LEMON_VARIANT_MISSING',
+        },
+        { status: 503 }
+      );
+    }
+
+    const prisma = getPrisma();
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, email: true, name: true },
+    });
+    if (!user?.email) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     ensureLemonSqueezyConfigured();
     const storeId = getLemonStoreId();
     const origin = getMetadataBaseUrl().replace(/\/+$/, '');
-    const redirectUrl = `${origin}/?app=1&credits=success`;
+    const redirectUrl = `${origin}/?app=1&credits=success&pack=${encodeURIComponent(pack.id)}&value=${encodeURIComponent(String(pack.priceUsd))}`;
 
     const { data, error, statusCode } = await createCheckout(storeId, variantId, {
       checkoutData: {
@@ -123,7 +123,7 @@ export async function POST(request) {
   } catch (err) {
     console.error('[/api/checkout/lemon]', err);
     return NextResponse.json(
-      { error: err?.message || 'Checkout failed', code: 'LEMON_CHECKOUT_ERROR' },
+      { error: 'Checkout failed', code: 'LEMON_CHECKOUT_ERROR' },
       { status: 500 }
     );
   }

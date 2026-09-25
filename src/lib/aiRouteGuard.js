@@ -1,9 +1,11 @@
 import { getPrisma, withPrismaRetry } from '@/lib/prisma';
 import {
   AI_RATE_LIMITS,
+  GUEST_CHECK_LIMIT,
   getClientIp,
   hashClientIp,
   jsonAuthRequired,
+  jsonGuestQuotaExhausted,
   jsonRateLimitExceeded,
 } from '@/lib/aiAccessShared';
 
@@ -27,25 +29,40 @@ function rateLimitBucketKey(scope, route, windowStartMs, windowMs) {
   return `${scope}:${route}:${windowId}`;
 }
 
+/**
+ * Atomic fixed-window consume via conditional UPDATE / INSERT.
+ * Avoids TOCTOU where parallel requests all pass a soft count read.
+ */
 async function consumeRateLimitBucket(bucketKey, { limit, windowMs }) {
   const now = new Date();
+  const windowFloor = new Date(now.getTime() - windowMs);
 
   return withPrismaRetry(async () => {
     const prisma = getPrisma();
+
+    // Fast path: increment if bucket exists, still in window, and under limit.
+    const incremented = await prisma.$queryRaw`
+      UPDATE "AiRateLimitBucket"
+      SET count = count + 1
+      WHERE "bucketKey" = ${bucketKey}
+        AND "windowStart" >= ${windowFloor}
+        AND count < ${limit}
+      RETURNING count, "windowStart"
+    `;
+
+    if (Array.isArray(incremented) && incremented.length > 0) {
+      return { ok: true, remaining: limit - Number(incremented[0].count) };
+    }
+
+    // Existing bucket at/over limit (same window)?
     const existing = await prisma.aiRateLimitBucket.findUnique({
       where: { bucketKey },
     });
-
-    if (!existing || now.getTime() - existing.windowStart.getTime() >= windowMs) {
-      await prisma.aiRateLimitBucket.upsert({
-        where: { bucketKey },
-        create: { bucketKey, count: 1, windowStart: now },
-        update: { count: 1, windowStart: now },
-      });
-      return { ok: true, remaining: limit - 1 };
-    }
-
-    if (existing.count >= limit) {
+    if (
+      existing &&
+      now.getTime() - existing.windowStart.getTime() < windowMs &&
+      existing.count >= limit
+    ) {
       const retryAfterMs = Math.max(
         1,
         windowMs - (now.getTime() - existing.windowStart.getTime())
@@ -53,11 +70,13 @@ async function consumeRateLimitBucket(bucketKey, { limit, windowMs }) {
       return { ok: false, retryAfterMs };
     }
 
-    await prisma.aiRateLimitBucket.update({
+    // Missing or expired window → reset to 1 (upsert).
+    await prisma.aiRateLimitBucket.upsert({
       where: { bucketKey },
-      data: { count: { increment: 1 } },
+      create: { bucketKey, count: 1, windowStart: now },
+      update: { count: 1, windowStart: now },
     });
-    return { ok: true, remaining: limit - existing.count - 1 };
+    return { ok: true, remaining: limit - 1 };
   });
 }
 
@@ -116,21 +135,74 @@ export async function requireAuthenticatedAiAccess(request, session, route) {
 }
 
 /**
- * Access control for main essay analysis on POST /api/check (signed-in only).
+ * Atomically consume one guest preview slot before OpenAI.
+ * Returns { ok: false } when the IP already used its free check.
+ */
+export async function tryConsumeGuestCheckQuota(ipHash) {
+  if (!ipHash) return { ok: false };
+  return withPrismaRetry(async () => {
+    const prisma = getPrisma();
+    const rows = await prisma.$queryRaw`
+      INSERT INTO "GuestCheckQuota" ("ipHash", count, "createdAt", "updatedAt")
+      VALUES (${ipHash}, 1, NOW(), NOW())
+      ON CONFLICT ("ipHash") DO UPDATE
+      SET count = "GuestCheckQuota".count + 1,
+          "updatedAt" = NOW()
+      WHERE "GuestCheckQuota".count < ${GUEST_CHECK_LIMIT}
+      RETURNING count
+    `;
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return { ok: false };
+    }
+    return { ok: true, count: Number(rows[0].count) };
+  });
+}
+
+/** Refund guest quota when preview OpenAI fails after consume. */
+export async function refundGuestCheckQuota(ipHash) {
+  if (!ipHash) return;
+  await withPrismaRetry(() =>
+    getPrisma().$executeRaw`
+      UPDATE "GuestCheckQuota"
+      SET count = GREATEST(0, count - 1), "updatedAt" = NOW()
+      WHERE "ipHash" = ${ipHash}
+    `
+  );
+}
+
+/** @deprecated Prefer tryConsumeGuestCheckQuota before OpenAI. Kept for callers that already reserved. */
+export async function consumeGuestCheckQuota(ipHash) {
+  if (!ipHash) return;
+  await withPrismaRetry(() =>
+    getPrisma().guestCheckQuota.upsert({
+      where: { ipHash },
+      create: { ipHash, count: 1 },
+      update: { count: { increment: 1 } },
+    })
+  );
+}
+
+/**
+ * Main essay analysis on POST /api/check.
+ * Signed-in: credits path. Guest: 1 band-preview per IP (no rewrite / no persist).
+ * Guest quota is consumed later in the route (before OpenAI) via tryConsumeGuestCheckQuota.
  */
 export async function resolveMainCheckAccess(request, session) {
   const ip = getClientIp(request);
   const ipHash = await hashClientIp(ip);
   const userId = session?.user?.id || null;
 
-  if (!userId) {
-    return {
-      ok: false,
-      response: jsonAuthRequired('Sign in to analyze your essay.'),
-    };
+  if (userId) {
+    const authAccess = await requireAuthenticatedAiAccess(request, session, 'check');
+    if (!authAccess.ok) return authAccess;
+    return { ok: true, userId, ipHash, isGuest: false };
   }
 
-  const authAccess = await requireAuthenticatedAiAccess(request, session, 'check');
-  if (!authAccess.ok) return authAccess;
-  return { ok: true, userId, ipHash, isGuest: false };
+  const guestBurst = await enforceRateLimit(`guest-ip:${ipHash}`, 'checkGuestIp');
+  if (!guestBurst.ok) return guestBurst;
+
+  const ipRl = await enforceRateLimit(`ip:${ipHash}`, 'check');
+  if (!ipRl.ok) return ipRl;
+
+  return { ok: true, userId: null, ipHash, isGuest: true };
 }

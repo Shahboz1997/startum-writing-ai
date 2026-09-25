@@ -12,7 +12,14 @@ import { getPrisma } from '@/lib/prisma';
  */
 export async function GET(request) {
   const expected = (process.env.WARM_SECRET || process.env.CRON_SECRET || '').trim();
-  if (expected) {
+  if (!expected) {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { error: 'Warm endpoint requires WARM_SECRET or CRON_SECRET' },
+        { status: 503 }
+      );
+    }
+  } else {
     const auth = request.headers.get('authorization') || '';
     const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
     const query = request.nextUrl.searchParams.get('secret') || '';

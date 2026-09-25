@@ -154,3 +154,14 @@ model AiRateLimitBucket {
   windowStart DateTime @default(now())
 }
 
+/// Paid Lemon orders that could not be fulfilled (unknown pack / missing user).
+/// Prevents silent credit loss when webhook must ACK without granting credits.
+model LemonWebhookDeadLetter {
+  id           String    @id @default(cuid())
+  lemonOrderId String    @unique
+  reason       String
+  detail       Json?
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+}
+

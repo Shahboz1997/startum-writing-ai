@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getLemonWebhookSecret } from '@/lib/lemonsqueezy';
 import { fulfillLemonOrderCredits } from '@/lib/lemonCreditFulfillment';
+import { getPrisma, withPrismaRetry } from '@/lib/prisma';
 
 function verifyLemonSignature(rawBody, signatureHeader, secret) {
   if (!secret || !rawBody || !signatureHeader) return false;
@@ -15,6 +16,35 @@ function verifyLemonSignature(rawBody, signatureHeader, secret) {
   const signature = Buffer.from(String(signatureHeader), 'utf8');
   if (digest.length !== signature.length) return false;
   return crypto.timingSafeEqual(digest, signature);
+}
+
+const PERMANENT_FAIL_REASONS = new Set([
+  'missing_order_id',
+  'unknown_pack',
+  'user_not_found',
+]);
+
+/**
+ * Persist failed paid orders so ops can grant credits manually.
+ * ACK with 200 only after dead-letter write succeeds (avoids silent loss + infinite Lemon retries).
+ */
+async function recordLemonDeadLetter({ lemonOrderId, reason, detail }) {
+  const orderId = String(lemonOrderId || '').trim() || `unknown-${Date.now()}`;
+  await withPrismaRetry(() =>
+    getPrisma().lemonWebhookDeadLetter.upsert({
+      where: { lemonOrderId: orderId },
+      create: {
+        lemonOrderId: orderId,
+        reason: String(reason || 'unknown'),
+        detail: detail ?? undefined,
+      },
+      update: {
+        reason: String(reason || 'unknown'),
+        detail: detail ?? undefined,
+        resolvedAt: null,
+      },
+    })
+  );
 }
 
 /**
@@ -28,7 +58,14 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 });
   }
 
-  const rawBody = await request.text();
+  let rawBody;
+  try {
+    rawBody = await request.text();
+  } catch (err) {
+    console.error('[lemonsqueezy webhook] body read failed', err);
+    return NextResponse.json({ error: 'Could not read body' }, { status: 400 });
+  }
+
   const signature = request.headers.get('X-Signature') || request.headers.get('x-signature') || '';
 
   if (!verifyLemonSignature(rawBody, signature, secret)) {
@@ -75,9 +112,49 @@ export async function POST(request) {
     });
 
     if (!result.ok) {
-      console.error('[lemonsqueezy webhook] fulfill failed', result);
-      // 200 so Lemon does not infinite-retry on unknown pack / user while we investigate.
-      return NextResponse.json({ ok: false, ...result }, { status: 200 });
+      console.error('[CRITICAL][lemonsqueezy webhook] fulfill failed', {
+        lemonOrderId,
+        reason: result.reason,
+        packId,
+        variantId,
+        userId,
+        userEmailHint,
+      });
+
+      const permanent = PERMANENT_FAIL_REASONS.has(result.reason);
+      if (permanent) {
+        try {
+          await recordLemonDeadLetter({
+            lemonOrderId,
+            reason: result.reason,
+            detail: {
+              packId,
+              variantId,
+              userId,
+              userEmailHint,
+              result,
+            },
+          });
+          // ACK after durable record — Lemon will not retry; ops resolves via dead-letter table.
+          return NextResponse.json(
+            { ok: false, deadLetter: true, ...result },
+            { status: 200 }
+          );
+        } catch (dlErr) {
+          console.error('[CRITICAL][lemonsqueezy webhook] dead-letter persist failed', dlErr);
+          // Force Lemon retry until we can record the failure.
+          return NextResponse.json(
+            { error: 'Could not record unfulfilled order', reason: result.reason },
+            { status: 500 }
+          );
+        }
+      }
+
+      // Transient / unexpected — ask Lemon to retry.
+      return NextResponse.json(
+        { error: 'Fulfillment failed', reason: result.reason },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -90,7 +167,7 @@ export async function POST(request) {
   } catch (err) {
     console.error('[lemonsqueezy webhook]', err);
     return NextResponse.json(
-      { error: err?.message || 'Webhook processing failed' },
+      { error: 'Webhook processing failed' },
       { status: 500 }
     );
   }
