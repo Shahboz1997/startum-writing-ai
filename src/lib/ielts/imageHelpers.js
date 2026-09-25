@@ -1,6 +1,7 @@
 import https from 'https';
 import http from 'http';
 import { URL as NodeURL } from 'url';
+import net from 'net';
 
 /**
  * Vision models sometimes return a full "sample report" despite instructions — drop it and use standard wording only.
@@ -48,26 +49,81 @@ export function sanitizeTask1VisionIntro(raw) {
 export const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 export const MAX_DATA_URL_CHARS = 10_000_000; // ~7.5MB base64 payload depending on header
 
+function isPrivateOrLocalHost(hostname) {
+  const host = String(hostname || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '');
+  if (!host) return true;
+  if (
+    host === 'localhost' ||
+    host === '0.0.0.0' ||
+    host === '::' ||
+    host === '::1' ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    host.endsWith('.lan')
+  ) {
+    return true;
+  }
+
+  const ipVersion = net.isIP(host);
+  if (!ipVersion) return false;
+
+  if (ipVersion === 4) {
+    const parts = host.split('.').map((n) => Number(n));
+    if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return true;
+    const [a, b] = parts;
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 0) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    return false;
+  }
+
+  // IPv6: loopback, ULA, link-local
+  if (host === '::1') return true;
+  if (host.startsWith('fc') || host.startsWith('fd')) return true;
+  if (host.startsWith('fe80')) return true;
+  return false;
+}
+
+/** Reject localhost / private / metadata hosts before server-side image fetch (SSRF). */
+export function assertSafePublicImageUrl(imageUrl) {
+  let parsed;
+  try {
+    parsed = new NodeURL(imageUrl);
+  } catch {
+    throw new Error('Invalid image URL');
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    throw new Error('Only http(s) image URLs are supported');
+  }
+  if (isPrivateOrLocalHost(parsed.hostname)) {
+    throw new Error('Image host is not allowed');
+  }
+  return parsed;
+}
+
 /** Prefer Node http(s) — global fetch/Undici often throws "fetch failed" for some CDNs on Windows. */
 export function downloadImageAsDataUrl(imageUrl, redirectCount = 0) {
-  if (redirectCount > 10) {
+  if (redirectCount > 5) {
     return Promise.reject(new Error('Too many redirects while fetching image'));
   }
 
-  return new Promise((resolve, reject) => {
-    let parsed;
-    try {
-      parsed = new NodeURL(imageUrl);
-    } catch {
-      reject(new Error('Invalid image URL'));
-      return;
-    }
+  let parsed;
+  try {
+    parsed = assertSafePublicImageUrl(imageUrl);
+  } catch (err) {
+    return Promise.reject(err);
+  }
 
-    const lib = parsed.protocol === 'https:' ? https : parsed.protocol === 'http:' ? http : null;
-    if (!lib) {
-      reject(new Error('Only http(s) image URLs are supported'));
-      return;
-    }
+  return new Promise((resolve, reject) => {
+    const lib = parsed.protocol === 'https:' ? https : http;
 
     const req = lib.request(
       imageUrl,
@@ -83,8 +139,13 @@ export function downloadImageAsDataUrl(imageUrl, redirectCount = 0) {
         const loc = res.headers.location;
         if (res.statusCode >= 300 && res.statusCode < 400 && loc) {
           res.resume();
-          const nextUrl = new NodeURL(loc, imageUrl).href;
-          downloadImageAsDataUrl(nextUrl, redirectCount + 1).then(resolve).catch(reject);
+          try {
+            const nextUrl = new NodeURL(loc, imageUrl).href;
+            assertSafePublicImageUrl(nextUrl);
+            downloadImageAsDataUrl(nextUrl, redirectCount + 1).then(resolve).catch(reject);
+          } catch (redirErr) {
+            reject(redirErr);
+          }
           return;
         }
 
@@ -140,6 +201,7 @@ export function downloadImageAsDataUrl(imageUrl, redirectCount = 0) {
 }
 
 export async function imageUrlToBase64(url) {
+  assertSafePublicImageUrl(url);
   try {
     return await downloadImageAsDataUrl(url);
   } catch (nodeErr) {
@@ -147,7 +209,16 @@ export async function imageUrlToBase64(url) {
     try {
       const response = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StratumIELTS/1.0)' },
+        redirect: 'manual',
+        signal: AbortSignal.timeout(60_000),
       });
+
+      if (response.status >= 300 && response.status < 400) {
+        const loc = response.headers.get('location');
+        if (!loc) throw new Error('Redirect without location');
+        const nextUrl = new NodeURL(loc, url).href;
+        return imageUrlToBase64(nextUrl);
+      }
 
       if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
 

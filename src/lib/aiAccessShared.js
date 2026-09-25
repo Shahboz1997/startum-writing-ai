@@ -91,6 +91,10 @@ export function isAuxiliaryOpenAiCheckRequest(body) {
   return false;
 }
 
+/** Hard caps for signed-in full essay checks (cost / DoS guard). */
+export const MAX_ESSAY_CHARS = 40_000;
+export const MAX_ESSAY_WORDS = 1_200;
+
 /** Main essay analysis request (signed-in users; full GPT-4o + credits). */
 export function isMainEssayAnalysisRequest(body) {
   if (!body || typeof body !== 'object') return false;

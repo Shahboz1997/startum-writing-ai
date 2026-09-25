@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
+/** Multi-phase GPT-4o analysis — allow enough time on Vercel. */
+export const maxDuration = 120;
 
 import { NextResponse } from 'next/server';
 import {
@@ -11,6 +13,7 @@ import { buildGtLetterUserContext } from '@/lib/task1LetterPrompt.js';
 import { CREDITS_EXHAUSTED_CODE, userHasCheckCredits } from '@/lib/credits';
 import { SUPPORT_EMAIL } from '@/lib/support';
 import {
+  createChatCompletionWithModelFallback,
   getOpenAIBaseURL,
   getOpenAIVisionModel,
   getTrimmedOpenAIKey,
@@ -22,7 +25,12 @@ import {
   isAuxiliaryOpenAiCheckRequest,
   resolveAuxiliaryAiAccess,
   resolveMainCheckAccess,
+  tryConsumeGuestCheckQuota,
+  refundGuestCheckQuota,
+  jsonGuestQuotaExhausted,
 } from '@/lib/aiRouteGuard.js';
+import { MAX_ESSAY_CHARS, MAX_ESSAY_WORDS } from '@/lib/aiAccessShared.js';
+import { toGuestCheckPreview, countWords, GUEST_PREVIEW_MAX_WORDS, GUEST_PREVIEW_MIN_WORDS } from '@/lib/guestCheckPreview.js';
 import { getOpenAIClient } from '@/lib/ielts/checkOpenai.js';
 import {
   MAX_DATA_URL_CHARS,
@@ -33,7 +41,11 @@ import { buildDescribeImageSystemPrompt } from '@/lib/ielts/prompts.js';
 import { normalizeTask1Kind } from '@/lib/ielts/parseResponse.js';
 import { runFullIeltsCheck } from '@/lib/ielts/runFullIeltsCheck.js';
 import { normalizeCheckResult } from '@/lib/ielts/normalizeCheckResult.js';
-import { persistCheckResult } from '@/lib/ielts/persistCheck.js';
+import {
+  persistCheckResult,
+  reserveCheckCredit,
+  refundCheckCredit,
+} from '@/lib/ielts/persistCheck.js';
 import { buildE2eMockCheckResult } from '@/lib/ielts/e2eMockCheckResult.js';
 import {
   buildDevMockGeneratedTask1Text,
@@ -50,12 +62,17 @@ export async function DELETE(req) {
 }
 
 export async function POST(req) {
+  let creditReserved = false;
+  let guestQuotaConsumed = false;
+  let reservedUserId = null;
+  let reservedGuestIpHash = null;
+  let prismaForRefund = null;
+
   try {
     // Debug: confirm request reaches this route (never log full secrets).
     const _trimKey = getTrimmedOpenAIKey();
     console.log('[/api/check] POST start', {
       hasKey: _trimKey.length > 0,
-      keyLast4: _trimKey ? _trimKey.slice(-4) : null,
       hasProject: Boolean(getTrimmedOpenAIProjectId()),
       baseURL: getOpenAIBaseURL(),
       nodeEnv: process.env.NODE_ENV,
@@ -134,13 +151,17 @@ export async function POST(req) {
         // Let OpenAI fetch public URLs first (avoids our server download + huge base64); fallback if it fails.
         if (isPublicHttp) {
           try {
-            response = await openai.chat.completions.create(
+            response = await createChatCompletionWithModelFallback(
+              openai,
               {
-                model: visionModel,
                 messages: describeMessages(rawImage),
                 max_tokens: 220,
               },
-              { timeout: 180_000 }
+              {
+                preferredModel: visionModel,
+                requestOptions: { timeout: 180_000 },
+                label: 'describeImage-url',
+              }
             );
           } catch (directErr) {
             console.warn(
@@ -148,23 +169,31 @@ export async function POST(req) {
               directErr?.message || directErr
             );
             const finalImage = await imageUrlToBase64(rawImage);
-            response = await openai.chat.completions.create(
+            response = await createChatCompletionWithModelFallback(
+              openai,
               {
-                model: visionModel,
                 messages: describeMessages(finalImage),
                 max_tokens: 220,
               },
-              { timeout: 180_000 }
+              {
+                preferredModel: visionModel,
+                requestOptions: { timeout: 180_000 },
+                label: 'describeImage-base64',
+              }
             );
           }
         } else {
-          response = await openai.chat.completions.create(
+          response = await createChatCompletionWithModelFallback(
+            openai,
             {
-              model: visionModel,
               messages: describeMessages(body.image),
               max_tokens: 220,
             },
-            { timeout: 180_000 }
+            {
+              preferredModel: visionModel,
+              requestOptions: { timeout: 180_000 },
+              label: 'describeImage',
+            }
           );
         }
 
@@ -214,21 +243,24 @@ export async function POST(req) {
       if (clientResult.error) return clientResult.error;
       const openai = clientResult.openai;
       try {
-        const response = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You write ONLY the written description that appears above the task instructions on an IELTS Academic Task 1 paper.
+        const response = await createChatCompletionWithModelFallback(
+          openai,
+          {
+            messages: [
+              {
+                role: 'system',
+                content: `You write ONLY the written description that appears above the task instructions on an IELTS Academic Task 1 paper.
 
 Return 2–4 sentences that describe a hypothetical chart, table, map, or process (type + what it shows). Do NOT invent specific numbers. Do NOT write the candidate's report, overview of trends, or analysis.
 
 Do NOT include "Summarize the information" or "Write at least 150 words".`,
-            },
-            { role: 'user', content: 'Generate a new Academic Task 1 written prompt (description only).' },
-          ],
-          max_tokens: 220,
-        });
+              },
+              { role: 'user', content: 'Generate a new Academic Task 1 written prompt (description only).' },
+            ],
+            max_tokens: 220,
+          },
+          { label: 'generateTask1' }
+        );
         const raw = response?.choices?.[0]?.message?.content;
         const intro = sanitizeTask1VisionIntro(typeof raw === 'string' ? raw : '');
         const question = intro
@@ -253,12 +285,13 @@ Do NOT include "Summarize the information" or "Write at least 150 words".`,
       const openai = clientResult.openai;
       const keyword = typeof body.keyword === 'string' ? body.keyword.trim() : '';
       try {
-        const response = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You write an authentic IELTS General Training Writing Task 1 question (letter only).
+        const response = await createChatCompletionWithModelFallback(
+          openai,
+          {
+            messages: [
+              {
+                role: 'system',
+                content: `You write an authentic IELTS General Training Writing Task 1 question (letter only).
 
 Return ONLY the task text as it appears on the exam paper:
 - 1–2 sentences of situation (who you are, context)
@@ -267,16 +300,18 @@ Return ONLY the task text as it appears on the exam paper:
 - Then one opening line starter e.g. "Dear Sir or Madam," or "Dear Mr Jones,"
 
 Do NOT write the candidate's letter. Do NOT include band descriptors or examiner notes.`,
-            },
-            {
-              role: 'user',
-              content: keyword
-                ? `Generate a new GT letter task about: ${keyword}`
-                : 'Generate a new GT formal letter task (complaint or request to an organisation).',
-            },
-          ],
-          max_tokens: 400,
-        });
+              },
+              {
+                role: 'user',
+                content: keyword
+                  ? `Generate a new GT letter task about: ${keyword}`
+                  : 'Generate a new GT formal letter task (complaint or request to an organisation).',
+              },
+            ],
+            max_tokens: 400,
+          },
+          { label: 'generateLetterTask' }
+        );
         const raw = response?.choices?.[0]?.message?.content;
         const text = (typeof raw === 'string' ? raw : '').trim();
         if (!text) {
@@ -308,13 +343,16 @@ Do NOT write the candidate's letter. Do NOT include band descriptors or examiner
       const openai = clientResult.openai;
       const keyword = typeof body.keyword === 'string' ? body.keyword.trim() : '';
       try {
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: "You are an IELTS Examiner. Generate a Task 2 question. Return ONLY the text." },
-            { role: "user", content: `Topic: ${keyword || 'General'}` }
-          ]
-        });
+        const response = await createChatCompletionWithModelFallback(
+          openai,
+          {
+            messages: [
+              { role: 'system', content: 'You are an IELTS Examiner. Generate a Task 2 question. Return ONLY the text.' },
+              { role: 'user', content: `Topic: ${keyword || 'General'}` },
+            ],
+          },
+          { label: 'generateTopic' }
+        );
         const raw = response?.choices?.[0]?.message?.content;
         const text = (typeof raw === 'string' ? raw : '').trim();
         if (!text) {
@@ -346,23 +384,76 @@ Do NOT write the candidate's letter. Do NOT include band descriptors or examiner
     if (!userText || userText.trim().length < 10) {
       return NextResponse.json({ error: "Text is too short for analysis." }, { status: 400 });
     }
+    if (userText.length > MAX_ESSAY_CHARS) {
+      return NextResponse.json(
+        {
+          error: `Essay is too long (max ${MAX_ESSAY_CHARS.toLocaleString()} characters). Shorten your draft and try again.`,
+        },
+        { status: 400 }
+      );
+    }
+    const essayWords = countWords(userText);
+    if (essayWords > MAX_ESSAY_WORDS) {
+      return NextResponse.json(
+        {
+          error: `Essay is too long (max ${MAX_ESSAY_WORDS} words). Shorten your draft and try again.`,
+        },
+        { status: 400 }
+      );
+    }
+    if (typeof image === 'string' && image.startsWith('data:') && image.length > MAX_DATA_URL_CHARS) {
+      return NextResponse.json(
+        { error: 'Image is too large. Please upload a smaller image (under ~6MB).' },
+        { status: 413 }
+      );
+    }
 
     const mainAccess = await resolveMainCheckAccess(req, session);
     if (!mainAccess.ok) return mainAccess.response;
 
+    const isGuestPreview = Boolean(mainAccess.isGuest);
+    if (isGuestPreview) {
+      const words = countWords(userText);
+      if (words < GUEST_PREVIEW_MIN_WORDS) {
+        return NextResponse.json(
+          { error: `Write at least ${GUEST_PREVIEW_MIN_WORDS} words for a free preview.` },
+          { status: 400 }
+        );
+      }
+      if (words > GUEST_PREVIEW_MAX_WORDS) {
+        return NextResponse.json(
+          {
+            error: `Free preview allows up to ${GUEST_PREVIEW_MAX_WORDS} words. Shorten the excerpt, or sign in for a full essay check.`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const { getPrisma, withPrismaRetry } = await import('@/lib/prisma');
     const userId = mainAccess.userId;
+    const prisma = getPrisma();
+    prismaForRefund = prisma;
 
-    let persistAfterCheck = false;
     if (userId) {
       const user = await withPrismaRetry(() =>
-        getPrisma().user.findUnique({ where: { id: userId } })
+        prisma.user.findUnique({ where: { id: userId }, select: { id: true, credits: true } })
       );
       if (!user) {
         console.warn('[/api/check] Session user not in DB; running analysis without save.', { userId });
+      } else if (!userHasCheckCredits(user.credits)) {
+        return NextResponse.json(
+          {
+            code: CREDITS_EXHAUSTED_CODE,
+            error:
+              'You have used your included checks and have no credits left. Analysis is not available until you top up. For credit purchases and billing questions, use the support email shown in the site footer.',
+            supportEmail: SUPPORT_EMAIL,
+          },
+          { status: 403 }
+        );
       } else {
-        const hasCredits = userHasCheckCredits(user.credits);
-        if (!hasCredits) {
+        const reserved = await withPrismaRetry(() => reserveCheckCredit(prisma, userId));
+        if (!reserved.ok) {
           return NextResponse.json(
             {
               code: CREDITS_EXHAUSTED_CODE,
@@ -373,10 +464,41 @@ Do NOT write the candidate's letter. Do NOT include band descriptors or examiner
             { status: 403 }
           );
         }
-        persistAfterCheck = true;
+        creditReserved = true;
+        reservedUserId = userId;
       }
+    } else if (isGuestPreview) {
+      const consumed = await tryConsumeGuestCheckQuota(mainAccess.ipHash);
+      if (!consumed.ok) {
+        return jsonGuestQuotaExhausted();
+      }
+      guestQuotaConsumed = true;
+      reservedGuestIpHash = mainAccess.ipHash;
     }
+
     let result;
+
+    // Guests: text-only analysis (no chart vision) to keep the free preview cheap.
+    const guestSafeImage = isGuestPreview ? null : image;
+
+    const refundOnFailure = async () => {
+      if (creditReserved && reservedUserId && prismaForRefund) {
+        try {
+          await withPrismaRetry(() => refundCheckCredit(prismaForRefund, reservedUserId));
+        } catch (refundErr) {
+          console.error('[/api/check] credit refund failed', refundErr);
+        }
+        creditReserved = false;
+      }
+      if (guestQuotaConsumed && reservedGuestIpHash) {
+        try {
+          await refundGuestCheckQuota(reservedGuestIpHash);
+        } catch (refundErr) {
+          console.warn('[/api/check] guest quota refund failed', refundErr);
+        }
+        guestQuotaConsumed = false;
+      }
+    };
 
     if (shouldUseOpenAiMock()) {
       result = normalizeCheckResult(
@@ -385,7 +507,10 @@ Do NOT write the candidate's letter. Do NOT include band descriptors or examiner
       );
     } else {
       const clientResult = getOpenAIClient();
-      if (clientResult.error) return clientResult.error;
+      if (clientResult.error) {
+        await refundOnFailure();
+        return clientResult.error;
+      }
       const openai = clientResult.openai;
 
       const userTextBlock = isGtLetter
@@ -401,13 +526,16 @@ Do NOT write the candidate's letter. Do NOT include band descriptors or examiner
           isT1,
           isGtLetter,
           task1Kind,
-          image,
+          image: guestSafeImage,
+          skipRewrite: isGuestPreview,
         });
         if (!fullCheck.ok) {
+          await refundOnFailure();
           return NextResponse.json({ error: fullCheck.message }, { status: fullCheck.status });
         }
         result = fullCheck.result;
       } catch (err) {
+        await refundOnFailure();
         console.error('OpenAI error (essay check):', err?.response ?? err?.error ?? err?.message, 'response?.data:', err?.response?.data ?? err?.error);
         const openAiRes = openAIErrorToJsonResponse(err);
         if (openAiRes) return openAiRes;
@@ -415,25 +543,67 @@ Do NOT write the candidate's letter. Do NOT include band descriptors or examiner
       }
     }
 
-    if (persistAfterCheck && userId) {
-      const { savedId, creditsRemaining } = await withPrismaRetry(() =>
-        persistCheckResult({
-          prisma: getPrisma(),
-          userId,
-          userText,
-          promptText,
-          isT1,
-          result,
-        })
-      );
-      return NextResponse.json({ ...result, savedId, creditsRemaining });
+    if (isGuestPreview) {
+      return NextResponse.json(toGuestCheckPreview(result));
+    }
+
+    if (creditReserved && userId) {
+      try {
+        const { savedId, creditsRemaining } = await withPrismaRetry(() =>
+          persistCheckResult({
+            prisma,
+            userId,
+            userText,
+            promptText,
+            isT1,
+            result,
+            creditAlreadyReserved: true,
+          })
+        );
+        return NextResponse.json({ ...result, savedId, creditsRemaining });
+      } catch (persistErr) {
+        console.error('[/api/check] persist failed after successful analysis', persistErr);
+        // Credit already spent; still return analysis so the user is not left empty-handed.
+        const bal = await prisma.user
+          .findUnique({ where: { id: userId }, select: { credits: true } })
+          .catch(() => null);
+        return NextResponse.json({
+          ...result,
+          savedId: null,
+          creditsRemaining: bal?.credits ?? undefined,
+          persistWarning: 'Analysis completed but could not be saved to history.',
+        });
+      }
     }
 
     return NextResponse.json({ ...result, savedId: null });
   } catch (error) {
     console.error("API ERROR:", error);
+    // Best-effort refund if we reserved before the unexpected failure.
+    if (creditReserved && reservedUserId && prismaForRefund) {
+      try {
+        await refundCheckCredit(prismaForRefund, reservedUserId);
+      } catch (refundErr) {
+        console.error('[/api/check] outer credit refund failed', refundErr);
+      }
+    }
+    if (guestQuotaConsumed && reservedGuestIpHash) {
+      try {
+        await refundGuestCheckQuota(reservedGuestIpHash);
+      } catch (refundErr) {
+        console.warn('[/api/check] outer guest quota refund failed', refundErr);
+      }
+    }
     const openAiRes = openAIErrorToJsonResponse(error);
     if (openAiRes) return openAiRes;
-    return NextResponse.json({ error: error?.message || 'Server error.' }, { status: 500 });
+    const isProd = process.env.NODE_ENV === 'production';
+    return NextResponse.json(
+      {
+        error: isProd
+          ? 'Server error. Please try again in a moment.'
+          : error?.message || 'Server error.',
+      },
+      { status: 500 }
+    );
   }
 }

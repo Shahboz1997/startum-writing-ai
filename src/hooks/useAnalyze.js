@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { postJson } from '@/lib/httpClient';
 import { interpretAnalyzeFailure } from '@/lib/writer/interpretAnalyzeFailure';
@@ -50,6 +50,17 @@ export function useAnalyze({
   onCreditsExhausted,
 }) {
   const analyzeInFlightRef = useRef(false);
+  const abortRef = useRef(null);
+  const requestSeqRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const handleAnalyze = useCallback(
     async (mode) => {
@@ -78,12 +89,16 @@ export function useAnalyze({
       if (analyzeInFlightRef.current) return;
       analyzeInFlightRef.current = true;
 
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const seq = ++requestSeqRef.current;
+
       const setCurLoading = mode === 'task1' ? setLoadingT1 : setLoadingT2;
       setCurLoading(true);
       setError(null);
       setErrorIs401(false);
 
-      const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
 
       try {
@@ -103,6 +118,8 @@ export function useAnalyze({
         };
 
         const data = await postJson('/api/check', payload, { signal: controller.signal });
+
+        if (!mountedRef.current || seq !== requestSeqRef.current) return;
 
         const { savedId, ...analysisRest } = data || {};
         const resultPayload = {
@@ -125,6 +142,8 @@ export function useAnalyze({
         if (typeof playSuccessSound === 'function') playSuccessSound();
         scrollToScoreAfterAnalyzeRef.current = true;
       } catch (err) {
+        if (!mountedRef.current || seq !== requestSeqRef.current) return;
+
         const aborted = err?.name === 'AbortError';
         const { status, dataError, message: baseMsg, apiCode } = interpretAnalyzeFailure(err);
         let msg = aborted
@@ -173,7 +192,7 @@ export function useAnalyze({
             typeof dataError === 'string' && dataError
               ? dataError
               : status === 503
-                ? 'Service temporarily unavailable. Check OPENAI_API_KEY or OPENAI_BASE_URL and try again.'
+                ? 'Service temporarily unavailable. Please try again shortly.'
                 : status === 502
                   ? 'The analysis service returned an invalid response. Please try again.'
                   : 'Server error while analyzing. Please try again in a moment.';
@@ -183,8 +202,10 @@ export function useAnalyze({
         toast.error(msg);
       } finally {
         window.clearTimeout(timeoutId);
-        setCurLoading(false);
-        analyzeInFlightRef.current = false;
+        if (seq === requestSeqRef.current) {
+          setCurLoading(false);
+          analyzeInFlightRef.current = false;
+        }
       }
     },
     [

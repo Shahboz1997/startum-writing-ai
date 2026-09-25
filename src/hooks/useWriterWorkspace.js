@@ -106,6 +106,8 @@ export function useWriterWorkspace() {
     setPromptT1Academic,
     setLetterMeta,
     setImage,
+    setEssayT1,
+    setEssayT2,
   });
 
   useWriterPersistence({
@@ -238,7 +240,11 @@ export function useWriterWorkspace() {
   useEffect(() => {
     if (sessionStatus === 'authenticated' && session?.user) {
       setIsLoggedIn(true);
-      setCredits(session.user.credits ?? 0);
+      // Seed from JWT only before the first /api/user/credits sync.
+      // Later JWT refreshes must not overwrite a fresher DB balance.
+      if (!creditsSynced) {
+        setCredits(session.user.credits ?? 0);
+      }
     } else if (sessionStatus === 'unauthenticated') {
       setIsLoggedIn(false);
       setCredits(0);
@@ -246,7 +252,7 @@ export function useWriterWorkspace() {
       setShowCreditsTopUpModal(false);
       creditsTopUpDismissedRef.current = false;
     }
-  }, [sessionStatus, session?.user?.credits]);
+  }, [sessionStatus, session?.user?.credits, creditsSynced]);
 
   // JWT can lag behind DB; sync credits once per login without session.update() (avoids /api/auth/session storms).
   useEffect(() => {
