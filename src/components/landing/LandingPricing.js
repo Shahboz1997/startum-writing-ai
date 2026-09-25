@@ -6,6 +6,7 @@ import {
   CREDIT_PACKS,
   formatPackPrice,
   formatPerCreditPrice,
+  getPackValueBadge,
 } from '@/lib/creditPacks';
 import { LandingSection, LandingSectionHeader } from '@/components/landing/landingUi';
 
@@ -73,13 +74,14 @@ export default function LandingPricing({ isLoggedIn = false, onLoginClick }) {
       <ul className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-3" aria-label="Credit packs">
         {CREDIT_PACKS.map((pack) => {
           const isPopular = Boolean(pack.popular);
+          const valueBadge = getPackValueBadge(pack);
           const busy = checkoutPackId === pack.id;
           const disabled = Boolean(checkoutPackId);
           return (
             <li key={pack.id} className="relative pt-2">
-              {isPopular ? (
-                <span className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 bg-[#F9FAFB] px-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:bg-[#050505] dark:text-white">
-                  Popular
+              {valueBadge ? (
+                <span className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap bg-[#F9FAFB] px-2 text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:bg-[#050505] dark:text-white">
+                  {valueBadge}
                 </span>
               ) : null}
               <div

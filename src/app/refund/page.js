@@ -22,17 +22,19 @@ export default function RefundPage() {
           <a href="/pricing" className="text-indigo-600 dark:text-indigo-400 hover:underline">
             pricing page
           </a>
-          .
+          . Payments are processed by <strong>Lemon Squeezy</strong> (merchant of record). Refunds,
+          when approved, are issued through Lemon Squeezy to the original payment method.
         </p>
       </section>
 
       <section>
         <h2>Subscription plans</h2>
         <p>
-          If you purchase a subscription (e.g. monthly or yearly plan), you may cancel before the next
-          billing cycle. Refunds for the current billing period are considered on a case-by-case basis
-          and are not guaranteed. Subscription fees are generally non-refundable once the billing period
-          has started. Contact support for billing questions.
+          If you purchase a subscription (e.g. monthly or yearly plan) through Lemon Squeezy, you may
+          cancel before the next billing cycle via your Lemon Squeezy customer portal or by contacting
+          support. Refunds for the current billing period are considered on a case-by-case basis and
+          are not guaranteed. Subscription fees are generally non-refundable once the billing period
+          has started.
         </p>
       </section>
 

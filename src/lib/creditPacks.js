@@ -12,6 +12,8 @@ export const CREDIT_PACKS = [
     priceUsd: 9.99,
     blurb: 'Try a few full Task 1 & Task 2 checks',
     popular: false,
+    savePercent: 0,
+    badge: null,
     lemonVariantEnv: 'LEMON_SQUEEZY_VARIANT_STARTER',
   },
   {
@@ -21,6 +23,9 @@ export const CREDIT_PACKS = [
     priceUsd: 14.99,
     blurb: 'Exam-month plan — about one check every other day',
     popular: true,
+    /** vs Starter per-credit price */
+    savePercent: 25,
+    badge: 'Popular · Save 25%',
     lemonVariantEnv: 'LEMON_SQUEEZY_VARIANT_MONTHLY',
   },
   {
@@ -30,6 +35,8 @@ export const CREDIT_PACKS = [
     priceUsd: 24.99,
     blurb: 'Best value for Task 1 + Task 2 drills',
     popular: false,
+    savePercent: 38,
+    badge: 'Best Value · Save 38%',
     lemonVariantEnv: 'LEMON_SQUEEZY_VARIANT_INTENSIVE',
   },
 ];
@@ -74,7 +81,20 @@ export function formatPackPrice(priceUsd, currencyId = 'USD') {
 export function formatPerCreditPrice(pack, currencyId = 'USD') {
   const credits = Math.max(1, Number(pack?.credits) || 1);
   const per = Number(pack?.priceUsd || 0) / credits;
-  return `≈ ${formatPackPrice(per, currencyId)} / generation`;
+  return `≈ ${formatPackPrice(per, currencyId)} per essay check`;
+}
+
+/** Badge text for pack value (Popular / Best Value + save %). */
+export function getPackValueBadge(pack) {
+  if (!pack) return null;
+  if (typeof pack.badge === 'string' && pack.badge.trim()) return pack.badge.trim();
+  if (pack.popular && Number(pack.savePercent) > 0) {
+    return `Popular · Save ${Math.round(pack.savePercent)}%`;
+  }
+  if (Number(pack.savePercent) > 0) {
+    return `Best Value · Save ${Math.round(pack.savePercent)}%`;
+  }
+  return null;
 }
 
 export function getCreditPackById(packId) {
@@ -108,10 +128,11 @@ export function buildCreditPackMailto(pack, accountEmail = '') {
 }
 
 export const CREDITS_TOP_UP_NOTICE =
-  'Choose a pack — secure checkout via Lemon Squeezy. Credits are added automatically after payment.';
+  'Instant automated delivery. Pay securely with Visa, MasterCard or Apple Pay.';
 
 export const CREDITS_TOP_UP_FOOTER =
-  'After payment you will return here; credits appear within a few seconds.';
+  'After payment you return here — credits appear in your account within a few seconds.';
 
+/** @deprecated Manual transfer path; Lemon Squeezy is the primary checkout. */
 export const CREDITS_INVOICE_HINT =
   'Transfer the exact amount using the details below. Include your STRATUM.ai email in the payment comment.';

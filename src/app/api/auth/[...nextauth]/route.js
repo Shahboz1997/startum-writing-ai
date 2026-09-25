@@ -188,6 +188,11 @@ export const authOptions = {
   ],
   session: {
     strategy: "jwt", // Обязательно для Credentials и Middleware
+    // Students often draft for 40+ minutes; keep the session far beyond one writing block.
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  jwt: {
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
     async signIn({ user, account }) {
@@ -236,12 +241,32 @@ export const authOptions = {
     // Сохраняем ID и Кредиты пользователя в JWT токене
     async jwt({ token, user, trigger, session, account }) {
       try {
+        if (trigger === "update" && session?.clearSignUpConversion) {
+          token.pendingSignUpConversion = false;
+          delete token.signUpMethod;
+        }
         if (user) {
           const uid = user.id ?? user.sub ?? token.sub;
           if (uid) {
             token.id = uid;
             // Keep JWT `sub` aligned with DB user id so session/callbacks stay consistent (OAuth profile `sub` is not our User.id).
             token.sub = String(uid);
+          }
+          // New OAuth users: fire Google Ads sign_up once on the client.
+          if (account?.provider && account.provider !== "credentials" && uid) {
+            try {
+              const row = await getPrisma().user.findUnique({
+                where: { id: String(uid) },
+                select: { createdAt: true },
+              });
+              const createdMs = row?.createdAt ? new Date(row.createdAt).getTime() : 0;
+              if (createdMs && Date.now() - createdMs < 120_000) {
+                token.pendingSignUpConversion = true;
+                token.signUpMethod = account.provider;
+              }
+            } catch {
+              /* best-effort */
+            }
           }
           if (account?.provider === "google" && !token.id && user.email) {
             try {
@@ -325,6 +350,8 @@ export const authOptions = {
         session.user.credits = token?.credits ?? 0;
         session.user.language = token?.language ?? "en";
       }
+      session.pendingSignUpConversion = Boolean(token?.pendingSignUpConversion);
+      session.signUpMethod = token?.signUpMethod || null;
       return session;
     },
   },

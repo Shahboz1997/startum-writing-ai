@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { CREDIT_PACKS, formatPackPrice, formatPerCreditPrice } from '@/lib/creditPacks';
+import { CREDIT_PACKS, formatPackPrice, formatPerCreditPrice, getPackValueBadge } from '@/lib/creditPacks';
 import { LEGAL_COMPANY_NAME, BUSINESS_ADDRESS, SUPPORT_EMAIL } from '@/lib/support';
 
 export const metadata = {
@@ -34,7 +34,9 @@ export default function PricingPage() {
         </p>
 
         <ul className="mt-10 grid gap-4 sm:grid-cols-3">
-          {CREDIT_PACKS.map((pack) => (
+          {CREDIT_PACKS.map((pack) => {
+            const valueBadge = getPackValueBadge(pack);
+            return (
             <li
               key={pack.id}
               className={`rounded-2xl border bg-white p-5 dark:bg-slate-950 ${
@@ -43,9 +45,9 @@ export default function PricingPage() {
                   : 'border-slate-200 dark:border-slate-700'
               }`}
             >
-              {pack.popular ? (
+              {valueBadge ? (
                 <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                  Popular
+                  {valueBadge}
                 </p>
               ) : null}
               <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
@@ -64,7 +66,8 @@ export default function PricingPage() {
                 {pack.blurb}
               </p>
             </li>
-          ))}
+            );
+          })}
         </ul>
 
         <div className="mt-10 rounded-2xl border border-slate-200 bg-white px-5 py-5 text-sm leading-relaxed text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">

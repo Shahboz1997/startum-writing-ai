@@ -4,6 +4,7 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import Navbar from '@/components/Navbar';
 import LandingPage from '@/components/LandingPage';
+import LandingPageCompact from '@/components/landing/LandingPageCompact';
 import TaskEditorToolbar from '@/components/writer/TaskEditorToolbar';
 import Task1Editor from '@/components/writer/Task1Editor';
 import EssayEditor from '@/components/writer/EssayEditor';
@@ -29,6 +30,7 @@ export default function WriterShell() {
     sessionStatus,
     forceLanding,
     skipAppLanding,
+    adsCompact,
     isAuthOpen,
     setIsAuthOpen,
     authModalMessage,
@@ -171,14 +173,25 @@ export default function WriterShell() {
     return (
       <div className="relative min-h-[100dvh] bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans antialiased transition-colors duration-300 overflow-y-auto overflow-x-hidden pb-[calc(96px+env(safe-area-inset-bottom))] md:pb-0">
         <div className="relative z-0 min-h-[100dvh]">
-          <LandingPage
-            onLoginClick={openLogin}
-            onFullAnalysisClick={() => {
-              setAuthModalMessage('Sign up to see your Band Score');
-              setIsAuthOpen(true);
-            }}
-            isLoggedIn={sessionStatus === 'authenticated'}
-          />
+          {adsCompact ? (
+            <LandingPageCompact
+              onLoginClick={openLogin}
+              onFullAnalysisClick={() => {
+                setAuthModalMessage('Sign up to see your Band Score');
+                setIsAuthOpen(true);
+              }}
+              isLoggedIn={sessionStatus === 'authenticated'}
+            />
+          ) : (
+            <LandingPage
+              onLoginClick={openLogin}
+              onFullAnalysisClick={() => {
+                setAuthModalMessage('Sign up to see your Band Score');
+                setIsAuthOpen(true);
+              }}
+              isLoggedIn={sessionStatus === 'authenticated'}
+            />
+          )}
           <WriterFooter
             minimal
             darkMode={darkMode}
@@ -350,9 +363,6 @@ export default function WriterShell() {
                             setErrorIs401(false);
                           }}
                           onAnalyze={() => {
-                            if (typeof window !== 'undefined' && typeof window.gtagSendEvent === 'function') {
-                              window.gtagSendEvent();
-                            }
                             handleAnalyze(activeTab === 'Task 1' ? 'task1' : 'task2');
                           }}
                           analyzeLoading={activeTab === 'Task 1' ? loadingT1 : loadingT2}

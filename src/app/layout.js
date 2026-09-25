@@ -114,37 +114,18 @@ export default async function RootLayout({ children }) {
           </Providers>
         </AppThemeProvider>
         <Analytics />
+        {/* lazyOnload: keep Ads LP LCP lighter; conversions still fire after load */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-KEPXR00JYF"
-          strategy="afterInteractive"
+          strategy="lazyOnload"
         />
-        <Script id="google-gtag" strategy="afterInteractive">
+        <Script id="google-gtag" strategy="lazyOnload">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
             gtag('config', 'G-KEPXR00JYF');
             gtag('config', 'AW-18107551498');
-          `}
-        </Script>
-        <Script id="google-gtag-conversion-helper" strategy="afterInteractive">
-          {`
-            window.gtagSendEvent = function (url) {
-              var callback = function () {
-                if (typeof url === 'string') {
-                  window.location = url;
-                }
-              };
-              if (typeof window.gtag === 'function') {
-                gtag('event', 'conversion_event_purchase', {
-                  event_callback: callback,
-                  event_timeout: 2000
-                });
-              } else {
-                callback();
-              }
-              return false;
-            };
           `}
         </Script>
       </body>

@@ -46,11 +46,15 @@ export default function PrivacyPage() {
           We store your credit balance so you can use AI writing checks. Payment card details are
           processed by our payment provider (Lemon Squeezy) — we do not store card numbers on our
           servers. Purchased credits are added to your account automatically after a successful
-          payment. See{' '}
+          Lemon Squeezy payment (webhook fulfillment). See{' '}
           <a href="/pricing" className="text-indigo-600 dark:text-indigo-400 hover:underline">
             Pricing
           </a>{' '}
-          for available packs.
+          for available packs and our{' '}
+          <a href="/refund" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            Refund Policy
+          </a>{' '}
+          for eligibility.
         </p>
       </section>
 

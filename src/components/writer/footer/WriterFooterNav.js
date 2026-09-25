@@ -3,6 +3,7 @@
 import { Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
+import { LEGAL_COMPANY_NAME, SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/support';
 
 const NAV_TABS = ['Home', 'Task 1', 'Task 2'];
 
@@ -122,6 +123,15 @@ export function WriterFooterLegal() {
       </ul>
       <p className="text-xs text-slate-500 dark:text-slate-500 mt-6 leading-relaxed">
         Independent AI software. Not affiliated with IDP or British Council. For educational use only.
+      </p>
+      <p className="text-xs text-slate-500 dark:text-slate-500 mt-3 leading-relaxed">
+        {LEGAL_COMPANY_NAME} ·{' '}
+        <a
+          href={SUPPORT_MAILTO}
+          className="text-indigo-600 dark:text-indigo-400 hover:underline"
+        >
+          {SUPPORT_EMAIL}
+        </a>
       </p>
     </div>
   );

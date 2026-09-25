@@ -38,6 +38,7 @@ import NeuralSyncShowcase from '@/components/NeuralSyncShowcase';
 import LandingSampleReports from '@/components/landing/LandingSampleReports';
 import LandingPricing from '@/components/landing/LandingPricing';
 import LandingLemonTestCheckout from '@/components/landing/LandingLemonTestCheckout';
+import LandingHeroCheck from '@/components/landing/LandingHeroCheck';
 import TelegramIcon from '@/components/icons/TelegramIcon';
 import {
   TELEGRAM_BOT_URL,
@@ -71,87 +72,21 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLogge
 
   return (
     <main className="min-h-screen bg-[#F9FAFB] dark:bg-[#050505] transition-colors duration-300 pt-0">
-      {/* Hero */}
-      <section className="relative flex flex-col justify-center bg-[#F9FAFB] dark:bg-[#050505] px-4 pt-10 pb-16 border-b border-slate-200/50 dark:border-white/5 overflow-hidden hero-noise">
-        <div
-          className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(99,102,241,0.08)_0%,transparent_50%)] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(99,102,241,0.12)_0%,transparent_50%)] pointer-events-none"
-          aria-hidden
+      {/* Hero — interactive essay paste + free band preview */}
+      <Suspense
+        fallback={
+          <section className="relative min-h-[28rem] bg-[#F9FAFB] dark:bg-[#050505] px-4 pt-10 pb-16" aria-hidden />
+        }
+      >
+        <LandingHeroCheck
+          onLoginClick={onLoginClick}
+          isLoggedIn={isLoggedIn}
+          onContinueToLab={() => {
+            if (typeof onFullAnalysisClick === 'function') onFullAnalysisClick();
+            else router.push('/?app=1');
+          }}
         />
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <motion.span
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="tagline-pill mb-2 inline-block text-slate-500 dark:text-slate-400 font-medium tracking-wide"
-          >
-            AI-Powered Writing Assessment
-          </motion.span>
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.7 }}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter uppercase mb-4"
-          >
-            <span className="bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 dark:from-white dark:via-slate-300 dark:to-white bg-clip-text text-transparent">
-              Master IELTS with Stratum Intelligence
-            </span>
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-base sm:text-lg text-slate-500 dark:text-slate-400 font-medium tracking-wide max-w-2xl mx-auto mb-6 leading-relaxed"
-          >
-            Elevate your IELTS score with precision AI-driven evaluation for Writing Task 1 and Task 2. Get instant
-            Band 9.0-style feedback and stratum-level analytics to master the exam.
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="flex flex-col sm:flex-row justify-center items-center gap-3 mb-8"
-          >
-            <button
-              type="button"
-              onClick={onLoginClick}
-              data-testid="open-auth-login"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-7 py-3.5 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-            >
-              Sign in
-            </button>
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
-            className="mx-auto w-full max-w-2xl rounded-[1.75rem] border border-slate-200/70 dark:border-white/10 bg-white/85 dark:bg-white/5 backdrop-blur-md shadow-xl shadow-black/5 dark:shadow-black/20 p-4 sm:p-5 mt-8"
-          >
-            <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-100 dark:border-slate-700/50">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Task 2 — Preview
-              </span>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-400 dark:text-slate-500">CEFR</span>
-                <span className="px-2 py-0.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                  B2–C1
-                </span>
-                <span className="px-2 py-0.5 rounded-lg bg-red-100 dark:bg-red-900/20 text-xs font-semibold text-red-500">
-                  Band 7.5
-                </span>
-              </div>
-            </div>
-            <div className="h-20 sm:h-24 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50 flex items-center justify-center px-3">
-              <p className="text-xs text-slate-400 dark:text-slate-500 font-medium tracking-wide text-center">
-                Paste your essay or generate a prompt to see instant Band Score and AI-evaluation for your Writing Task.
-              </p>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <div className="h-1.5 flex-1 rounded-full bg-slate-200 dark:bg-slate-700" />
-              <div className="h-1.5 w-1/4 rounded-full bg-indigo-400/40" />
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      </Suspense>
 
       {/* Workflow */}
       <LandingSection ariaLabelledby="section-workflow">
@@ -451,15 +386,11 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLogge
             <div className="min-w-0 space-y-2">
               <p className="text-sm font-bold text-slate-900 dark:text-white">@{TELEGRAM_BOT_USERNAME}</p>
               <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-300">
-                Paste your essay in a private chat — TA/TR, CC, LR &amp; GRA in seconds. No STRATUM account required.
+                Daily tips, topics, and short quizzes on your phone. Deep AI scoring, rewrite, and credit packs stay on
+                the web lab — so your study sessions and purchases stay in one place.
               </p>
               <LandingMentionLine accent="sky">
                 Commands:{' '}
-                <span className="font-semibold text-slate-800 dark:text-slate-100">/check</span>
-                <span className="text-sky-700/70 dark:text-sky-400/70"> essay scores</span>
-                <span className="mx-1.5 text-sky-600/50 dark:text-sky-500/50" aria-hidden>
-                  ·
-                </span>
                 <span className="font-semibold text-slate-800 dark:text-slate-100">/tip</span>
                 <span className="text-sky-700/70 dark:text-sky-400/70"> morning tip</span>
                 <span className="mx-1.5 text-sky-600/50 dark:text-sky-500/50" aria-hidden>

@@ -9,6 +9,7 @@ import {
   CREDITS_TOP_UP_NOTICE,
   formatPackPrice,
   formatPerCreditPrice,
+  getPackValueBadge,
 } from '@/lib/creditPacks';
 
 /**
@@ -147,13 +148,14 @@ export default function CreditsTopUpModal({
               <ul className="mt-4 space-y-3 sm:mt-5" aria-label="Credit packs">
                 {CREDIT_PACKS.map((pack) => {
                   const isPopular = Boolean(pack.popular);
+                  const valueBadge = getPackValueBadge(pack);
                   const busy = checkoutPackId === pack.id;
                   const disabled = Boolean(checkoutPackId);
                   return (
-                    <li key={pack.id} className="relative pt-1">
-                      {isPopular ? (
-                        <span className="absolute left-3 top-0 z-10 -translate-y-1/2 bg-white px-1 text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:bg-slate-950 dark:text-white sm:left-4">
-                          Popular
+                    <li key={pack.id} className="relative pt-2">
+                      {valueBadge ? (
+                        <span className="absolute left-3 top-0 z-10 -translate-y-1/2 bg-white px-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-900 dark:bg-slate-950 dark:text-white sm:left-4">
+                          {valueBadge}
                         </span>
                       ) : null}
                       <div
@@ -178,7 +180,7 @@ export default function CreditsTopUpModal({
                           type="button"
                           onClick={() => startCheckout(pack.id)}
                           disabled={disabled}
-                          className={`inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors min-[380px]:w-auto disabled:opacity-60 disabled:pointer-events-none ${
+                          className={`inline-flex min-h-12 w-full shrink-0 touch-manipulation items-center justify-center gap-2 rounded-xl px-5 text-sm font-semibold transition-colors min-[380px]:min-w-[7.5rem] min-[380px]:w-auto disabled:opacity-60 disabled:pointer-events-none ${
                             isPopular
                               ? 'bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100'
                               : 'border border-slate-200 bg-slate-50 text-slate-900 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800'

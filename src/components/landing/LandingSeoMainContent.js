@@ -143,8 +143,9 @@ export default function LandingSeoMainContent() {
             ))}
           </ul>
           <p className="mx-auto mt-8 max-w-2xl text-center text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-            Commands: <strong>/check</strong> essay scores · <strong>/tip</strong> morning tip · <strong>/topic</strong>{' '}
-            evening prompt · <strong>{LANDING_TELEGRAM.resourceCommand}</strong> {LANDING_TELEGRAM.resourceHint}.{' '}
+            Commands: <strong>/tip</strong> morning tip · <strong>/topic</strong> evening prompt ·{' '}
+            <strong>{LANDING_TELEGRAM.resourceCommand}</strong> {LANDING_TELEGRAM.resourceHint}. Full examiner
+            checks stay on the website.{' '}
             <a href={TELEGRAM_BOT_URL} className="font-semibold text-sky-700 underline dark:text-sky-300">
               {LANDING_TELEGRAM.cta}
             </a>

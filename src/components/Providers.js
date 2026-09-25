@@ -6,6 +6,7 @@ import { Toaster } from "react-hot-toast";
 import { WordListProvider } from "@/context/WordListContext";
 import UserLibrarySync from "@/components/UserLibrarySync";
 import AddToHomeScreenBanner from "@/components/AddToHomeScreenBanner";
+import GoogleAdsSignUpTracker from "@/components/GoogleAdsSignUpTracker";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -52,6 +53,7 @@ export function Providers({ children, session }) {
       refetchOnWindowFocus={!isDev}
     >
       <AuthDbWarm />
+      <GoogleAdsSignUpTracker />
       <UserLibrarySync />
       <Toaster position="top-center" />
       <WordListProvider>

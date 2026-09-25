@@ -45,17 +45,20 @@ export function buildStartMessage() {
   const text = [
     '👋 <b>Welcome to STRATUM IELTS Writing!</b>',
     '',
+    'This bot is your <b>quick trainer on the go</b> — tips, topics, and short quizzes.',
+    'For a <b>full examiner report</b> (criteria, highlights, Band 9 rewrite, credits) use the STRATUM website.',
+    '',
     'On our channel — <b>2 posts a day</b>:',
     '☀️ morning — Writing tip',
-    '🌙 evening — practice topic + <b>quiz</b> + <b>Check my text</b>',
+    '🌙 evening — practice topic + <b>quiz</b>',
     '',
     '<b>Commands:</b>',
-    '/check — send your essay for AI feedback (4 IELTS criteria)',
     '/tip — template advice',
     '/topic — random essay prompt',
     '/resource — useful link',
+    '/check — quick feedback (deep analysis + rewrite → on the website)',
   ].join('\n');
-  return withCta(text, link);
+  return withCta(text, link, '👉 Open full writing lab on the site');
 }
 
 export function buildTipMessage() {

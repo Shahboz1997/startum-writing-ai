@@ -37,6 +37,17 @@ export default function TermsPage() {
       </section>
 
       <section>
+        <h2>Payments (Lemon Squeezy)</h2>
+        <p>
+          Paid credit packs are processed by our merchant of record,{' '}
+          <strong>Lemon Squeezy</strong>. We do not store card numbers on our servers. After a
+          successful payment, Lemon Squeezy notifies us via a signed webhook and we add the purchased
+          credits to your account. Prices are shown in USD on the pricing page; local display
+          currencies are informational only.
+        </p>
+      </section>
+
+      <section>
         <h2>User conduct</h2>
         <p>
           You may not use automated tools to scrape, bulk-submit, or otherwise abuse the AI engine.

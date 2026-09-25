@@ -82,7 +82,7 @@ export const LANDING_FAQ_ITEMS = [
   },
   {
     q: 'Do I need an account to use STRATUM?',
-    a: 'Yes. Create a free account to run essay checks, save history, and use your included credits. Sign in from the home page to open the writing lab.',
+    a: 'You can paste a short excerpt on the home page for one free band preview without signing in. Create a free account for full essay checks (3 included credits), saved history, Band 9 rewrite, and credit top-ups.',
   },
   {
     q: 'Can tutors add personal feedback and share reports with students?',
@@ -94,10 +94,10 @@ export const LANDING_GUEST_OFFER =
   'Create a free account for full GPT-4o analysis, saved history, and writing credits.';
 
 export const LANDING_TELEGRAM = {
-  tagline: 'Telegram',
-  title: 'Practice on Telegram — tips, quizzes & AI essay check',
+  tagline: 'On the go',
+  title: 'Telegram — daily micro-practice, not the full lab',
   description:
-    'Follow our channel for twice-daily IELTS Writing content, or open the STRATUM bot in a private chat to paste your essay and get instant band feedback on all four criteria.',
+    'STRATUM on the web is your deep examiner workspace: full criteria, error highlights, Band 9 rewrite, and credit packs. The Telegram bot is a quick trainer for tips, topics, and short quizzes between study sessions.',
   features: [
     {
       title: 'Morning writing tips',
@@ -114,15 +114,15 @@ export const LANDING_TELEGRAM = {
       commandHint: 'daily writing prompt',
     },
     {
-      title: 'Check my text (DM)',
+      title: 'Quick drills on the go',
       description:
-        'Send your essay directly to the bot — 80+ words, all four IELTS criteria scored in under 30 seconds. No account required.',
-      command: '/check',
-      commandHint: 'full band breakdown',
+        'Use the bot for short practice between classes. For a full examiner report, rewrite, and saved history — open STRATUM on the web.',
+      command: '/tip',
+      commandHint: 'tips & quizzes · full checks on the site',
     },
   ],
   resourceCommand: '/resource',
   resourceHint: 'curated study links matched to your weak areas',
-  cta: 'Open Telegram bot',
+  cta: 'Open Telegram trainer',
   channelCta: 'Join Telegram channel',
 };

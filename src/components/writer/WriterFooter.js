@@ -1,12 +1,16 @@
 'use client';
 
 import { AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 import {
   COPYRIGHT_LINE,
   FACEBOOK_PAGE_LABEL,
   FACEBOOK_PAGE_URL,
   INSTAGRAM_PAGE_LABEL,
   INSTAGRAM_PAGE_URL,
+  LEGAL_COMPANY_NAME,
+  SUPPORT_EMAIL,
+  SUPPORT_MAILTO,
   TELEGRAM_CHANNEL_LABEL,
   TELEGRAM_CHANNEL_URL,
 } from '@/lib/support';
@@ -18,6 +22,50 @@ import { WriterFooterBrand, WriterFooterLegal, WriterFooterResources } from '@/c
 import WriterShareModal from '@/components/writer/footer/WriterShareModal';
 import WriterSupportModal from '@/components/writer/footer/WriterSupportModal';
 import WriterScrollTopButton from '@/components/writer/footer/WriterScrollTopButton';
+
+function MinimalLegalLinks() {
+  return (
+    <nav
+      aria-label="Legal"
+      className="flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-xs text-slate-500 dark:text-slate-400"
+    >
+      <Link href="/terms" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        Terms
+      </Link>
+      <span className="text-slate-300 dark:text-slate-600 select-none" aria-hidden>
+        ·
+      </span>
+      <Link href="/privacy" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        Privacy
+      </Link>
+      <span className="text-slate-300 dark:text-slate-600 select-none" aria-hidden>
+        ·
+      </span>
+      <Link href="/refund" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        Refund
+      </Link>
+      <span className="text-slate-300 dark:text-slate-600 select-none" aria-hidden>
+        ·
+      </span>
+      <Link href="/pricing" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+        Pricing
+      </Link>
+      <span className="text-slate-300 dark:text-slate-600 select-none" aria-hidden>
+        ·
+      </span>
+      <a
+        href={SUPPORT_MAILTO}
+        className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+      >
+        {SUPPORT_EMAIL}
+      </a>
+      <span className="text-slate-300 dark:text-slate-600 select-none" aria-hidden>
+        ·
+      </span>
+      <span>{LEGAL_COMPANY_NAME}</span>
+    </nav>
+  );
+}
 
 export default function WriterFooter({
   minimal = false,
@@ -61,7 +109,8 @@ export default function WriterFooter({
           </div>
         )}
 
-        <div className={minimal ? 'space-y-2' : 'mt-12 pt-8 border-t border-white/5 text-center space-y-2'}>
+        <div className={minimal ? 'space-y-3' : 'mt-12 pt-8 border-t border-white/5 text-center space-y-2'}>
+          {minimal ? <MinimalLegalLinks /> : null}
           <p
             className={
               minimal
