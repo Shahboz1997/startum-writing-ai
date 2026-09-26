@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname } from 'next/navigation';
 
 function readAppQueryFlags() {
@@ -15,6 +15,10 @@ function readAppQueryFlags() {
 }
 
 function noop() {}
+
+function asSetter(fn) {
+  return typeof fn === 'function' ? fn : noop;
+}
 
 export function useWriterNavRestore({
   setActiveTab,
@@ -35,26 +39,29 @@ export function useWriterNavRestore({
   );
 
   // Keep setters in refs so the restore effect deps stay a fixed size (avoids HMR / undefined setter churn).
+  // Sync in layout effect — writing refs during render trips react-hooks/refs (CI lint error).
   const settersRef = useRef({
-    setActiveTab,
-    setTask1Kind,
-    setPromptT1Letter,
-    setPromptT1Academic,
-    setLetterMeta,
-    setImage,
-    setEssayT1,
-    setEssayT2,
+    setActiveTab: asSetter(setActiveTab),
+    setTask1Kind: asSetter(setTask1Kind),
+    setPromptT1Letter: asSetter(setPromptT1Letter),
+    setPromptT1Academic: asSetter(setPromptT1Academic),
+    setLetterMeta: asSetter(setLetterMeta),
+    setImage: asSetter(setImage),
+    setEssayT1: asSetter(setEssayT1),
+    setEssayT2: asSetter(setEssayT2),
   });
-  settersRef.current = {
-    setActiveTab: typeof setActiveTab === 'function' ? setActiveTab : noop,
-    setTask1Kind: typeof setTask1Kind === 'function' ? setTask1Kind : noop,
-    setPromptT1Letter: typeof setPromptT1Letter === 'function' ? setPromptT1Letter : noop,
-    setPromptT1Academic: typeof setPromptT1Academic === 'function' ? setPromptT1Academic : noop,
-    setLetterMeta: typeof setLetterMeta === 'function' ? setLetterMeta : noop,
-    setImage: typeof setImage === 'function' ? setImage : noop,
-    setEssayT1: typeof setEssayT1 === 'function' ? setEssayT1 : noop,
-    setEssayT2: typeof setEssayT2 === 'function' ? setEssayT2 : noop,
-  };
+  useLayoutEffect(() => {
+    settersRef.current = {
+      setActiveTab: asSetter(setActiveTab),
+      setTask1Kind: asSetter(setTask1Kind),
+      setPromptT1Letter: asSetter(setPromptT1Letter),
+      setPromptT1Academic: asSetter(setPromptT1Academic),
+      setLetterMeta: asSetter(setLetterMeta),
+      setImage: asSetter(setImage),
+      setEssayT1: asSetter(setEssayT1),
+      setEssayT2: asSetter(setEssayT2),
+    };
+  });
 
   useEffect(() => {
     if (pathname !== '/') return;
