@@ -24,7 +24,10 @@ import 'react-medium-image-zoom/dist/styles.css';
 
 const AuthModal = dynamic(() => import('@/components/AuthModal'), { ssr: false });
 
-export default function WriterShell() {
+export default function WriterShell({
+  forceLanding: forceLandingProp = false,
+  skipAppLanding: skipAppLandingProp = false,
+}) {
   const {
     session,
     sessionStatus,
@@ -142,7 +145,10 @@ export default function WriterShell() {
     showScrollTop,
     scrollProgress,
     handleScrollToTop,
-  } = useWriterWorkspace();
+  } = useWriterWorkspace({
+    forceLandingFromServer: Boolean(forceLandingProp),
+    skipAppLandingFromServer: Boolean(skipAppLandingProp),
+  });
 
   const openLogin = (message) => {
     setAuthModalMessage(typeof message === 'string' && message.trim() ? message.trim() : null);

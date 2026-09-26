@@ -1,16 +1,15 @@
 ﻿'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTheme } from '@wrksz/themes/client';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLandingAbVariant } from '@/hooks/useLandingAbVariant';
 import TransformationSlider from '@/components/TransformationSlider';
-import Task2ComparisonLab from '@/components/Task2ComparisonLab';
+import Task2RewriteDemo from '@/components/landing/Task2RewriteDemo';
+import Task1DataErrorDemo from '@/components/landing/Task1DataErrorDemo';
 import {
   BarChart3,
   CheckCircle,
-  Star,
   Sparkles,
   PenTool,
   Wrench,
@@ -31,7 +30,6 @@ import {
   FileText,
   Sun,
   Moon,
-  MessageCircle,
 } from 'lucide-react';
 import { TASK1_TIPS, TASK2_TIPS, LETTER_TIPS } from '@/lib/ieltsGuidelines';
 import NeuralSyncShowcase from '@/components/NeuralSyncShowcase';
@@ -45,6 +43,7 @@ import {
   TELEGRAM_BOT_USERNAME,
   TELEGRAM_CHANNEL_URL,
 } from '@/lib/support';
+import { trackTelegramClick } from '@/lib/analyticsEvents';
 import { LANDING_FAQ_ITEMS as FAQ_ITEMS, LANDING_TELEGRAM, LANDING_WORKFLOW_STEPS } from '@/lib/landingSeoData';
 import {
   landingFadeInUp,
@@ -63,12 +62,7 @@ const WORKFLOW_ICONS = [Sparkles, PenTool, BarChart3, Wrench];
 export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLoggedIn = false }) {
   const router = useRouter();
   const { copy: abCopy } = useLandingAbVariant();
-  const { resolvedTheme } = useTheme();
-  const [themeMounted, setThemeMounted] = useState(false);
   const [faqOpenIndex, setFaqOpenIndex] = useState(null);
-  useEffect(() => setThemeMounted(true), []);
-
-  const darkMode = themeMounted && resolvedTheme === 'dark';
 
   return (
     <main className="min-h-screen bg-[#F9FAFB] dark:bg-[#050505] transition-colors duration-300 pt-0">
@@ -88,13 +82,13 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLogge
         />
       </Suspense>
 
-      {/* Workflow */}
-      <LandingSection ariaLabelledby="section-workflow">
+      {/* How it works */}
+      <LandingSection id="how-it-works" ariaLabelledby="section-workflow">
         <LandingSectionHeader
-          tagline="Workflow"
+          tagline="How it works"
           id="section-workflow"
-          title="From prompt to band breakthrough"
-          description="Generate, write, score, and fix — then track progress from your saved checks."
+          title="Paste → 4 criteria → fixes → rewrite"
+          description="One compact loop from draft to examiner-style practice feedback."
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           {LANDING_WORKFLOW_STEPS.map((step, index) => (
@@ -109,68 +103,62 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLogge
         </div>
       </LandingSection>
 
-      {/* Tutors */}
-      <LandingSection id="tutor-tools" ariaLabelledby="section-tutor-tools">
-        <LandingSectionHeader
-          tagline="For tutors & teachers"
-          id="section-tutor-tools"
-          title="Personal feedback, one-click export"
-          description="AI scoring plus a tutor workspace — notes under the essay, manual band tweaks, then deliver the report."
-        />
-        <div className="mx-auto max-w-2xl">
-          <LandingInfoPanel accent="amber">
-            <div className="mb-3 flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-amber-700 dark:text-amber-400" aria-hidden />
-              <p className="text-sm font-bold text-amber-950 dark:text-amber-100">Tutor&apos;s notes</p>
-              <span className="ml-auto text-[10px] font-semibold tabular-nums text-amber-700/70 dark:text-amber-400/70">
-                0 / 2000
-              </span>
-            </div>
-            <div className="min-h-[100px] rounded-xl border border-amber-200/90 dark:border-amber-500/20 bg-white dark:bg-slate-900/50 px-3.5 py-3 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-              Focus on thesis clarity in paragraph 1. Swap &ldquo;good&rdquo; for more academic lexis. Homework: one body
-              paragraph using &ldquo;Furthermore&rdquo;…
-            </div>
-            <LandingMentionLine accent="amber" className="mt-3">
-              Notes sit below the student draft · adjust criterion scores in the results panel · then{' '}
-              <span className="font-semibold text-slate-700 dark:text-slate-200">Save to Archive</span>
-              <span className="mx-1.5 text-amber-600/50 dark:text-amber-500/50" aria-hidden>
-                ·
-              </span>
-              <span className="font-semibold text-slate-700 dark:text-slate-200">Share</span>
-              <span className="mx-1.5 text-amber-600/50 dark:text-amber-500/50" aria-hidden>
-                ·
-              </span>
-              <span className="font-semibold text-slate-700 dark:text-slate-200">Official PDF</span>
-              <span className="text-amber-700/70 dark:text-amber-400/70"> — included in every format.</span>
-            </LandingMentionLine>
-            <LandingMentionLine accent="amber" className="mt-2">
+      <Task1DataErrorDemo />
+      <TransformationSlider />
+      <Task2RewriteDemo />
+      <LandingSampleReports />
+
+      <LandingPricing isLoggedIn={isLoggedIn} onLoginClick={onLoginClick} />
+
+      <Suspense fallback={null}>
+        <LandingLemonTestCheckout isLoggedIn={isLoggedIn} onLoginClick={onLoginClick} />
+      </Suspense>
+
+      {/* Final CTA */}
+      <section className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-slate-200/50 dark:border-white/5">
+        <div className="max-w-3xl mx-auto px-4 text-center">
+          <motion.div {...landingFadeInUp}>
+            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+              Get started
+            </span>
+            <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase text-slate-900 dark:text-white mb-2">
+              Free demo → Sign in → Buy credits
+            </h2>
+            <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide mb-6 leading-relaxed max-w-xl mx-auto">
+              {abCopy.offerLine}
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 type="button"
-                onClick={onFullAnalysisClick}
-                className="font-semibold text-amber-800 underline decoration-amber-300/80 underline-offset-2 hover:text-amber-900 dark:text-amber-300 dark:decoration-amber-600/50"
+                onClick={() => {
+                  document.getElementById('hero-check')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="btn-stratum px-8 py-3.5 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]"
+                data-ab-variant={abCopy.id}
               >
-                Open tutor workspace
+                <div className="shimmer-layer animate-shimmer" aria-hidden />
+                <span className="btn-stratum-text">Start free demo</span>
               </button>
-            </LandingMentionLine>
-          </LandingInfoPanel>
+              <button
+                type="button"
+                onClick={() => onLoginClick?.()}
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-7 py-3.5 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white"
+              >
+                Sign in
+              </button>
+            </div>
+          </motion.div>
         </div>
-      </LandingSection>
+      </section>
 
-      <NeuralSyncShowcase onCtaClick={onFullAnalysisClick} />
-
-      <LandingSampleReports onTryDemoClick={() => router.push('/?app=1')} />
-
-      {/* Progress & study plan (merged analytics + dashboard) */}
+      {/* Progress & study plan */}
       <LandingSection id="study-plan" ariaLabelledby="section-study-plan">
         <LandingSectionHeader
           tagline="Progress"
           id="section-study-plan"
           title="Analytics, study plan & reminders"
-          description="Every saved check feeds your writing profile — criterion trends, weak-area links, and optional email nudges."
+          description="Every saved check feeds your writing profile — criterion trends, weak-area links, and optional email nudges after sign-in."
         />
-        <motion.div {...landingFadeInUp} className="mb-10">
-          <TransformationSlider darkMode={darkMode} onCtaClick={onFullAnalysisClick} />
-        </motion.div>
         <div className="grid md:grid-cols-3 gap-4 sm:gap-5 mb-8">
           <LandingIconCard
             icon={LineChart}
@@ -193,168 +181,14 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLogge
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/85 shadow-sm ring-1 ring-indigo-200/70 dark:bg-white/10 dark:ring-white/10">
               <BellRing className="h-5 w-5 text-indigo-600 dark:text-indigo-400" strokeWidth={1.5} aria-hidden />
             </div>
-            <div className="min-w-0 space-y-2">
-              <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-300">
-                After sign-in: open <span className="font-semibold text-slate-900 dark:text-white">Study plan</span> for
-                analytics and <span className="font-semibold text-slate-900 dark:text-white">Settings</span> for email
-                reminders.
-              </p>
-              <LandingMentionLine accent="indigo">
-                <button
-                  type="button"
-                  onClick={onLoginClick}
-                  className="font-semibold text-indigo-700 underline decoration-indigo-300/80 underline-offset-2 hover:text-indigo-800 dark:text-indigo-300 dark:decoration-indigo-600/50"
-                >
-                  Sign in to unlock
-                </button>
-              </LandingMentionLine>
-            </div>
+            <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-300">
+              After sign-in: open <span className="font-semibold text-slate-900 dark:text-white">Study plan</span> for
+              analytics and <span className="font-semibold text-slate-900 dark:text-white">Settings</span> for email
+              reminders.
+            </p>
           </div>
         </LandingInfoPanel>
       </LandingSection>
-
-      <section className="py-8 sm:py-10 bg-[#F9FAFB] dark:bg-[#050505] border-b border-slate-200/50 dark:border-white/5">
-        <Task2ComparisonLab darkMode={darkMode} />
-      </section>
-
-      {/* Methodology */}
-      <LandingSection ariaLabelledby="section-methodology">
-        <LandingSectionHeader
-          tagline="Expert Guidelines"
-          id="section-methodology"
-          title="STRATUM methodology"
-          description="The principles we use to evaluate and improve your writing for Band 7+."
-        />
-        <div className="grid md:grid-cols-3 gap-4 sm:gap-5 max-w-5xl mx-auto">
-          <LandingCard>
-            <h3 className="font-black uppercase tracking-[0.2em] text-[10px] text-indigo-600 dark:text-indigo-400 mb-5">
-              Task 1 · Academic
-            </h3>
-            <ul className="space-y-3">
-              {TASK1_TIPS.map((tip) => {
-                const Icon = { Eye, Target, Shield, Filter, Zap }[tip.icon];
-                return (
-                  <li key={tip.id} className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
-                    {Icon ? (
-                      <Icon className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" strokeWidth={1.5} aria-hidden />
-                    ) : null}
-                    <span className="text-sm font-medium">{tip.label}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </LandingCard>
-          <LandingCard className="border-teal-200/80 dark:border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/15">
-            <h3 className="font-black uppercase tracking-[0.2em] text-[10px] text-teal-600 dark:text-teal-400 mb-5">
-              Task 1 · GT Letter
-            </h3>
-            <ul className="space-y-3">
-              {LETTER_TIPS.map((tip) => {
-                const Icon = { CheckCircle, Shield, Target, FileText, LayoutGrid }[tip.icon];
-                return (
-                  <li key={tip.id} className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
-                    {Icon ? (
-                      <Icon className="w-4 h-4 shrink-0 text-teal-600 dark:text-teal-400" strokeWidth={1.5} aria-hidden />
-                    ) : null}
-                    <span className="text-sm font-medium">{tip.label}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </LandingCard>
-          <LandingCard>
-            <h3 className="font-black uppercase tracking-[0.2em] text-[10px] text-indigo-600 dark:text-indigo-400 mb-5">
-              Task 2 · Essay
-            </h3>
-            <ul className="space-y-3">
-              {TASK2_TIPS.map((tip) => {
-                const Icon = { Target, LayoutGrid, Crown, Shield, RefreshCw }[tip.icon];
-                return (
-                  <li key={tip.id} className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
-                    {Icon ? (
-                      <Icon className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" strokeWidth={1.5} aria-hidden />
-                    ) : null}
-                    <span className="text-sm font-medium">{tip.label}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </LandingCard>
-        </div>
-      </LandingSection>
-
-      {/* Testimonials */}
-      <LandingSection ariaLabelledby="section-testimonials">
-        <LandingSectionHeader
-          tagline="Testimonials"
-          id="section-testimonials"
-          title="Trusted by students worldwide"
-          description="Precision feedback and stratum-level analytics helping learners reach their target band."
-        />
-        <div className="grid md:grid-cols-2 gap-4 sm:gap-5 max-w-5xl mx-auto">
-          {[
-            {
-              quote:
-                "Stratum's feedback is remarkably accurate. It identified errors my tutor had missed. I went from 6.0 to 7.5 in three weeks.",
-              author: 'Ahmed',
-              location: 'Saudi Arabia',
-              band: '6.0 → 7.5',
-            },
-            {
-              quote:
-                'The vocabulary upgrades are a game-changer. It taught me how to achieve a native-level academic register.',
-              author: 'Lin',
-              location: 'China',
-              band: '6.5 → 8.0',
-            },
-          ].map((item) => (
-            <LandingCard key={item.author}>
-              <div className="flex items-center gap-2 mb-3">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-4 h-4 text-amber-400 fill-amber-400" strokeWidth={1.5} aria-hidden />
-                ))}
-                <span className="text-xs font-semibold text-red-500 ml-1">{item.band}</span>
-              </div>
-              <p className="text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">&ldquo;{item.quote}&rdquo;</p>
-              <p className="text-sm font-medium text-slate-900 dark:text-white">
-                {item.author}, {item.location}
-              </p>
-            </LandingCard>
-          ))}
-        </div>
-      </LandingSection>
-
-      <LandingPricing isLoggedIn={isLoggedIn} onLoginClick={onLoginClick} />
-
-      <Suspense fallback={null}>
-        <LandingLemonTestCheckout isLoggedIn={isLoggedIn} onLoginClick={onLoginClick} />
-      </Suspense>
-
-      {/* Final CTA */}
-      <section className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-slate-200/50 dark:border-white/5">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <motion.div {...landingFadeInUp}>
-            <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">
-              Get started
-            </span>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase text-slate-900 dark:text-white mb-2">
-              Ready to reach Band 7.5+?
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide mb-6 leading-relaxed max-w-xl mx-auto">
-              {abCopy.offerLine}
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push('/?app=1')}
-              className="btn-stratum px-8 py-3.5 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]"
-              data-ab-variant={abCopy.id}
-            >
-              <div className="shimmer-layer animate-shimmer" aria-hidden />
-              <span className="btn-stratum-text">{abCopy.bottomCta}</span>
-            </button>
-          </motion.div>
-        </div>
-      </section>
 
       {/* Telegram */}
       <LandingSection id="telegram" ariaLabelledby="section-telegram">
@@ -405,14 +239,22 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLogge
                 <span className="text-sky-700/70 dark:text-sky-400/70"> {LANDING_TELEGRAM.resourceHint}</span>
               </LandingMentionLine>
               <LandingMentionLine accent="sky">
-                Channel: twice-daily posts (tips AM, topic PM).{' '}
-                <LandingTextLink href={TELEGRAM_BOT_URL} accent="sky">
+                Channel: tips AM, topic PM · free quick score in bot → full report on the site.{' '}
+                <LandingTextLink
+                  href={TELEGRAM_BOT_URL}
+                  accent="sky"
+                  onClick={() => trackTelegramClick({ target: 'bot', placement: 'landing' })}
+                >
                   Open bot
                 </LandingTextLink>
                 <span className="mx-1.5 text-slate-400" aria-hidden>
                   ·
                 </span>
-                <LandingTextLink href={TELEGRAM_CHANNEL_URL} accent="sky">
+                <LandingTextLink
+                  href={TELEGRAM_CHANNEL_URL}
+                  accent="sky"
+                  onClick={() => trackTelegramClick({ target: 'channel', placement: 'landing' })}
+                >
                   Join channel
                 </LandingTextLink>
               </LandingMentionLine>
@@ -498,6 +340,123 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLogge
           })}
         </div>
       </LandingSection>
+
+      {/* Tutors — secondary audience */}
+      <LandingSection id="tutor-tools" ariaLabelledby="section-tutor-tools">
+        <LandingSectionHeader
+          tagline="For tutors & teachers"
+          id="section-tutor-tools"
+          title="AI score first — your notes on top"
+          description="Check a student essay, add feedback, tweak bands if needed, then share a link or PDF."
+        />
+        <div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-3">
+          {[
+            {
+              step: '01',
+              title: 'AI draft score',
+              body: 'Run Task 1 or Task 2 — same 4-criteria practice report students see.',
+            },
+            {
+              step: '02',
+              title: 'Your notes',
+              body: 'Add tutor comments under the essay and adjust criterion bands when you disagree.',
+            },
+            {
+              step: '03',
+              title: 'Deliver',
+              body: 'Save to archive, share a link, or export PDF — notes travel with the report.',
+            },
+          ].map((item) => (
+            <div
+              key={item.step}
+              className="rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-4 text-left dark:border-white/10 dark:bg-white/5"
+            >
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
+                {item.step}
+              </p>
+              <h3 className="mt-2 text-sm font-bold text-slate-900 dark:text-white">{item.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{item.body}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={onFullAnalysisClick}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+          >
+            Open tutor workspace
+          </button>
+        </div>
+      </LandingSection>
+
+      {/* Methodology */}
+      <LandingSection ariaLabelledby="section-methodology">
+        <LandingSectionHeader
+          tagline="Expert Guidelines"
+          id="section-methodology"
+          title="STRATUM methodology"
+          description="The principles we use to evaluate and improve your writing for Band 7+."
+        />
+        <div className="grid md:grid-cols-3 gap-4 sm:gap-5 max-w-5xl mx-auto">
+          <LandingCard>
+            <h3 className="font-black uppercase tracking-[0.2em] text-[10px] text-indigo-600 dark:text-indigo-400 mb-5">
+              Task 1 · Academic
+            </h3>
+            <ul className="space-y-3">
+              {TASK1_TIPS.map((tip) => {
+                const Icon = { Eye, Target, Shield, Filter, Zap }[tip.icon];
+                return (
+                  <li key={tip.id} className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
+                    {Icon ? (
+                      <Icon className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" strokeWidth={1.5} aria-hidden />
+                    ) : null}
+                    <span className="text-sm font-medium">{tip.label}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </LandingCard>
+          <LandingCard className="border-teal-200/80 dark:border-teal-500/20 bg-teal-50/50 dark:bg-teal-950/15">
+            <h3 className="font-black uppercase tracking-[0.2em] text-[10px] text-teal-600 dark:text-teal-400 mb-5">
+              Task 1 · GT Letter
+            </h3>
+            <ul className="space-y-3">
+              {LETTER_TIPS.map((tip) => {
+                const Icon = { CheckCircle, Shield, Target, FileText, LayoutGrid }[tip.icon];
+                return (
+                  <li key={tip.id} className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
+                    {Icon ? (
+                      <Icon className="w-4 h-4 shrink-0 text-teal-600 dark:text-teal-400" strokeWidth={1.5} aria-hidden />
+                    ) : null}
+                    <span className="text-sm font-medium">{tip.label}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </LandingCard>
+          <LandingCard>
+            <h3 className="font-black uppercase tracking-[0.2em] text-[10px] text-indigo-600 dark:text-indigo-400 mb-5">
+              Task 2 · Essay
+            </h3>
+            <ul className="space-y-3">
+              {TASK2_TIPS.map((tip) => {
+                const Icon = { Target, LayoutGrid, Crown, Shield, RefreshCw }[tip.icon];
+                return (
+                  <li key={tip.id} className="flex items-center gap-3 text-slate-700 dark:text-slate-300">
+                    {Icon ? (
+                      <Icon className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" strokeWidth={1.5} aria-hidden />
+                    ) : null}
+                    <span className="text-sm font-medium">{tip.label}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </LandingCard>
+        </div>
+      </LandingSection>
+
+      <NeuralSyncShowcase />
     </main>
   );
 }

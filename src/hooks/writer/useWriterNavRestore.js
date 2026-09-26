@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { usePathname } from 'next/navigation';
 
 function readAppQueryFlags() {
@@ -14,6 +14,18 @@ function readAppQueryFlags() {
   }
 }
 
+/** Subscribe to URL search changes (back/forward + pushState/replaceState). */
+function subscribeAppQuery(onStoreChange) {
+  if (typeof window === 'undefined') return () => {};
+  const fire = () => onStoreChange();
+  window.addEventListener('popstate', fire);
+  window.addEventListener('stratum:query', fire);
+  return () => {
+    window.removeEventListener('popstate', fire);
+    window.removeEventListener('stratum:query', fire);
+  };
+}
+
 function noop() {}
 
 function asSetter(fn) {
@@ -21,6 +33,8 @@ function asSetter(fn) {
 }
 
 export function useWriterNavRestore({
+  forceLandingFromServer = false,
+  skipAppLandingFromServer = false,
   setActiveTab,
   setTask1Kind,
   setPromptT1Letter,
@@ -31,11 +45,16 @@ export function useWriterNavRestore({
   setEssayT2,
 }) {
   const pathname = usePathname();
-  const [forceLanding, setForceLanding] = useState(() => readAppQueryFlags().forceLanding);
+  // SSR + hydration must share the same snapshot (from page searchParams). Client then reads live URL.
+  const forceLanding = useSyncExternalStore(
+    subscribeAppQuery,
+    () => readAppQueryFlags().forceLanding,
+    () => Boolean(forceLandingFromServer),
+  );
   const skipAppLanding = useSyncExternalStore(
-    () => () => {},
+    subscribeAppQuery,
     () => readAppQueryFlags().skipAppLanding,
-    () => false,
+    () => Boolean(skipAppLandingFromServer),
   );
 
   // Keep setters in refs so the restore effect deps stay a fixed size (avoids HMR / undefined setter churn).
@@ -65,11 +84,6 @@ export function useWriterNavRestore({
 
   useEffect(() => {
     if (pathname !== '/') return;
-    setForceLanding(readAppQueryFlags().forceLanding);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (pathname !== '/') return;
     if (typeof window === 'undefined') return;
     const {
       setActiveTab: setTab,
@@ -95,6 +109,7 @@ export function useWriterNavRestore({
         sp.delete('tab');
         const next = sp.toString();
         window.history.replaceState({}, '', next ? `/?${next}` : '/');
+        window.dispatchEvent(new Event('stratum:query'));
       }
       if (fromStore) sessionStorage.removeItem('stratum_nav_tab');
 

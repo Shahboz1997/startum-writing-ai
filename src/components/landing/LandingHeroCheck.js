@@ -11,6 +11,9 @@ import {
 } from '@/lib/guestCheckPreview';
 import { resolveLandingIntent } from '@/lib/landingMessageMatch';
 import { LANDING_HERO_OFFER_LINE, saveLandingEssayPrefill } from '@/lib/landingHeroPrefill';
+import { LANDING_SCORE_DISCLAIMER } from '@/lib/landingSeoData';
+import { trackDemoComplete, trackDemoStart } from '@/lib/analyticsEvents';
+import Link from 'next/link';
 
 const PREVIEW_TIMEOUT_MS = 120_000;
 /**
@@ -122,6 +125,11 @@ export default function LandingHeroCheck({
       }
 
       setPreview(data);
+      trackDemoComplete({
+        source: 'hero',
+        analysisMode: intent.analysisMode,
+        overallBand: data?.overall_band,
+      });
     } catch (err) {
       if (seq !== requestSeqRef.current) return;
       if (err?.name === 'AbortError') {
@@ -149,6 +157,7 @@ export default function LandingHeroCheck({
       else if (typeof window !== 'undefined') window.location.href = '/?app=1';
       return;
     }
+    trackDemoStart({ source: 'hero', analysisMode: intent.analysisMode });
     void runGuestPreview();
   }, [isLoggedIn, heroEssay, intent.analysisMode, onContinueToLab, runGuestPreview]);
 
@@ -157,7 +166,7 @@ export default function LandingHeroCheck({
     : 'relative flex flex-col justify-center bg-[#F9FAFB] dark:bg-[#050505] px-4 pt-10 pb-16 border-b border-slate-200/50 dark:border-white/5 overflow-hidden hero-noise';
 
   return (
-    <section className={sectionClass}>
+    <section id="hero-check" className={sectionClass}>
       {!compact && (
         <div
           className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(99,102,241,0.08)_0%,transparent_50%)] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,rgba(99,102,241,0.12)_0%,transparent_50%)] pointer-events-none"
@@ -171,41 +180,25 @@ export default function LandingHeroCheck({
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-4 text-slate-900 dark:text-white">
           {intent.h1}
         </h1>
-        <p className="text-base sm:text-lg text-slate-500 dark:text-slate-400 font-medium tracking-wide max-w-2xl mx-auto mb-6 leading-relaxed">
+        <p className="text-base sm:text-lg text-slate-500 dark:text-slate-400 font-medium tracking-wide max-w-2xl mx-auto mb-4 leading-relaxed">
           {intent.description}
         </p>
-
-        <div className="flex flex-col sm:flex-row justify-center items-center gap-3 mb-3">
-          <button
-            type="button"
-            onClick={startCheck}
-            disabled={previewLoading}
-            data-testid="hero-check-free"
-            className="btn-stratum inline-flex min-h-11 items-center justify-center rounded-xl px-7 py-3.5 text-sm font-bold disabled:opacity-60"
+        <p className="mb-3 text-center text-xs font-medium text-slate-500 dark:text-slate-500">
+          {LANDING_SCORE_DISCLAIMER}{' '}
+          <Link
+            href="/demo/flagship-writing"
+            className="font-semibold text-indigo-600 underline-offset-2 hover:underline dark:text-indigo-400"
           >
-            <div className="shimmer-layer animate-shimmer" aria-hidden />
-            <span className="btn-stratum-text">
-              {previewLoading
-                ? 'Analyzing…'
-                : isLoggedIn
-                  ? intent.cta
-                  : 'Check free'}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onLoginClick?.()}
-            data-testid="open-auth-login"
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-7 py-3.5 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-          >
-            Sign in
-          </button>
-        </div>
-        <p className="mb-8 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
+            See a free sample report
+          </Link>
+          {' · '}
+          Free demo → Sign in → Buy credits
+        </p>
+        <p className="mb-6 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
           {LANDING_HERO_OFFER_LINE}
         </p>
 
-        <div className="mx-auto w-full max-w-2xl rounded-[1.75rem] border border-slate-200/70 dark:border-white/10 bg-white/85 dark:bg-white/5 backdrop-blur-md shadow-xl shadow-black/5 dark:shadow-black/20 p-4 sm:p-5 mt-2 text-left">
+        <div className="mx-auto w-full max-w-2xl rounded-[1.75rem] border border-slate-200/70 dark:border-white/10 bg-white/85 dark:bg-white/5 backdrop-blur-md shadow-xl shadow-black/5 dark:shadow-black/20 p-4 sm:p-5 text-left">
           <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-100 dark:border-slate-700/50">
             <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-slate-500">
               {intent.editorLabel}
@@ -236,18 +229,32 @@ export default function LandingHeroCheck({
             <p className="text-xs text-slate-400 dark:text-slate-500 font-medium">
               No email required for the preview band. Sign in only for the full report.
             </p>
-            <button
-              type="button"
-              onClick={startCheck}
-              disabled={previewLoading}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 px-5 text-sm font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 disabled:opacity-60"
-            >
-              {previewLoading
-                ? 'Analyzing…'
-                : isLoggedIn
-                  ? intent.cta
-                  : 'Check free'}
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:shrink-0">
+              <button
+                type="button"
+                onClick={startCheck}
+                disabled={previewLoading}
+                data-testid="hero-check-free"
+                className="btn-stratum inline-flex min-h-11 items-center justify-center rounded-xl px-6 py-3 text-sm font-bold disabled:opacity-60"
+              >
+                <div className="shimmer-layer animate-shimmer" aria-hidden />
+                <span className="btn-stratum-text">
+                  {previewLoading
+                    ? 'Analyzing…'
+                    : isLoggedIn
+                      ? intent.cta
+                      : 'Check free'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onLoginClick?.()}
+                data-testid="open-auth-login"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-800 shadow-sm hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+              >
+                Sign in
+              </button>
+            </div>
           </div>
 
           {previewLoading && (
@@ -287,10 +294,13 @@ export default function LandingHeroCheck({
           {preview && !previewLoading ? (
             <div className="mt-4 rounded-xl border border-emerald-200/70 dark:border-emerald-500/30 bg-emerald-50/90 dark:bg-emerald-500/10 p-4 sm:p-5">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-emerald-700/80 dark:text-emerald-400/80 mb-1">
-                Preliminary band ready
+                Preliminary practice band
               </p>
               <p className="text-3xl font-black tabular-nums text-emerald-900 dark:text-emerald-100">
                 {preview.overall_band ?? '—'}
+              </p>
+              <p className="mt-1 text-xs font-medium text-emerald-800/80 dark:text-emerald-300/80">
+                {LANDING_SCORE_DISCLAIMER}
               </p>
               {preview.improvement_strategy ? (
                 <p className="mt-2 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">

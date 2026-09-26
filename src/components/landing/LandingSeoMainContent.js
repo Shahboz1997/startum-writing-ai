@@ -3,6 +3,7 @@ import {
   LANDING_FAQ_ITEMS,
   LANDING_FEATURES,
   LANDING_HERO,
+  LANDING_SCORE_DISCLAIMER,
   LANDING_TELEGRAM,
   LANDING_WORKFLOW_STEPS,
 } from '@/lib/landingSeoData';
@@ -22,11 +23,14 @@ export default function LandingSeoMainContent() {
           <p className="mb-3 text-sm font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
             {LANDING_HERO.tagline}
           </p>
-          <h1 className="text-3xl font-black uppercase tracking-tight sm:text-5xl md:text-6xl">
+          <h1 className="text-3xl font-black tracking-tight sm:text-4xl md:text-5xl">
             {LANDING_HERO.title}
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 dark:text-slate-300 sm:text-lg">
             {LANDING_HERO.description}
+          </p>
+          <p className="mx-auto mt-3 max-w-xl text-xs font-medium text-slate-500 dark:text-slate-500">
+            {LANDING_SCORE_DISCLAIMER} · Free demo → Sign in → Buy credits (USD)
           </p>
           <LandingAbOfferLine className="mx-auto mt-4 max-w-xl text-sm font-medium text-slate-500 dark:text-slate-400" />
           <nav className="mt-8 flex flex-wrap items-center justify-center gap-3" aria-label="Primary actions">
@@ -37,21 +41,28 @@ export default function LandingSeoMainContent() {
               View sample report
             </a>
             <a
-              href="/?app=1"
+              href="/?landing=1#hero-check"
               className="inline-flex rounded-xl border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              Try demo check
+              Free demo check
             </a>
             <LandingSeoSignInButton className="inline-flex rounded-xl border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800" />
           </nav>
         </div>
       </header>
 
-      <section className="border-b border-slate-200/80 px-4 py-12 dark:border-white/10" aria-labelledby="workflow-heading">
+      <section
+        id="how-it-works"
+        className="border-b border-slate-200/80 px-4 py-12 dark:border-white/10"
+        aria-labelledby="workflow-heading"
+      >
         <div className="mx-auto max-w-5xl">
           <h2 id="workflow-heading" className="text-center text-2xl font-black uppercase tracking-tight">
             How it works
           </h2>
+          <p className="mx-auto mt-2 max-w-xl text-center text-sm text-slate-600 dark:text-slate-300">
+            Paste → 4 criteria → fixes → rewrite
+          </p>
           <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {LANDING_WORKFLOW_STEPS.map((step) => (
               <li
@@ -69,10 +80,6 @@ export default function LandingSeoMainContent() {
           <p className="mx-auto mt-8 max-w-3xl text-center text-sm leading-relaxed text-slate-600 dark:text-slate-300">
             {LANDING_FEATURES.map((f) => f.description).join(' ')}
           </p>
-          <p className="mx-auto mt-4 max-w-3xl text-center text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-            Tutors: leave notes below the student essay, adjust bands manually, then Save to Archive, Share a link, or
-            export an Official PDF — notes included in every format.
-          </p>
           <p className="mx-auto mt-6 max-w-3xl text-center text-sm font-semibold text-slate-700 dark:text-slate-200">
             Sample reports:{' '}
             <a className="text-indigo-600 underline underline-offset-2 dark:text-indigo-400" href="/demo/flagship-writing">
@@ -89,6 +96,26 @@ export default function LandingSeoMainContent() {
             {' · '}
             <a className="text-indigo-600 underline underline-offset-2 dark:text-indigo-400" href="/demo/task1-academic">
               Task 1 Academic
+            </a>
+          </p>
+          <p className="mx-auto mt-4 max-w-3xl text-center text-sm text-slate-600 dark:text-slate-300">
+            Topic pages:{' '}
+            <a className="text-indigo-600 underline underline-offset-2 dark:text-indigo-400" href="/ielts-writing-task-2-ai-checker">
+              Task 2 AI checker
+            </a>
+            {' · '}
+            <a
+              className="text-indigo-600 underline underline-offset-2 dark:text-indigo-400"
+              href="/ielts-academic-task-1-band-score-checker"
+            >
+              Academic Task 1 checker
+            </a>
+            {' · '}
+            <a
+              className="text-indigo-600 underline underline-offset-2 dark:text-indigo-400"
+              href="/ielts-general-training-letter-feedback"
+            >
+              GT letter feedback
             </a>
           </p>
         </div>
@@ -143,9 +170,7 @@ export default function LandingSeoMainContent() {
             ))}
           </ul>
           <p className="mx-auto mt-8 max-w-2xl text-center text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-            Commands: <strong>/tip</strong> morning tip · <strong>/topic</strong> evening prompt ·{' '}
-            <strong>{LANDING_TELEGRAM.resourceCommand}</strong> {LANDING_TELEGRAM.resourceHint}. Full examiner
-            checks stay on the website.{' '}
+            Free quick score in Telegram → full report on the site.{' '}
             <a href={TELEGRAM_BOT_URL} className="font-semibold text-sky-700 underline dark:text-sky-300">
               {LANDING_TELEGRAM.cta}
             </a>
@@ -160,8 +185,8 @@ export default function LandingSeoMainContent() {
       <section className="px-4 py-10 text-center">
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Ready to practice?{' '}
-          <Link href="/?app=1" className="font-bold text-indigo-600 hover:underline dark:text-indigo-400">
-            Open the writing workspace
+          <Link href="/?landing=1#hero-check" className="font-bold text-indigo-600 hover:underline dark:text-indigo-400">
+            Start free demo
           </Link>{' '}
           or{' '}
           <Link href="/landing" className="font-bold text-indigo-600 hover:underline dark:text-indigo-400">

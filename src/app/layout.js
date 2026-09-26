@@ -26,20 +26,19 @@ const baseUrl = getMetadataBaseUrl();
 export const metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: 'STRATUM — Premium IELTS Intelligence',
+    default: 'STRATUM — IELTS Writing Task 1 & Task 2 AI Examiner',
     template: '%s | STRATUM',
   },
   description:
-    'Elevate your IELTS score with Stratum. Precision AI-driven evaluation for Task 1 and Task 2. Master the exam, stratum by stratum.',
+    'Catches Task 1 data errors and scores Task 1 & Task 2 like an examiner in ~30 seconds. Free demo, then sign in for full criteria, fixes, and rewrite. Practice estimates only.',
   keywords: [
     'IELTS writing',
     'IELTS essay scorer',
     'AI IELTS examiner',
-    'Band 9 feedback',
     'Task 1 Task 2',
     'IELTS preparation',
     'academic writing',
-    'English language assessment',
+    'GT letter IELTS',
     'STRATUM',
   ],
   authors: [{ name: LEGAL_COMPANY_NAME, url: baseUrl }],
@@ -50,14 +49,16 @@ export const metadata = {
     locale: 'en_US',
     url: baseUrl,
     siteName: 'STRATUM',
-    title: 'STRATUM | Next-Gen IELTS Preparation',
-    description: 'Get instant Band 9.0 feedback and AI-powered essay analysis.',
+    title: 'STRATUM — IELTS Writing Task 1 & Task 2 AI Examiner',
+    description:
+      'Catches Task 1 data errors and scores Task 1 & Task 2 like an examiner in ~30 seconds. Practice estimates only — not an official IELTS score.',
     images: ['/og-image.png'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'STRATUM | Next-Gen IELTS Preparation',
-    description: 'Get instant Band 9.0 feedback and AI-powered essay analysis.',
+    title: 'STRATUM — IELTS Writing AI Examiner',
+    description:
+      'Free demo Writing check: 4 criteria, Task 1 logic flags, lexical upgrade, model rewrite. Practice estimates only.',
     images: ['/og-image.png'],
   },
   appleWebApp: {

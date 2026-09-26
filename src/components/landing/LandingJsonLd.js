@@ -1,5 +1,11 @@
 import { getMetadataBaseUrl } from '@/lib/publicSiteUrl';
-import { LEGAL_COMPANY_NAME, SUPPORT_EMAIL } from '@/lib/support';
+import {
+  LEGAL_COMPANY_NAME,
+  SUPPORT_EMAIL,
+  TELEGRAM_CHANNEL_URL,
+  FACEBOOK_PAGE_URL,
+  INSTAGRAM_PAGE_URL,
+} from '@/lib/support';
 import { LANDING_FAQ_ITEMS, LANDING_HERO } from '@/lib/landingSeoData';
 
 export default function LandingJsonLd() {
@@ -17,7 +23,7 @@ export default function LandingJsonLd() {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'USD',
-      description: 'One demo check; full GPT-4o analysis with account credits',
+      description: 'One demo check; full analysis with account credits (USD packs)',
     },
     publisher: {
       '@type': 'Organization',
@@ -48,7 +54,7 @@ export default function LandingJsonLd() {
     name: LEGAL_COMPANY_NAME,
     url: base,
     logo: `${base}/favicon.png`,
-    sameAs: [],
+    sameAs: [TELEGRAM_CHANNEL_URL, FACEBOOK_PAGE_URL, INSTAGRAM_PAGE_URL].filter(Boolean),
   };
 
   return (

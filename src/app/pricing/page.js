@@ -1,11 +1,33 @@
 import Link from 'next/link';
 import { CREDIT_PACKS, formatPackPrice, formatPerCreditPrice, getPackValueBadge } from '@/lib/creditPacks';
 import { LEGAL_COMPANY_NAME, BUSINESS_ADDRESS, SUPPORT_EMAIL } from '@/lib/support';
+import { getMetadataBaseUrl } from '@/lib/publicSiteUrl';
+
+const baseUrl = getMetadataBaseUrl();
+const META_TITLE = 'Pricing — IELTS Writing credit packs (USD)';
+const META_DESCRIPTION =
+  'STRATUM credit packs for AI IELTS Writing checks: 10, 20, or 40 credits in USD. Free demo first, then sign in. Secure Lemon Squeezy checkout.';
 
 export const metadata = {
-  title: 'Pricing | STRATUM',
-  description:
-    'STRATUM credit packs for AI IELTS Writing checks: 10, 20, or 40 credits. Secure checkout via Lemon Squeezy.',
+  title: META_TITLE,
+  description: META_DESCRIPTION,
+  alternates: { canonical: '/pricing' },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: `${baseUrl.replace(/\/$/, '')}/pricing`,
+    siteName: 'STRATUM',
+    title: META_TITLE,
+    description: META_DESCRIPTION,
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'STRATUM IELTS Writing' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: META_TITLE,
+    description: META_DESCRIPTION,
+    images: ['/og-image.png'],
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function PricingPage() {
@@ -25,12 +47,13 @@ export default function PricingPage() {
           Pricing
         </p>
         <h1 className="mt-2 text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white sm:text-4xl">
-          Credit packs
+          Credit packs (USD)
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-600 dark:text-slate-400">
-          One credit equals one full AI essay analysis (Task 1 or Task 2). Credits are digital
-          software access delivered automatically to your STRATUM account after payment. Checkout is
-          processed securely by Lemon Squeezy. Operated by {LEGAL_COMPANY_NAME}.
+          One credit equals one full AI essay analysis (Task 1 or Task 2). Start with a free demo, sign in for
+          included checks, then top up when you need more. Credits are digital software access delivered
+          automatically after payment. Checkout is processed securely by Lemon Squeezy in USD (not localized).
+          Operated by {LEGAL_COMPANY_NAME}.
         </p>
 
         <ul className="mt-10 grid gap-4 sm:grid-cols-3">
@@ -72,11 +95,15 @@ export default function PricingPage() {
 
         <div className="mt-10 rounded-2xl border border-slate-200 bg-white px-5 py-5 text-sm leading-relaxed text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-400">
           <p>
-            To purchase,{' '}
+            Path:{' '}
+            <Link href="/?landing=1#hero-check" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+              free demo
+            </Link>
+            {' → '}
             <Link href="/?app=1" className="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
-              sign in to STRATUM
-            </Link>{' '}
-            and choose a pack from Pricing on the home page or Get more credits in the writing lab.
+              sign in
+            </Link>
+            {' → buy credits from Pricing on the home page or Get more credits in the writing lab.'}
           </p>
           <p className="mt-3">
             Refunds: see our{' '}

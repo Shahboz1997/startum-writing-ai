@@ -11,6 +11,7 @@ import {
   formatPerCreditPrice,
   getPackValueBadge,
 } from '@/lib/creditPacks';
+import { trackCheckoutClick } from '@/lib/analyticsEvents';
 
 /**
  * Credit pack picker → Lemon Squeezy checkout redirect.
@@ -49,6 +50,7 @@ export default function CreditsTopUpModal({
   const startCheckout = useCallback(
     async (packId) => {
       if (checkoutPackId) return;
+      trackCheckoutClick({ packId, source: 'credits_modal' });
       setCheckoutPackId(packId);
       setCheckoutError('');
       try {

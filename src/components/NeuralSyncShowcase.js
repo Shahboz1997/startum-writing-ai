@@ -17,10 +17,8 @@ import {
   NEURAL_SYNC_TIMINGS_SRC,
 } from '@/lib/neuralSyncSample';
 
-const VISUALIZER_BARS = 24;
-
 /** idle | playing | paused | ended */
-export default function NeuralSyncShowcase({ onCtaClick }) {
+export default function NeuralSyncShowcase() {
   const [runState, setRunState] = useState('idle');
   const [currentTime, setCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
@@ -202,108 +200,84 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
     <section
       id="neural-sync"
       aria-labelledby="neural-sync-heading"
-      className="py-14 sm:py-20 bg-[#F9FAFB] dark:bg-[#050505] border-b border-white/5 overflow-hidden"
+      className="py-12 sm:py-16 bg-[#F9FAFB] dark:bg-[#050505] border-b border-slate-200/50 dark:border-white/5 overflow-hidden"
     >
       <audio ref={audioRef} preload="metadata" playsInline>
         <source src={NEURAL_SYNC_AUDIO_SRC} type="audio/mpeg" />
       </audio>
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="max-w-4xl mx-auto px-4">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-48px' }}
-          transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.7 }}
-          className="text-center mb-10"
+          transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.6 }}
+          className="text-center mb-8"
         >
           <span className="tagline-pill mb-2 block w-fit mx-auto text-slate-500 dark:text-slate-400 font-medium tracking-wide">
-            Neural Sync
+            After the report
           </span>
-          <h2 id="neural-sync-heading" className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white mb-3">
-            THE SOUND OF PERFECTION
+          <h2
+            id="neural-sync-heading"
+            className="text-xl sm:text-2xl md:text-3xl font-black tracking-tighter uppercase text-slate-900 dark:text-white"
+          >
+            Hear the model rewrite
           </h2>
-          <p className="text-lg sm:text-xl font-semibold tracking-tight text-slate-700 dark:text-slate-300 mb-2">
-            READ. LISTEN. EVOLVE.
-          </p>
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
-            Experience our Neural Shadowing technology. Every model answer comes with a synced audio strata to master your rhythm and pronunciation.
+          <p className="mt-3 text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 max-w-xl mx-auto leading-relaxed">
+            Optional synced audio for Writing model answers — press play and follow the highlighted sentence.
           </p>
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-32px' }}
-          transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.8 }}
-          className="rounded-[2rem] border border-white/10 dark:border-white/5 bg-white/5 dark:bg-white/[0.02] backdrop-blur-2xl shadow-2xl shadow-black/5 dark:shadow-black/20 p-6 sm:p-8 md:p-10"
+          transition={{ ease: [0.16, 1, 0.3, 1], duration: 0.65 }}
+          className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white/85 dark:bg-white/5 backdrop-blur-md p-4 sm:p-5 shadow-sm"
         >
-          <div className="flex flex-col lg:flex-row gap-8 lg:gap-10 items-center">
-            {/* Left: Play / Pause + Visualizer */}
-            <div className="flex flex-col items-center gap-4 sm:gap-6 shrink-0">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 sm:items-start">
+            <div className="flex sm:flex-col items-center gap-3 shrink-0">
               <button
                 type="button"
                 onClick={togglePlayPause}
                 disabled={Boolean(audioError)}
-                className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-[0_0_40px_rgba(79,70,229,0.5)] hover:shadow-[0_0_50px_rgba(79,70,229,0.6)] hover:scale-105 active:scale-100 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 dark:focus:ring-offset-slate-950 disabled:opacity-50 disabled:pointer-events-none"
+                className="relative flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 dark:focus:ring-offset-slate-950 disabled:opacity-50 disabled:pointer-events-none"
                 aria-label={
-                  isPlaying ? 'Pause Neural Sync demo' : runState === 'paused' ? 'Resume Neural Sync demo' : 'Play Neural Sync demo'
+                  isPlaying
+                    ? 'Pause model rewrite audio'
+                    : runState === 'paused'
+                      ? 'Resume model rewrite audio'
+                      : 'Play model rewrite audio'
                 }
               >
-                {!isPlaying && !audioError && (
-                  <span className="absolute inset-0 rounded-full bg-indigo-500/30 animate-ping opacity-30" aria-hidden />
-                )}
                 {isPlaying ? (
-                  <Pause className="w-10 h-10 sm:w-12 sm:h-12 relative z-10" strokeWidth={1.75} fill="currentColor" />
+                  <Pause className="h-6 w-6 relative z-10" strokeWidth={1.75} fill="currentColor" />
                 ) : (
-                  <Play className="w-10 h-10 sm:w-12 sm:h-12 relative z-10 ml-1" strokeWidth={1.5} fill="currentColor" />
+                  <Play className="h-6 w-6 relative z-10 ml-0.5" strokeWidth={1.5} fill="currentColor" />
                 )}
               </button>
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 text-center max-w-[14rem]">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400 text-center max-w-[8rem]">
                 {isPlaying ? (
-                  <span className="inline-flex items-center gap-1.5 justify-center">
-                    <Volume2 className="w-3.5 h-3.5 opacity-80" strokeWidth={1.5} />
+                  <span className="inline-flex items-center gap-1 justify-center">
+                    <Volume2 className="h-3 w-3 opacity-80" strokeWidth={1.5} aria-hidden />
                     {statusLabel}
                   </span>
                 ) : (
                   statusLabel
                 )}
               </p>
-              {audioError ? (
-                <p className="text-[11px] text-rose-500 dark:text-rose-400 text-center max-w-[16rem]">{audioError}</p>
-              ) : null}
-
-              {/* Visualizer: moving bars */}
-              <div className="flex items-end justify-center gap-1 h-12" aria-hidden>
-                {Array.from({ length: VISUALIZER_BARS }).map((_, i) => (
-                  <motion.span
-                    key={i}
-                    className="w-1.5 sm:w-2 rounded-full bg-indigo-500/80 dark:bg-indigo-400/80"
-                    animate={
-                      isPlaying
-                        ? {
-                            height: ['20%', '90%', '40%', '70%', '30%', '85%', '20%'],
-                            transition: {
-                              duration: 0.8 + (i % 5) * 0.15,
-                              repeat: Infinity,
-                              delay: i * 0.04,
-                            },
-                          }
-                        : { height: '28%' }
-                    }
-                    style={{ minHeight: 6 }}
-                  />
-                ))}
-              </div>
             </div>
 
-            {/* Right: Glassmorphism text block — Band 9 sample + sentence highlight */}
-            <div className="flex-1 min-w-0 w-full">
-              <div className="rounded-2xl bg-white/5 dark:bg-white/5 backdrop-blur-2xl border border-white/10 dark:border-white/10 p-5 sm:p-6 max-h-[280px] overflow-y-auto overflow-x-hidden custom-scrollbar">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wider bg-indigo-500/20 text-indigo-600 dark:text-indigo-400">
-                    Band 9.0 Sample
-                  </span>
-                </div>
-                <p className="text-slate-700 dark:text-slate-600 text-sm sm:text-base leading-relaxed font-medium tracking-wide">
+            <div className="min-w-0 flex-1">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-600 dark:bg-white/10 dark:text-slate-300">
+                  Example rewrite
+                </span>
+                <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
+                  Illustrative sample — not a promised band
+                </span>
+              </div>
+              <div className="max-h-[11rem] overflow-y-auto overflow-x-hidden rounded-xl border border-slate-100 bg-slate-50/80 px-3.5 py-3 dark:border-white/10 dark:bg-slate-900/40 custom-scrollbar">
+                <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 font-medium">
                   {sentenceRanges.map((range, si) => {
                     const active = si === activeSentenceIndex;
                     const played = activeSentenceIndex >= 0 && si < activeSentenceIndex;
@@ -317,10 +291,10 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
                           ref={active ? activeSentenceRef : undefined}
                           className={
                             active
-                              ? 'text-white bg-indigo-600/90 rounded-md px-1 py-0.5 shadow-[0_0_20px_rgba(79,70,229,0.45)] transition-all duration-200'
+                              ? 'rounded bg-indigo-600 px-0.5 text-white transition-colors duration-200'
                               : played
                                 ? 'text-slate-800 dark:text-slate-400 transition-colors duration-300'
-                                : 'text-slate-700 dark:text-slate-600 transition-colors duration-300'
+                                : 'text-slate-600 dark:text-slate-500 transition-colors duration-300'
                           }
                         >
                           {sentenceText}
@@ -331,30 +305,13 @@ export default function NeuralSyncShowcase({ onCtaClick }) {
                   })}
                 </p>
               </div>
+              {audioError ? (
+                <p className="mt-2 text-xs text-rose-600 dark:text-rose-400" role="alert">
+                  {audioError}
+                </p>
+              ) : null}
             </div>
           </div>
-
-          {/* CTA: Shimmer button */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mt-8 text-center"
-          >
-            <button
-              type="button"
-              onClick={onCtaClick}
-              className="btn-stratum relative overflow-hidden inline-flex items-center justify-center px-8 py-4 rounded-xl text-sm font-bold uppercase tracking-[0.2em] hover:shadow-[0_0_25px_rgba(79,70,229,0.3)] transition-shadow"
-            >
-              <div className="shimmer-layer animate-shimmer" aria-hidden />
-              <span className="btn-stratum-text">ANALYZE MY ESSAY NOW</span>
-            </button>
-          </motion.div>
-
-          {/* Social proof */}
-          <p className="mt-6 text-center text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400 max-w-md mx-auto px-4 py-3 rounded-xl bg-white/50 dark:bg-white/5 border border-slate-200/60 dark:border-white/10 backdrop-blur-sm">
-            94% of users improved their listening &amp; speaking scores using Stratum Shadowing.
-          </p>
         </motion.div>
       </div>
     </section>

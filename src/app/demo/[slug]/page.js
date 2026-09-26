@@ -15,13 +15,20 @@ export async function generateMetadata({ params }) {
   if (!meta) {
     return { title: 'Sample report — STRATUM', robots: { index: true, follow: true } };
   }
-  const title = `${meta.title} — sample IELTS report | STRATUM`;
-  const description = meta.blurb;
+  const title = `${meta.title} — sample IELTS Writing report | STRATUM`;
+  const description = `${meta.blurb} Practice estimate only — not an official IELTS score. Free demo → sign in → buy USD credits.`;
+  const path = `/demo/${meta.slug}`;
   return {
     title,
     description,
+    alternates: { canonical: path },
     robots: { index: true, follow: true },
-    openGraph: { title, description, images: ['/og-image.png'] },
+    openGraph: {
+      title,
+      description,
+      url: path,
+      images: ['/og-image.png'],
+    },
     twitter: { card: 'summary_large_image', title, description, images: ['/og-image.png'] },
   };
 }
@@ -35,15 +42,15 @@ export default async function DemoReportPage({ params }) {
 
   const publicBase = resolvePublicSiteOrigin();
   const landingHref = publicBase
-    ? `${publicBase}/?landing=1&utm_source=demo&utm_content=${encodeURIComponent(slug)}`
-    : `/?landing=1&utm_source=demo&utm_content=${encodeURIComponent(slug)}`;
+    ? `${publicBase}/?landing=1&utm_source=demo&utm_content=${encodeURIComponent(slug)}#hero-check`
+    : `/?landing=1&utm_source=demo&utm_content=${encodeURIComponent(slug)}#hero-check`;
 
   return (
     <SharedReportDocument
       tasks={report.tasks}
       refLabel={report.ref || 'stratum-demo'}
       heading="Sample IELTS Writing Analysis"
-      intro="Real GPT-4o examiner pipeline — criteria, corrections, lexical upgrade, and draft vs rewrite."
+      intro="Real examiner pipeline — criteria, corrections, lexical upgrade, and draft vs rewrite. Practice estimate only — not an official IELTS score. Free demo → Sign in → Buy credits."
       landingHref={landingHref}
       badge="Evergreen demo · not a time-limited share link"
     />

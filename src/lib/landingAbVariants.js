@@ -11,17 +11,17 @@ export const LANDING_AB_VARIANTS = {
     bottomCta: 'CREATE FREE ACCOUNT',
     stickyCta: 'Sign up free',
     offerLine:
-      'Create a free account for full GPT-4o analysis, saved history, and writing credits.',
+      'Free demo → Sign in → Buy credits. Practice estimate only — not an official IELTS score.',
   },
   b: {
     id: 'b',
     label: 'Band-first',
     heroPrimaryCta: 'See my band score',
-    heroSecondaryCta: 'Unlock full GPT-4o',
+    heroSecondaryCta: 'Unlock full report',
     bottomCta: 'GET BAND SCORE · FREE',
     stickyCta: 'Sign up free',
     offerLine:
-      'Sign up to run IELTS checks with corrections, rewrites, and account credits.',
+      'Free demo → Sign in → Buy credits. Full criteria, fixes, and rewrite after Google sign-in.',
   },
 };
 

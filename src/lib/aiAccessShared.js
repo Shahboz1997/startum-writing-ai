@@ -59,7 +59,7 @@ export function jsonGuestQuotaExhausted() {
   return NextResponse.json(
     {
       code: GUEST_QUOTA_EXHAUSTED_CODE,
-      error: `You have used your free demo check on this network. Create a free account for full GPT-4o analysis and credits.`,
+      error: `You have used your free demo check on this network. Sign in for full 4-criteria reports, rewrites, and credits.`,
       limit: GUEST_CHECK_LIMIT,
     },
     { status: 403 }

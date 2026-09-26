@@ -1,22 +1,23 @@
 /** Shared copy for landing SEO (server HTML + JSON-LD) and interactive landing. */
 
 export const LANDING_HERO = {
-  tagline: 'AI-Powered Writing Assessment',
-  title: 'Master IELTS with Stratum Intelligence',
+  tagline: 'IELTS Writing Task 1 & Task 2',
+  title:
+    'Catches Task 1 data errors and scores Task 1 & Task 2 like an examiner — in ~30 seconds.',
   description:
-    'Elevate your IELTS score with precision AI-driven evaluation for Writing Task 1 and Task 2. Get instant Band 9.0-style feedback and stratum-level analytics to master the exam.',
+    'Paste your Academic chart, GT letter, or Task 2 essay. Get examiner-style scores on all four criteria, flagged data/logic mistakes, lexical upgrades, and a model rewrite. Practice estimates only — not an official IELTS score.',
 };
 
 export const LANDING_FEATURES = [
   {
     title: 'Task 1 & Task 2 analysis',
     description:
-      'Full GPT-4o examiner feedback on Academic charts, GT letters, and Task 2 essays when you are signed in.',
+      'Examiner-style feedback on Academic charts, GT letters, and Task 2 essays when you are signed in.',
   },
   {
     title: 'Lexical upgrades & corrections',
     description:
-      'Highlight weak vocabulary, apply C1/C2 upgrades, and review grammar corrections with a Band 9-style suggested rewrite.',
+      'Highlight weak vocabulary, apply C1/C2 upgrades, and review grammar corrections with a model rewrite.',
   },
   {
     title: 'Study plan & history',
@@ -25,40 +26,42 @@ export const LANDING_FEATURES = [
   },
 ];
 
+/** Compact conversion funnel: paste → score → fixes → rewrite */
 export const LANDING_WORKFLOW_STEPS = [
   {
     step: 1,
-    title: 'Generate Topic',
+    title: 'Paste',
     description:
-      'Charts for Academic Task 1, formal letters for GT, or Task 2 essay prompts — from the lab or AI generator.',
+      'Drop in your Task 1 report, GT letter, or Task 2 essay — or generate a fresh prompt in the lab.',
   },
   {
     step: 2,
-    title: 'Write Essay',
-    description: 'Timer and word count match the real exam. Switch Academic chart mode or GT Letter mode.',
+    title: '4 criteria',
+    description:
+      'Get scores for Task Achievement/Response, Coherence & Cohesion, Lexical Resource, and Grammar.',
   },
   {
     step: 3,
-    title: 'Get Instant Band Score',
+    title: 'Fixes',
     description:
-      'AI Examiner grades all four criteria — including bullet coverage and tone for GT letters.',
+      'See corrections plus Task 1 data and logic flags tutors often miss — not just surface grammar.',
   },
   {
     step: 4,
-    title: 'Fix Mistakes',
+    title: 'Rewrite',
     description:
-      'Vocabulary upgrades, letter strategy (GT), and a model rewrite to close gaps before your next attempt.',
+      'Compare your draft to a model rewrite and lexical upgrades, then save the check to your study plan.',
   },
 ];
 
 export const LANDING_FAQ_ITEMS = [
-    {
-      q: 'Can I see a sample IELTS Writing report before signing up?',
-      a: 'Yes. Open the sample reports on the landing page (Task 2 Band 5.5, Task 2 Band 7.5, Academic Task 1, or the flagship Task 1+2 report). They use the same examiner pipeline as a real Analyze. You also get one free demo check per network before creating an account.',
-    },
-    {
-      q: 'How accurate is Stratum AI for IELTS scoring?',
-    a: 'Our neural network is trained on thousands of official IELTS samples. Stratum AI achieves 98% correlation with human examiner scoring across all four criteria.',
+  {
+    q: 'Can I see a sample IELTS Writing report before signing up?',
+    a: 'Yes. Open the sample reports on the landing page (Task 2 Band 5.5, Task 2 Band 7.5, Academic Task 1, or the flagship Task 1+2 report). They use the same examiner pipeline as a real Analyze. You also get one free demo check per network before creating an account.',
+  },
+  {
+    q: 'How accurate is Stratum AI for IELTS scoring?',
+    a: 'Stratum scores Writing using the same four official criteria examiners apply. Scores are AI practice estimates for learning — not an official IELTS result. Use them to spot recurring gaps (especially Task 1 data/logic errors), then confirm progress with a real mock or exam.',
   },
   {
     q: 'Does it support both Academic and General Training?',
@@ -69,8 +72,8 @@ export const LANDING_FAQ_ITEMS = [
     a: 'Choose GT Letter in Task 1, paste or generate a letter task with bullet points, set tone and purpose, then submit. The AI scores Task Achievement on bullet coverage and register — not chart language — and returns letter_strategy with per-bullet feedback and a full model letter rewrite.',
   },
   {
-    q: 'Will using Stratum AI help me reach Band 8.0?',
-    a: 'Absolutely. By identifying your recurring grammar strata and providing high-level lexical upgrades, Stratum focuses on the specific gaps preventing you from hitting Band 7.5+.',
+    q: 'Will using Stratum AI guarantee Band 8.0?',
+    a: 'No tool can guarantee a band. Stratum highlights recurring grammar and lexical gaps and shows a model rewrite so you can practice deliberately. Your final score still depends on exam-day performance and official marking.',
   },
   {
     q: 'Is my data secure and private?',
@@ -82,47 +85,51 @@ export const LANDING_FAQ_ITEMS = [
   },
   {
     q: 'Do I need an account to use STRATUM?',
-    a: 'You can paste a short excerpt on the home page for one free band preview without signing in. Create a free account for full essay checks (3 included credits), saved history, Band 9 rewrite, and credit top-ups.',
+    a: 'You can paste a short excerpt on the home page for one free band preview without signing in. Create a free account for full essay checks (3 included credits), saved history, model rewrite, and credit top-ups.',
   },
   {
     q: 'Can tutors add personal feedback and share reports with students?',
-    a: 'Yes. After AI analysis, use Tutor\'s notes below the essay for custom feedback. Adjust criterion scores manually if needed, then Save to Archive, Share a link, or download an Official PDF — tutor notes appear in the shared report and PDF.',
+    a: "Yes. After AI analysis, use Tutor's notes below the essay for custom feedback. Adjust criterion scores manually if needed, then Save to Archive, Share a link, or download an Official PDF — tutor notes appear in the shared report and PDF.",
   },
 ];
 
 export const LANDING_GUEST_OFFER =
-  'Create a free account for full GPT-4o analysis, saved history, and writing credits.';
+  'Create a free account for full analysis, saved history, and writing credits.';
 
 export const LANDING_TELEGRAM = {
   tagline: 'On the go',
-  title: 'Telegram — daily micro-practice, not the full lab',
+  title: 'Telegram — free quick score, full report on the site',
   description:
-    'STRATUM on the web is your deep examiner workspace: full criteria, error highlights, Band 9 rewrite, and credit packs. The Telegram bot is a quick trainer for tips, topics, and short quizzes between study sessions.',
+    'Get a free quick Writing score in the Telegram bot between study sessions. For the full 4-criteria report, data-error flags, lexical upgrade, model rewrite, and credit packs — continue on stratumielts.com.',
   features: [
     {
-      title: 'Morning writing tips',
+      title: 'Free quick score in Telegram',
       description:
-        'Collocations, grammar fixes, and Band 7.5+ vocabulary — delivered every morning with a short quiz five minutes later.',
-      command: '/tip',
-      commandHint: 'vocabulary & grammar tip in DM',
+        'Send a short Writing excerpt to the bot for a fast preliminary band when you are away from the desk.',
+      command: '/check',
+      commandHint: 'quick Writing score in DM',
     },
     {
-      title: 'Evening practice topic',
+      title: 'Full examiner report on the site',
       description:
-        'A fresh Task 1 or Task 2 prompt each evening, plus a native Telegram quiz to test what you learned.',
-      command: '/topic',
-      commandHint: 'daily writing prompt',
+        'Open STRATUM on the web for criteria breakdown, Task 1 logic flags, rewrite, history, and USD credit packs.',
+      command: 'web',
+      commandHint: 'deep lab · Lemon Squeezy credits',
     },
     {
-      title: 'Quick drills on the go',
+      title: 'Daily tips & topics',
       description:
-        'Use the bot for short practice between classes. For a full examiner report, rewrite, and saved history — open STRATUM on the web.',
+        'Morning tips and evening prompts in the channel keep practice consistent between full checks.',
       command: '/tip',
-      commandHint: 'tips & quizzes · full checks on the site',
+      commandHint: 'tips & quizzes · channel posts',
     },
   ],
   resourceCommand: '/resource',
   resourceHint: 'curated study links matched to your weak areas',
-  cta: 'Open Telegram trainer',
+  cta: 'Free quick score in Telegram',
   channelCta: 'Join Telegram channel',
 };
+
+/** Practice-score disclaimer (hero, results, SEO topic pages). */
+export const LANDING_SCORE_DISCLAIMER =
+  'Practice estimate only — not an official IELTS score.';

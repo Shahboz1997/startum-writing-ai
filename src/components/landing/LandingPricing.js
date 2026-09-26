@@ -9,6 +9,7 @@ import {
   getPackValueBadge,
 } from '@/lib/creditPacks';
 import { LandingSection, LandingSectionHeader } from '@/components/landing/landingUi';
+import { trackCheckoutClick } from '@/lib/analyticsEvents';
 
 /**
  * Public pricing for Lemon Squeezy / visitors.
@@ -28,6 +29,7 @@ export default function LandingPricing({ isLoggedIn = false, onLoginClick }) {
         return;
       }
 
+      trackCheckoutClick({ packId, source: 'landing_pricing' });
       setCheckoutPackId(packId);
       try {
         const res = await fetch('/api/checkout/lemon', {

@@ -1,10 +1,15 @@
 import { getMetadataBaseUrl } from '@/lib/publicSiteUrl';
 import { listDemoReports } from '@/lib/demoReports';
+import { SEO_TOPIC_PAGES } from '@/lib/seoTopicPages';
 
 /** Public indexable routes — dashboard/auth/private share omitted. */
 const PATHS = [
   { path: '/', changeFrequency: 'weekly', priority: 1 },
   { path: '/landing', changeFrequency: 'monthly', priority: 0.7 },
+  { path: '/pricing', changeFrequency: 'monthly', priority: 0.8 },
+  { path: SEO_TOPIC_PAGES.task2Checker.path, changeFrequency: 'monthly', priority: 0.85 },
+  { path: SEO_TOPIC_PAGES.task1Academic.path, changeFrequency: 'monthly', priority: 0.85 },
+  { path: SEO_TOPIC_PAGES.gtLetter.path, changeFrequency: 'monthly', priority: 0.85 },
   { path: '/privacy', changeFrequency: 'yearly', priority: 0.4 },
   { path: '/data-deletion', changeFrequency: 'yearly', priority: 0.4 },
   { path: '/terms', changeFrequency: 'yearly', priority: 0.4 },

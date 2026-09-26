@@ -33,6 +33,12 @@ export function useLandingAbVariant() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!ready || typeof window === 'undefined') return;
+    if (typeof window.gtag !== 'function') return;
+    window.gtag('event', 'ab_variant_assigned', { ab_variant: variantId });
+  }, [ready, variantId]);
+
   return {
     ready,
     variantId,

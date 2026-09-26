@@ -9,17 +9,17 @@ import {
 } from '@/components/landing/landingUi';
 
 /**
- * Lexical upgrade before/after — same card layout as Task1DataErrorDemo.
+ * Task 2 draft vs model rewrite — same card layout as Task1DataErrorDemo.
  * Illustrative only — not a promised band outcome.
  */
-export default function TransformationSlider() {
+export default function Task2RewriteDemo() {
   return (
-    <LandingSection id="rewrite-example" ariaLabelledby="section-rewrite-example">
+    <LandingSection id="task2-rewrite" ariaLabelledby="section-task2-rewrite">
       <LandingSectionHeader
-        tagline="Lexical upgrade"
-        id="section-rewrite-example"
+        tagline="Task 2"
+        id="section-task2-rewrite"
         title="Draft vs model rewrite"
-        description="Weak Task 1 phrasing upgraded to academic register — same idea as the rewrite in a full STRATUM report."
+        description="B2 wording upgraded to academic Task 2 register — connectors, precise verbs, and clearer stance. Same idea as the rewrite in a full report."
       />
       <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2">
         <LandingCard className="border-rose-200/80 dark:border-rose-500/20">
@@ -30,27 +30,39 @@ export default function TransformationSlider() {
             </p>
           </div>
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-            &ldquo;The graph shows that the number of people who{' '}
+            &ldquo;
             <mark className="rounded bg-rose-100 px-0.5 text-rose-900 dark:bg-rose-500/30 dark:text-rose-100">
-              go to the cinema
+              I think
             </mark>{' '}
-            increased.{' '}
+            that technology is{' '}
             <mark className="rounded bg-rose-100 px-0.5 text-rose-900 dark:bg-rose-500/30 dark:text-rose-100">
-              It was low
+              good
             </mark>{' '}
-            in 1990 and then it{' '}
+            for education. It helps students learn things faster and it is{' '}
             <mark className="rounded bg-rose-100 px-0.5 text-rose-900 dark:bg-rose-500/30 dark:text-rose-100">
-              went up high
+              easy
             </mark>{' '}
-            in 2010. Also, more young people{' '}
+            to find information on the internet. But some people say it is{' '}
             <mark className="rounded bg-rose-100 px-0.5 text-rose-900 dark:bg-rose-500/30 dark:text-rose-100">
-              like movies
+              bad
             </mark>{' '}
-            than old people.&rdquo;
+            because students get{' '}
+            <mark className="rounded bg-rose-100 px-0.5 text-rose-900 dark:bg-rose-500/30 dark:text-rose-100">
+              lazy
+            </mark>
+            .{' '}
+            <mark className="rounded bg-rose-100 px-0.5 text-rose-900 dark:bg-rose-500/30 dark:text-rose-100">
+              In the end
+            </mark>
+            , I believe technology is{' '}
+            <mark className="rounded bg-rose-100 px-0.5 text-rose-900 dark:bg-rose-500/30 dark:text-rose-100">
+              very helpful
+            </mark>{' '}
+            for everyone in schools.&rdquo;
           </p>
           <p className="mt-3 text-xs font-medium text-rose-700/90 dark:text-rose-300/90">
-            Lexical flags: informal phrasing, vague description, basic verbs — hurts Lexical Resource and Academic
-            register.
+            Flags: personal opener, basic adjectives, weak conclusion — hurts Lexical Resource and Task Response
+            clarity.
           </p>
         </LandingCard>
         <LandingCard className="border-emerald-200/80 dark:border-emerald-500/20">
@@ -61,39 +73,51 @@ export default function TransformationSlider() {
             </p>
           </div>
           <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-            &ldquo;The line graph{' '}
+            &ldquo;
             <mark className="rounded bg-emerald-100 px-0.5 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-100">
-              illustrates a significant upward trend
+              It is widely argued that
             </mark>{' '}
-            in cinema attendance. Starting from a{' '}
+            digital technology has{' '}
             <mark className="rounded bg-emerald-100 px-0.5 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-100">
-              nadir
+              revolutionized
             </mark>{' '}
-            in 1990, figures{' '}
+            education.{' '}
             <mark className="rounded bg-emerald-100 px-0.5 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-100">
-              surged dramatically
+              While
             </mark>{' '}
-            by 2010.{' '}
+            critics worry about{' '}
             <mark className="rounded bg-emerald-100 px-0.5 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-100">
-              Furthermore
+              intellectual passivity
             </mark>
-            , younger{' '}
+            , I{' '}
             <mark className="rounded bg-emerald-100 px-0.5 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-100">
-              demographics
+              assert
             </mark>{' '}
-            showed higher engagement.&rdquo;
+            that access to information{' '}
+            <mark className="rounded bg-emerald-100 px-0.5 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-100">
+              repositories
+            </mark>{' '}
+            enhances research efficiency.{' '}
+            <mark className="rounded bg-emerald-100 px-0.5 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-100">
+              Ultimately
+            </mark>
+            , when used strategically, these tools{' '}
+            <mark className="rounded bg-emerald-100 px-0.5 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-100">
+              foster
+            </mark>{' '}
+            a more dynamic learning environment.&rdquo;
           </p>
           <p className="mt-3 text-xs font-medium text-emerald-800/90 dark:text-emerald-300/90">
-            Example rewrite only — C1/C2 upgrades and clearer cohesion. Not a promised band outcome.
+            Example rewrite only — academic openers, precise lexis, clearer cohesion. Not a promised band outcome.
           </p>
         </LandingCard>
       </div>
       <div className="mt-8 flex justify-center">
         <Link
-          href="/demo/task1-academic"
+          href="/demo/task2-band-75"
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-800 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-100"
         >
-          Open Task 1 sample report
+          Open Task 2 sample report
           <ArrowRight className="h-4 w-4" aria-hidden />
         </Link>
       </div>

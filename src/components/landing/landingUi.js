@@ -123,7 +123,7 @@ export function LandingMentionLine({ accent = 'indigo', children, className = ''
   );
 }
 
-export function LandingTextLink({ href, children, accent = 'indigo' }) {
+export function LandingTextLink({ href, children, accent = 'indigo', onClick }) {
   const linkClass =
     accent === 'sky'
       ? 'font-semibold text-sky-700 underline decoration-sky-300/80 underline-offset-2 hover:text-sky-800 dark:text-sky-300 dark:decoration-sky-600/50 dark:hover:text-sky-200'
@@ -131,7 +131,7 @@ export function LandingTextLink({ href, children, accent = 'indigo' }) {
         ? 'font-semibold text-amber-800 underline decoration-amber-300/80 underline-offset-2 hover:text-amber-900 dark:text-amber-300 dark:decoration-amber-600/50'
         : 'font-semibold text-indigo-700 underline decoration-indigo-300/80 underline-offset-2 hover:text-indigo-800 dark:text-indigo-300 dark:decoration-indigo-600/50';
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className={linkClass}>
+    <a href={href} target="_blank" rel="noopener noreferrer" className={linkClass} onClick={onClick}>
       {children}
     </a>
   );
