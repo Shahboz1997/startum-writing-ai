@@ -8,14 +8,45 @@ import { trackGuideDownload } from '@/lib/analyticsEvents';
 
 const EMAIL_STORAGE_KEY = 'stratum_guide_email';
 
-export function triggerBrowserDownload(url, fileName) {
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName || '';
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+/**
+ * Start a PDF download in a way that works on desktop and mobile/WebViews.
+ * `a.download` alone is ignored on many iOS / in-app browsers.
+ */
+export async function triggerBrowserDownload(url, fileName) {
+  const name = fileName || 'guide.pdf';
+
+  try {
+    const res = await fetch(url, { cache: 'force-cache' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const pdfBlob =
+      blob.type === 'application/pdf' || blob.type === ''
+        ? new Blob([blob], { type: 'application/pdf' })
+        : blob;
+    const file = new File([pdfBlob], name, { type: 'application/pdf' });
+
+    if (typeof navigator !== 'undefined' && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: name });
+        return;
+      } catch (shareErr) {
+        if (shareErr?.name === 'AbortError') return;
+      }
+    }
+
+    const objectUrl = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = name;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 2_000);
+  } catch {
+    // Last resort: navigate to the PDF (works in Telegram / iOS Safari).
+    window.location.assign(url);
+  }
 }
 
 export function loadSavedGuideEmail() {
@@ -85,7 +116,7 @@ export default function GuideDownloadModal({ guide, onClose, onDownloaded }) {
 
         saveGuideEmail(email);
         const url = data.downloadUrl || guidePdfPath(guide);
-        triggerBrowserDownload(url, data.fileName || guide.fileName);
+        await triggerBrowserDownload(url, data.fileName || guide.fileName);
         trackGuideDownload({ guideSlug: guide.slug });
         onDownloaded?.({ title: guide.title, url });
         onClose();
