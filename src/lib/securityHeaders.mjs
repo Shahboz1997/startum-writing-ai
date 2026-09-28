@@ -97,12 +97,24 @@ export function getSecurityHeadersForNextConfig() {
   return getSecurityHeaderEntries().map(([key, value]) => ({ key, value }));
 }
 
+/** CSP for /guides/*.pdf so the in-site desktop viewer can iframe them. */
+function buildGuidePdfContentSecurityPolicy() {
+  return buildContentSecurityPolicy().replace(
+    "frame-ancestors 'none'",
+    "frame-ancestors 'self'",
+  );
+}
+
 /** Apply headers to a NextResponse (middleware). */
 export function applySecurityHeaders(response, pathname = '') {
   const isGuidePdf = typeof pathname === 'string' && /^\/guides\/[^/]+\.pdf$/i.test(pathname);
   for (const [key, value] of getSecurityHeaderEntries()) {
     if (isGuidePdf && key === 'X-Frame-Options') {
       response.headers.set(key, 'SAMEORIGIN');
+      continue;
+    }
+    if (isGuidePdf && key === 'Content-Security-Policy') {
+      response.headers.set(key, buildGuidePdfContentSecurityPolicy());
       continue;
     }
     response.headers.set(key, value);

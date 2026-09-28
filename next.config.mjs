@@ -40,10 +40,19 @@ const nextConfig = {
         source: '/:path*',
         headers: getSecurityHeadersForNextConfig(),
       },
-      // In-site PDF viewer embeds /guides/*.pdf in an iframe — DENY blocks that.
+      // In-site PDF viewer embeds /guides/*.pdf in an iframe.
+      // Global headers set XFO DENY + frame-ancestors 'none'; override both here.
       {
         source: '/guides/:file*.pdf',
-        headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          {
+            key: 'Content-Security-Policy',
+            value: getSecurityHeadersForNextConfig()
+              .find((h) => h.key === 'Content-Security-Policy')
+              .value.replace("frame-ancestors 'none'", "frame-ancestors 'self'"),
+          },
+        ],
       },
     ];
   },

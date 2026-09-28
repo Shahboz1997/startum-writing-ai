@@ -31,8 +31,8 @@ function detectInlinePdfUnsupported() {
 
 /**
  * Full-screen in-site PDF viewer.
- * Desktop: embeds /guides/*.pdf in an iframe (X-Frame-Options is SAMEORIGIN for those paths).
- * Mobile / in-app browsers: no PDF-in-iframe support — show an explicit open action instead.
+ * Desktop: fetch PDF as blob → iframe (avoids frame-ancestors / XFO blocking).
+ * Mobile / in-app browsers: no PDF-in-iframe support — show an explicit open action.
  *
  * @param {{ guide: object, onClose: () => void, onDownload: () => void, homeHref?: string }} props
  */
@@ -40,7 +40,9 @@ export default function GuidePdfViewer({ guide, onClose, onDownload, homeHref = 
   const titleId = useId();
   const pdfUrl = guidePdfPath(guide);
   const [useExternalOpen, setUseExternalOpen] = useState(false);
-  const [iframeReady, setIframeReady] = useState(false);
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setUseExternalOpen(detectInlinePdfUnsupported());
@@ -61,12 +63,48 @@ export default function GuidePdfViewer({ guide, onClose, onDownload, homeHref = 
 
   useEffect(() => {
     if (useExternalOpen) {
-      setIframeReady(true);
+      setLoading(false);
+      setLoadError('');
+      setBlobUrl(null);
       return undefined;
     }
-    setIframeReady(false);
-    const t = window.setTimeout(() => setIframeReady(true), 120);
-    return () => window.clearTimeout(t);
+
+    let revoked = false;
+    let objectUrl = null;
+    const controller = new AbortController();
+
+    setLoading(true);
+    setLoadError('');
+    setBlobUrl(null);
+
+    (async () => {
+      try {
+        const res = await fetch(pdfUrl, { signal: controller.signal, cache: 'force-cache' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const pdfBlob =
+          blob.type === 'application/pdf' || blob.type === ''
+            ? new Blob([blob], { type: 'application/pdf' })
+            : blob;
+        objectUrl = URL.createObjectURL(pdfBlob);
+        if (revoked) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        setBlobUrl(objectUrl);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setLoadError(err?.message || 'Could not load PDF');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    })();
+
+    return () => {
+      revoked = true;
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [useExternalOpen, pdfUrl]);
 
   return (
@@ -151,16 +189,34 @@ export default function GuidePdfViewer({ guide, onClose, onDownload, homeHref = 
           </div>
         ) : (
           <>
-            {!iframeReady ? (
+            {loading ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-600 dark:text-slate-300">
                 <Loader2 className="h-8 w-8 animate-spin text-indigo-600" aria-hidden />
                 <p className="text-sm font-medium">Loading PDF…</p>
               </div>
             ) : null}
-            {iframeReady ? (
+
+            {!loading && loadError ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                  Could not embed this PDF in the viewer.
+                </p>
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-500"
+                >
+                  <ExternalLink className="h-4 w-4" aria-hidden />
+                  Open PDF in new tab
+                </a>
+              </div>
+            ) : null}
+
+            {blobUrl ? (
               <iframe
                 title={`${guide.title} PDF`}
-                src={`${pdfUrl}#toolbar=1&navpanes=0`}
+                src={blobUrl}
                 className="absolute inset-0 h-full w-full border-0 bg-white dark:bg-slate-950"
               />
             ) : null}
