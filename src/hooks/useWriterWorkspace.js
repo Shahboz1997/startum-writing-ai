@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useTheme } from '@wrksz/themes/client';
 import { useRouter } from 'next/navigation';
@@ -471,6 +471,12 @@ export function useWriterWorkspace({
   const currentWordCount = getEssayWordCount(activeTab === 'Task 1' ? essayT1 : essayT2);
   const targetWords = activeTab === 'Task 1' ? 150 : 250;
 
+  /** Home CTA: open Task 2 editor ready to paste an essay for evaluation. */
+  const goToEvaluateDraft = useCallback(() => {
+    setActiveTab('Task 2');
+    window.setTimeout(() => scrollToEditor({ focus: true }), 80);
+  }, []);
+
   return {
     session,
     sessionStatus,
@@ -492,6 +498,7 @@ export function useWriterWorkspace({
     credits,
     darkMode,
     scrollToEditor,
+    goToEvaluateDraft,
     isGenLoadingT1: taskGen.isGenLoadingT1,
     generateTask1Data: taskGen.generateTask1Data,
     isGenLoadingLetter: taskGen.isGenLoadingLetter,

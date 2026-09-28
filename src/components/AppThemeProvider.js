@@ -17,7 +17,7 @@ function syncLocalStorageThemeToCookie() {
   }
 }
 
-export default function AppThemeProvider({ children, initialTheme }) {
+export default function AppThemeProvider({ children }) {
   useEffect(() => {
     syncLocalStorageThemeToCookie();
   }, []);
@@ -25,12 +25,13 @@ export default function AppThemeProvider({ children, initialTheme }) {
   return (
     <ClientThemeProvider
       attribute="class"
-      defaultTheme="system"
-      enableSystem
+      defaultTheme="light"
+      forcedTheme="light"
+      enableSystem={false}
       storage="hybrid"
       enableColorScheme={false}
       disableTransitionOnChange
-      initialTheme={initialTheme}
+      initialTheme="light"
     >
       {children}
     </ClientThemeProvider>

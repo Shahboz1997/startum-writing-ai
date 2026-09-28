@@ -44,9 +44,9 @@ function requestHasAuthSessionCookie(request) {
   return false;
 }
 
-function finalize(response, staleSession) {
+function finalize(response, staleSession, pathname = '') {
   const cleared = staleSession ? appendClearAuthCookies(response) : response;
-  return applySecurityHeaders(cleared);
+  return applySecurityHeaders(cleared, pathname);
 }
 
 export async function proxy(request) {
@@ -59,26 +59,28 @@ export async function proxy(request) {
     if (!authed) {
       return finalize(
         jsonAuthRequired('Sign in to access admin API.'),
-        staleSession
+        staleSession,
+        pathname
       );
     }
     if (!isAdminEmail(getTokenEmail(token))) {
-      return finalize(jsonForbidden('Forbidden'), staleSession);
+      return finalize(jsonForbidden('Forbidden'), staleSession, pathname);
     }
-    return finalize(nextWithAuthHeaders(request, token), staleSession);
+    return finalize(nextWithAuthHeaders(request, token), staleSession, pathname);
   }
 
   if (pathname.startsWith('/api/tts')) {
     if (request.method !== 'POST') {
-      return finalize(NextResponse.next(), staleSession);
+      return finalize(NextResponse.next(), staleSession, pathname);
     }
     if (!authed) {
       return finalize(
         jsonAuthRequired('Sign in to use AI features.'),
-        staleSession
+        staleSession,
+        pathname
       );
     }
-    return finalize(nextWithAuthHeaders(request, token), staleSession);
+    return finalize(nextWithAuthHeaders(request, token), staleSession, pathname);
   }
 
   if (pathname.startsWith('/api/check')) {
@@ -86,33 +88,35 @@ export async function proxy(request) {
       if (!authed) {
         return finalize(
           jsonAuthRequired('Sign in to manage your archive.'),
-          staleSession
+          staleSession,
+          pathname
         );
       }
-      return finalize(nextWithAuthHeaders(request, token), staleSession);
+      return finalize(nextWithAuthHeaders(request, token), staleSession, pathname);
     }
 
     if (request.method === 'POST') {
       const body = await readJsonBody(request);
       if (body && isAuxiliaryOpenAiCheckRequest(body)) {
         if (authed) {
-          return finalize(nextWithAuthHeaders(request, token), staleSession);
+          return finalize(nextWithAuthHeaders(request, token), staleSession, pathname);
         }
-        return finalize(NextResponse.next(), staleSession);
+        return finalize(NextResponse.next(), staleSession, pathname);
       }
       if (authed) {
-        return finalize(nextWithAuthHeaders(request, token), staleSession);
+        return finalize(nextWithAuthHeaders(request, token), staleSession, pathname);
       }
-      return finalize(NextResponse.next(), staleSession);
+      return finalize(NextResponse.next(), staleSession, pathname);
     }
   }
 
-  return finalize(NextResponse.next(), staleSession);
+  return finalize(NextResponse.next(), staleSession, pathname);
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+    // Skip static assets (incl. guide PDFs — framing headers handled in next.config)
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|pdf)$).*)',
   ],
 };
 

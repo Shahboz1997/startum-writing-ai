@@ -165,3 +165,14 @@ model LemonWebhookDeadLetter {
   resolvedAt   DateTime?
 }
 
+/// Free PDF guide lead magnets — email gate before download.
+model GuideDownload {
+  id        String   @id @default(cuid())
+  email     String
+  guideSlug String
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([guideSlug, createdAt(sort: Desc)])
+}
+

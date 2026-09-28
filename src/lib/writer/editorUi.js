@@ -25,13 +25,20 @@ export function scrollToFeedbackForm() {
   }, 400);
 }
 
-export function scrollToEditor() {
-  const element = document.getElementById('essay-editor');
+export function scrollToEditor({ focus = true } = {}) {
+  const element =
+    document.getElementById('essay-editor') ||
+    document.querySelector('[data-stratum-essay-input]');
   if (element) {
-    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } else {
-    window.scrollTo({ top: 600, behavior: 'smooth' });
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (focus && typeof element.focus === 'function') {
+      window.setTimeout(() => {
+        element.focus({ preventScroll: true });
+      }, 350);
+    }
+    return;
   }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 export function playClickSound() {

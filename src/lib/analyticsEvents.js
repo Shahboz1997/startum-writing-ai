@@ -7,6 +7,7 @@
  * - signup         — account created (also fires Ads registration conversion)
  * - checkout_click — user starts Lemon Squeezy credit checkout
  * - telegram_click — bot or channel CTA clicked (params: target=bot|channel, placement)
+ * - guide_download — free PDF lead magnet downloaded (params: guide_slug)
  *
  * Prefer these names in Ads/GA custom conversions. Do not invent offline KPIs here.
  */
@@ -56,4 +57,8 @@ export function trackCheckoutClick({ packId, source = 'pricing' } = {}) {
 
 export function trackTelegramClick({ target = 'bot', placement = 'landing' } = {}) {
   trackEvent('telegram_click', { target, placement });
+}
+
+export function trackGuideDownload({ guideSlug } = {}) {
+  trackEvent('guide_download', { guide_slug: guideSlug });
 }

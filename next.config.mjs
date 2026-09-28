@@ -40,6 +40,11 @@ const nextConfig = {
         source: '/:path*',
         headers: getSecurityHeadersForNextConfig(),
       },
+      // In-site PDF viewer embeds /guides/*.pdf in an iframe — DENY blocks that.
+      {
+        source: '/guides/:file*.pdf',
+        headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
+      },
     ];
   },
 };

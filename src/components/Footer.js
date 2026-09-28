@@ -42,6 +42,7 @@ export default function Footer() {
             <ul className="space-y-2">
               <li><Link href="/#sample-reports" className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Sample report</Link></li>
               <li><Link href="/#how-it-works" className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">How It Works</Link></li>
+              <li><Link href="/guides" className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Free Guides</Link></li>
               <li><Link href="/pricing" className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Pricing</Link></li>
               <li><Link href="/ielts-writing-task-2-ai-checker" className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Task 2 checker</Link></li>
               <li><Link href="/ielts-academic-task-1-band-score-checker" className="text-sm font-medium tracking-wide text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Task 1 checker</Link></li>

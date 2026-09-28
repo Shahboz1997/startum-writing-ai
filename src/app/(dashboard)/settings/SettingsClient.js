@@ -239,8 +239,8 @@ export default function SettingsClient({ user, reminders, deposits = [] }) {
         </h2>
         <p className="text-slate-600 dark:text-slate-400 text-sm break-words">
           {isRu
-            ? "Тема оформления — переключатель Sun/Moon в шапке."
-            : "Theme: use the Sun/Moon toggle in the navigation bar."}
+            ? "Приложение всегда в светлой теме."
+            : "The app uses a light theme only."}
         </p>
       </section>
 

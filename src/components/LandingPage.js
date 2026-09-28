@@ -34,6 +34,7 @@ import {
 import { TASK1_TIPS, TASK2_TIPS, LETTER_TIPS } from '@/lib/ieltsGuidelines';
 import NeuralSyncShowcase from '@/components/NeuralSyncShowcase';
 import LandingSampleReports from '@/components/landing/LandingSampleReports';
+import LandingGuidesSection from '@/components/landing/LandingGuidesSection';
 import LandingPricing from '@/components/landing/LandingPricing';
 import LandingLemonTestCheckout from '@/components/landing/LandingLemonTestCheckout';
 import LandingHeroCheck from '@/components/landing/LandingHeroCheck';
@@ -107,6 +108,8 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLogge
       <TransformationSlider />
       <Task2RewriteDemo />
       <LandingSampleReports />
+
+      <LandingGuidesSection />
 
       <LandingPricing isLoggedIn={isLoggedIn} onLoginClick={onLoginClick} />
 

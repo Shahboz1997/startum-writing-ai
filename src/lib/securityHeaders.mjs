@@ -48,13 +48,14 @@ function buildContentSecurityPolicy() {
       ...GOOGLE_TAG_HOSTS,
     ]),
     uniqueJoin([
-      "frame-src 'self'",
+      "frame-src 'self' blob:",
       'https://accounts.google.com',
       'https://www.googletagmanager.com',
       'https://td.doubleclick.net',
       'https://www.google.com',
     ]),
-    "object-src 'none'",
+    // Allow same-origin PDF embeds in the in-site guide viewer (<object>/<embed>).
+    "object-src 'self'",
     "base-uri 'self'",
     "form-action 'self' https://accounts.google.com",
     "frame-ancestors 'none'",
@@ -97,8 +98,13 @@ export function getSecurityHeadersForNextConfig() {
 }
 
 /** Apply headers to a NextResponse (middleware). */
-export function applySecurityHeaders(response) {
+export function applySecurityHeaders(response, pathname = '') {
+  const isGuidePdf = typeof pathname === 'string' && /^\/guides\/[^/]+\.pdf$/i.test(pathname);
   for (const [key, value] of getSecurityHeaderEntries()) {
+    if (isGuidePdf && key === 'X-Frame-Options') {
+      response.headers.set(key, 'SAMEORIGIN');
+      continue;
+    }
     response.headers.set(key, value);
   }
   return response;

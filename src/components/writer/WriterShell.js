@@ -11,6 +11,7 @@ import EssayEditor from '@/components/writer/EssayEditor';
 import TutorCommentSection from '@/components/writer/TutorCommentSection';
 import TaskEditorActions from '@/components/writer/TaskEditorActions';
 import WriterHomeLabs from '@/components/writer/WriterHomeLabs';
+import LandingPricing from '@/components/landing/LandingPricing';
 import WriterResultsPanel from '@/components/writer/WriterResultsPanel';
 import WriterDetailedAnalysisLazy from '@/components/lazy/WriterDetailedAnalysisLazy';
 import WriterArchivePanel from '@/components/writer/WriterArchivePanel';
@@ -49,7 +50,7 @@ export default function WriterShell({
     setIsLoggedIn,
     credits,
     darkMode,
-    scrollToEditor,
+    goToEvaluateDraft,
     isGenLoadingT1,
     generateTask1Data,
     isGenLoadingLetter,
@@ -278,7 +279,7 @@ export default function WriterShell({
             {activeTab === 'Home' && (
               <WriterHomeLabs
                 darkMode={darkMode}
-                onScrollToEditor={scrollToEditor}
+                onEvaluateDraft={goToEvaluateDraft}
                 isGenLoadingT1={isGenLoadingT1}
                 onGenerateTask1Chart={generateTask1Data}
                 isGenLoadingLetter={isGenLoadingLetter}
@@ -453,6 +454,9 @@ export default function WriterShell({
             )}
           </main>
         </div>
+        {activeTab === 'Home' ? (
+          <LandingPricing isLoggedIn={isLoggedIn} onLoginClick={openLogin} />
+        ) : null}
         <WriterFooter
           darkMode={darkMode}
           activeTab={activeTab}

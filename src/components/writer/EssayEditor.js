@@ -153,6 +153,7 @@ export default function EssayEditor({
             {renderColoredText()}
           </div>
           <textarea
+            id="essay-editor"
             ref={editorRef}
             data-stratum-essay-input
             value={essayValue}

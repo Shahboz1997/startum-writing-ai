@@ -4,7 +4,6 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import AppThemeProvider from "@/components/AppThemeProvider";
 import { Providers } from "../components/Providers";
-import { getServerHtmlThemeClass, getServerInitialTheme } from "@/lib/themeBootstrapScript";
 import { safeAuth } from "@/lib/safeAuth";
 import { getMetadataBaseUrl } from "@/lib/publicSiteUrl";
 import { LEGAL_COMPANY_NAME } from "@/lib/support";
@@ -98,18 +97,14 @@ export default async function RootLayout({ children }) {
         ])
       : await safeAuth();
 
-  const htmlClass = await getServerHtmlThemeClass();
-  const storedTheme = await getServerInitialTheme();
-  const initialTheme = storedTheme && storedTheme !== 'system' ? storedTheme : undefined;
-
   return (
-    <html lang="en" suppressHydrationWarning className={htmlClass || undefined}>
+    <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-[#F9FAFB] text-slate-900 dark:bg-[#050505] dark:text-slate-100 transition-colors duration-500 min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-[#F9FAFB] text-slate-900 min-h-screen`}
       >
         <LandingJsonLd />
-        <AppThemeProvider initialTheme={initialTheme}>
+        <AppThemeProvider>
           <Providers session={session}>
             {children}
           </Providers>

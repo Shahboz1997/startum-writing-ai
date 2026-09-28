@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession, signOut } from "next-auth/react";
-import { useTheme } from '@wrksz/themes/client';
 import { 
-  Zap, Sun, Moon, Menu, X, 
+  Zap, Menu, X, 
   ChevronDown, LogOut, UserRound,
 } from 'lucide-react';
 const Navbar = ({ 
@@ -15,8 +14,7 @@ const Navbar = ({
   onCreditsClick,
 }) => {
   const { data: session, status } = useSession();
-  const { resolvedTheme, setTheme } = useTheme();
-  // Defer theme-dependent icons + auth chrome until after mount so SSR HTML matches the first client paint.
+  // Defer auth chrome until after mount so SSR HTML matches the first client paint.
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
@@ -35,10 +33,6 @@ const Navbar = ({
   const primaryItems = ['Task 1', 'Task 2'];
   const secondaryItems = ['Home', 'Archive'];
   const menuItems = ['Home', ...primaryItems, 'Archive'];
-  const handleThemeToggle = () => {
-    if (!mounted) return;
-    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
-  };
   
   return (
     <>
@@ -263,15 +257,6 @@ const Navbar = ({
                   </button>
                 </>
               )}
-              <button
-                type="button"
-                onClick={handleThemeToggle}
-                disabled={!mounted}
-                className="group flex items-center justify-center min-h-[44px] min-w-[44px] p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-indigo-600 transition-colors"
-                aria-label={mounted && resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              >
-                {mounted && resolvedTheme === 'dark' ? <Sun className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} /> : <Moon className="w-5 h-5 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.5} />}
-              </button>
             </div>
 
             {/* Mobile: credits + burger */}
@@ -312,7 +297,7 @@ const Navbar = ({
           </div>
         </div>
 
-        {/* МОБИЛЬНОЕ ВЫПАДАЮЩЕЕ МЕНЮ (Pricing + Theme + Nav) */}
+        {/* МОБИЛЬНОЕ ВЫПАДАЮЩЕЕ МЕНЮ */}
         <AnimatePresence>
           {isMenuOpen && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="md:hidden overflow-hidden bg-inherit">
@@ -384,23 +369,13 @@ const Navbar = ({
                   </div>
                 </div> */}
 
-                {/* 3. Утилиты: Theme, Login (or Logout when logged in) */}
-                <div className="flex gap-2">
-                   <button
-                     type="button"
-                     onClick={handleThemeToggle}
-                     disabled={!mounted}
-                     className="flex-1 min-h-[44px] p-4 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center gap-3 font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 transition-colors"
-                   >
-                     {mounted && resolvedTheme === 'dark' ? <><Sun className="w-5 h-5" strokeWidth={1.5} /> Day</> : <><Moon className="w-5 h-5" strokeWidth={1.5} /> Night</>}
-                   </button>
-                   {!isLoggedIn ? (
-                     <button type="button" onClick={() => onLoginClick()} data-testid="open-auth-login" className="btn-stratum flex-1 min-h-[44px] p-4 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]">
-                       <div className="shimmer-layer animate-shimmer" aria-hidden />
-                       <span className="btn-stratum-text">STRATUM LOGIN</span>
-                     </button>
-                   ) : null}
-                </div>
+                {/* 3. Login (Logout is a separate row when signed in) */}
+                {!isLoggedIn ? (
+                  <button type="button" onClick={() => onLoginClick()} data-testid="open-auth-login" className="btn-stratum w-full min-h-[44px] p-4 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)]">
+                    <div className="shimmer-layer animate-shimmer" aria-hidden />
+                    <span className="btn-stratum-text">STRATUM LOGIN</span>
+                  </button>
+                ) : null}
 
                 {/* 4. Logout row (mobile) — prominent, fat-finger friendly, optional confirm */}
                 {isLoggedIn && (
