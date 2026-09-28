@@ -196,6 +196,30 @@ export const GUIDES = [
     fileName: 'band55-to-65-pack.pdf',
     topics: ['Band 5.5', 'Band 6.5'],
   },
+  {
+    slug: 'before-after-correction-pack',
+    title: 'Before & After Correction Pack',
+    description:
+      'Side-by-side weak vs Band 7+ rewrites so you can see exactly what examiners reward — and copy the upgrade pattern.',
+    fileName: 'before-after-correction-pack.pdf',
+    topics: ['Corrections', 'Band 7'],
+  },
+  {
+    slug: 'prompts-50-ideas-pack',
+    title: '50 Prompts + Ideas Pack',
+    description:
+      'Fifty Task 2 practice prompts with ready angles and idea sparks — build fluency without staring at a blank page.',
+    fileName: 'prompts-50-ideas-pack.pdf',
+    topics: ['Prompts', 'Ideas'],
+  },
+  {
+    slug: 'error-log-30day-tracker',
+    title: 'Error Log & 30-Day Tracker',
+    description:
+      'A simple error log and 30-day practice tracker so repeated mistakes shrink week by week instead of coming back on test day.',
+    fileName: 'error-log-30day-tracker.pdf',
+    topics: ['Tracker', 'Practice'],
+  },
 ];
 
 export function getGuideBySlug(slug) {
