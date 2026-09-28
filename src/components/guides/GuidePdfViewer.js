@@ -109,17 +109,21 @@ export default function GuidePdfViewer({ guide, onClose, onDownload, homeHref = 
 
   return (
     <div
-      className="fixed inset-0 z-[55] flex flex-col bg-white dark:bg-slate-950"
+      className="fixed inset-0 z-[110] flex flex-col bg-white dark:bg-slate-950"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
     >
-      <header className="flex shrink-0 flex-col gap-3 border-b border-slate-200 bg-white px-3 py-3 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-3.5">
-        <div className="flex min-w-0 items-start gap-3">
+      <header
+        className={`flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-3 py-3 dark:border-slate-800 dark:bg-slate-950 sm:px-5 sm:py-3.5 ${
+          useExternalOpen ? '' : 'sm:justify-between'
+        }`}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="mt-0.5 inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
             aria-label="Close viewer and go back"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -127,7 +131,7 @@ export default function GuidePdfViewer({ guide, onClose, onDownload, homeHref = 
           </button>
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Stratum IELTS · Free guide
+              Free guide
             </p>
             <h2 id={titleId} className="truncate text-base font-bold tracking-tight text-slate-900 dark:text-white sm:text-lg">
               {guide.title}
@@ -135,41 +139,41 @@ export default function GuidePdfViewer({ guide, onClose, onDownload, homeHref = 
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <button
-            type="button"
-            onClick={onDownload}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900"
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            Download
-          </button>
-          <Link
-            href={homeHref}
-            onClick={onClose}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2.5 text-sm font-bold text-white hover:bg-indigo-500"
-          >
-            Check your essay
-          </Link>
-        </div>
+        {/* Desktop chrome only — mobile fallback already has Open / Download in the body */}
+        {!useExternalOpen ? (
+          <div className="hidden flex-wrap items-center gap-2 sm:flex sm:justify-end">
+            <button
+              type="button"
+              onClick={onDownload}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-900"
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              Download
+            </button>
+            <Link
+              href={homeHref}
+              onClick={onClose}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2.5 text-sm font-bold text-white hover:bg-indigo-500"
+            >
+              Check your essay
+            </Link>
+          </div>
+        ) : null}
       </header>
 
       <div className="relative min-h-0 flex-1 bg-slate-100 dark:bg-slate-900">
         {useExternalOpen ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 px-6 text-center">
             <div
-              className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600/10 text-indigo-600 dark:bg-indigo-400/10 dark:text-indigo-300"
+              className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600/10 text-indigo-600 dark:bg-indigo-400/10 dark:text-indigo-300"
               aria-hidden
             >
-              <FileText className="h-8 w-8" />
+              <FileText className="h-7 w-7" />
             </div>
-            <div className="max-w-sm space-y-2">
-              <p className="text-base font-bold text-slate-900 dark:text-white">{guide.title}</p>
-              <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                This browser cannot show PDFs inside the app. Open the file to read it, or download a copy.
-              </p>
-            </div>
-            <div className="flex w-full max-w-sm flex-col gap-2.5">
+            <p className="max-w-xs text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              Open the PDF to read this guide, or save a copy to your phone.
+            </p>
+            <div className="flex w-full max-w-sm flex-col gap-3">
               <a
                 href={pdfUrl}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-bold text-white hover:bg-indigo-500"
@@ -183,9 +187,16 @@ export default function GuidePdfViewer({ guide, onClose, onDownload, homeHref = 
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:hover:bg-slate-900"
               >
                 <Download className="h-4 w-4" aria-hidden />
-                Download PDF
+                Download
               </button>
             </div>
+            <Link
+              href={homeHref}
+              onClick={onClose}
+              className="text-sm font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+            >
+              Check your essay
+            </Link>
           </div>
         ) : (
           <>
