@@ -51,6 +51,9 @@ export default function WriterShell({
     credits,
     darkMode,
     goToEvaluateDraft,
+    showFirstRunBanner,
+    startFirstRunSample,
+    dismissFirstRunBanner,
     isGenLoadingT1,
     generateTask1Data,
     isGenLoadingLetter,
@@ -280,6 +283,10 @@ export default function WriterShell({
               <WriterHomeLabs
                 darkMode={darkMode}
                 onEvaluateDraft={goToEvaluateDraft}
+                showFirstRunBanner={showFirstRunBanner}
+                credits={credits}
+                onStartFirstRunSample={startFirstRunSample}
+                onDismissFirstRun={dismissFirstRunBanner}
                 isGenLoadingT1={isGenLoadingT1}
                 onGenerateTask1Chart={generateTask1Data}
                 isGenLoadingLetter={isGenLoadingLetter}

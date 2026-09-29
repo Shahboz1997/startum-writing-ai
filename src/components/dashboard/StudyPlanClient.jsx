@@ -268,8 +268,8 @@ export default function StudyPlanClient({ profile, locale }) {
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
               {isRu
-                ? 'Включите email-напоминания в Настройках: время, дни недели и часовой пояс. На Vercel нужны CRON_SECRET и переменные EMAIL_USER / EMAIL_PASS (SMTP).'
-                : 'Turn on email reminders in Settings: time, weekdays, and timezone. On Vercel, set CRON_SECRET and EMAIL_USER / EMAIL_PASS (SMTP).'}
+                ? 'Включите email-напоминания в Настройках: время, дни недели и часовой пояс. На Vercel нужны CRON_SECRET и RESEND_API_KEY (или EMAIL_USER / EMAIL_PASS).'
+                : 'Turn on email reminders in Settings: time, weekdays, and timezone. On Vercel, set CRON_SECRET and RESEND_API_KEY (or EMAIL_USER / EMAIL_PASS).'}
             </p>
           </div>
         </div>

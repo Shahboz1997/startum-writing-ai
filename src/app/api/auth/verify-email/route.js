@@ -24,7 +24,10 @@ export async function GET(request) {
 
   const result = await verifyEmailToken(rawToken);
   if (result.ok) {
-    return NextResponse.redirect(`${base}/?emailVerified=1`);
+    // Writer shell + one-time loginToken for auto sign-in (no password re-entry).
+    const qs = new URLSearchParams({ app: "1", emailVerified: "1" });
+    if (result.loginToken) qs.set("loginToken", result.loginToken);
+    return NextResponse.redirect(`${base}/?${qs.toString()}`);
   }
 
   return NextResponse.redirect(

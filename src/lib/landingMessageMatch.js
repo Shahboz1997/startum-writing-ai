@@ -16,7 +16,7 @@ const INTENTS = {
     editorLabel: 'Task 1 — Try it',
     placeholder: 'Paste ~50–80 words of your Task 1 response — then hit Check for a free band preview.',
     analysisMode: 'task1',
-    offerLine: 'Free demo → Sign in → Buy credits. Practice estimate only — not an official IELTS score.',
+    offerLine: 'Free demo → Sign in → 3 free checks. Practice estimate only — not an official IELTS score.',
   },
   task2: {
     id: 'task2',
@@ -28,7 +28,7 @@ const INTENTS = {
     editorLabel: 'Task 2 — Try it',
     placeholder: 'Paste ~50–80 words of your essay here — then hit Check for a free band preview.',
     analysisMode: 'task2',
-    offerLine: 'Free demo → Sign in → Buy credits. Practice estimate only — not an official IELTS score.',
+    offerLine: 'Free demo → Sign in → 3 free checks. Practice estimate only — not an official IELTS score.',
   },
   evaluate: {
     id: 'evaluate',
@@ -40,7 +40,7 @@ const INTENTS = {
     editorLabel: 'Your essay — Try it',
     placeholder: 'Paste your IELTS Writing excerpt here for an instant preliminary band score.',
     analysisMode: 'task2',
-    offerLine: 'Free demo → Sign in → Buy credits. Practice estimate only — not an official IELTS score.',
+    offerLine: 'Free demo → Sign in → 3 free checks. Practice estimate only — not an official IELTS score.',
   },
   default: {
     id: 'default',
@@ -52,7 +52,7 @@ const INTENTS = {
     editorLabel: 'Task 2 — Try it',
     placeholder: 'Paste ~50–80 words of your essay here — then hit Check for a free band preview.',
     analysisMode: 'task2',
-    offerLine: 'Free demo → Sign in → Buy credits. Practice estimate only — not an official IELTS score.',
+    offerLine: 'Free demo → Sign in → 3 free checks. Practice estimate only — not an official IELTS score.',
   },
 };
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, BarChart3, FilePenLine, Loader2, Mail, Sparkles } from 'lucide-react';
+import { ArrowRight, BarChart3, FilePenLine, Loader2, Mail, Sparkles, X, Zap } from 'lucide-react';
 import HomeGuidesSection from '@/components/guides/HomeGuidesSection';
 
 const LAB_IDS = {
@@ -217,6 +217,10 @@ export default function WriterHomeLabs({
   genTopicError,
   genLoading,
   onGenerateTask2,
+  showFirstRunBanner = false,
+  credits = 0,
+  onStartFirstRunSample,
+  onDismissFirstRun,
 }) {
   const [activeLab, setActiveLab] = useState(LAB_IDS.chart);
 
@@ -249,6 +253,42 @@ export default function WriterHomeLabs({
 
   return (
     <div className="space-y-8 sm:space-y-10 md:space-y-12 animate-in fade-in duration-500">
+      {showFirstRunBanner ? (
+        <section
+          aria-label="First free check"
+          className="relative overflow-hidden rounded-2xl border border-teal-200/90 bg-gradient-to-br from-teal-50 via-white to-indigo-50 p-4 sm:p-5 dark:border-teal-500/30 dark:from-teal-950/50 dark:via-slate-900 dark:to-indigo-950/40"
+        >
+          <button
+            type="button"
+            onClick={onDismissFirstRun}
+            className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/80 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            aria-label="Dismiss first-check tip"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5 pr-8">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm">
+              <Zap className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="text-sm font-extrabold tracking-tight text-slate-900 dark:text-white">
+                You have {Math.max(credits, 0)} free check{credits === 1 ? '' : 's'} — try one now
+              </p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                Load a sample Task 2 essay and run Analyze in about 30 seconds. Uses 1 credit.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onStartFirstRunSample}
+              className="btn-stratum w-full sm:w-auto min-h-11 shrink-0 rounded-xl px-5"
+            >
+              <span className="btn-stratum-text">Run free sample check</span>
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <header className="space-y-5 sm:space-y-6">
         <div className="text-center space-y-2 sm:space-y-3">
           <h1 className="text-2xl sm:text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white">

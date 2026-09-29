@@ -1,15 +1,18 @@
-import nodemailer from 'nodemailer';
 import { EMAIL_LEGAL_FOOTER } from '@/lib/support';
+import {
+  isOutboundMailConfigured,
+  sendResendEmail,
+} from '@/lib/resendMail';
 
 /**
- * Sends practice reminder email. Requires EMAIL_USER + EMAIL_PASS (e.g. Gmail app password) in env.
+ * Practice reminder email via Resend (preferred) or Gmail SMTP fallback.
  */
 export async function sendPracticeReminderEmail({ to, name, locale }) {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
-  if (!user || !pass) {
-    console.warn('[reminderMail] EMAIL_USER or EMAIL_PASS missing; skip send');
-    return { ok: false, reason: 'no_smtp' };
+  if (!isOutboundMailConfigured()) {
+    console.warn(
+      '[reminderMail] RESEND_API_KEY and EMAIL_USER/EMAIL_PASS missing; skip send'
+    );
+    return { ok: false, reason: 'no_mail' };
   }
   if (!to || !String(to).includes('@')) {
     return { ok: false, reason: 'bad_to' };
@@ -20,36 +23,26 @@ export async function sendPracticeReminderEmail({ to, name, locale }) {
     ? 'STRATUM.ai — время тренировки Writing'
     : 'STRATUM.ai — time for your Writing practice';
 
+  const base = (
+    process.env.AUTH_URL ||
+    process.env.NEXTAUTH_URL ||
+    ''
+  ).replace(/\/+$/, '');
   const greeting = name ? `${name}, ` : '';
   const footer = `<p style="margin:16px 0 0;color:#6b7280;font-size:12px">${EMAIL_LEGAL_FOOTER}</p>`;
   const html = isRu
     ? `<div style="font-family:system-ui,sans-serif;max-width:520px;line-height:1.5">
         <p>${greeting}напоминание: короткая сессия IELTS Writing сегодня поможет удержать темп.</p>
-        <p><a href="${process.env.NEXTAUTH_URL || ''}/" style="color:#4f46e5">Открыть Writer</a> · 
-        <a href="${process.env.NEXTAUTH_URL || ''}/study-plan" style="color:#4f46e5">План и аналитика</a></p>
+        <p><a href="${base}/" style="color:#4f46e5">Открыть Writer</a> · 
+        <a href="${base}/study-plan" style="color:#4f46e5">План и аналитика</a></p>
         ${footer}
       </div>`
     : `<div style="font-family:system-ui,sans-serif;max-width:520px;line-height:1.5">
         <p>${greeting}quick reminder: a short IELTS Writing session today helps you stay on track.</p>
-        <p><a href="${process.env.NEXTAUTH_URL || ''}/" style="color:#4f46e5">Open Writer</a> · 
-        <a href="${process.env.NEXTAUTH_URL || ''}/study-plan" style="color:#4f46e5">Study plan</a></p>
+        <p><a href="${base}/" style="color:#4f46e5">Open Writer</a> · 
+        <a href="${base}/study-plan" style="color:#4f46e5">Study plan</a></p>
         ${footer}
       </div>`;
 
-  try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass },
-    });
-    await transporter.sendMail({
-      from: user,
-      to,
-      subject,
-      html,
-    });
-    return { ok: true };
-  } catch (err) {
-    console.error('[reminderMail]', err?.message || err);
-    return { ok: false, reason: err?.message || 'send_failed' };
-  }
+  return sendResendEmail({ to, subject, html });
 }

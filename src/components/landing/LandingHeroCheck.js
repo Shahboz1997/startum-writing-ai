@@ -192,7 +192,7 @@ export default function LandingHeroCheck({
             See a free sample report
           </Link>
           {' · '}
-          Free demo → Sign in → Buy credits
+          Free demo → Sign in → 3 free checks
         </p>
         <p className="mb-6 text-center text-sm font-medium text-slate-500 dark:text-slate-400">
           {LANDING_HERO_OFFER_LINE}

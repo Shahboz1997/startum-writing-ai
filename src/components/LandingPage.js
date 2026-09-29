@@ -125,7 +125,7 @@ export default function LandingPage({ onLoginClick, onFullAnalysisClick, isLogge
               Get started
             </span>
             <h2 className="text-xl sm:text-2xl font-black tracking-tighter uppercase text-slate-900 dark:text-white mb-2">
-              Free demo → Sign in → Buy credits
+              Free demo → Sign in → 3 free checks
             </h2>
             <p className="text-slate-500 dark:text-slate-400 font-medium tracking-wide mb-6 leading-relaxed max-w-xl mx-auto">
               {abCopy.offerLine}

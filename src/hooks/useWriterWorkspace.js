@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import { useTheme } from '@wrksz/themes/client';
 import { useRouter } from 'next/navigation';
 import { mergeLexicalUpgrades, getWeakWordsSet } from '@/lib/lexicalUpgrade';
@@ -24,6 +24,16 @@ import { useWriterTimer } from '@/hooks/writer/useWriterTimer';
 import { useWriterManualScoring } from '@/hooks/writer/useWriterManualScoring';
 import { preloadSpeechVoices, speakText } from '@/lib/speakText';
 import { trackGoogleAdsPurchaseConversion } from '@/lib/googleAdsConversions';
+import { CREDITS_DEFAULT_NEW_USER } from '@/lib/credits';
+import {
+  FIRST_RUN_ESSAY_T2,
+  FIRST_RUN_PROMPT_T2,
+  FUNNEL_OFFER_LINE,
+  dismissFirstRun,
+  markFirstCheckDone,
+  shouldShowFirstRunBanner,
+} from '@/lib/firstRunOnboarding';
+import toast from 'react-hot-toast';
 
 export function useWriterWorkspace({
   forceLandingFromServer = false,
@@ -90,16 +100,17 @@ export function useWriterWorkspace({
   const creditsTopUpDismissedRef = useRef(false);
   const [creditsSynced, setCreditsSynced] = useState(false);
   const [showCreditsTopUpModal, setShowCreditsTopUpModal] = useState(false);
+  const [firstRunEpoch, setFirstRunEpoch] = useState(0);
 
-  const openCreditsTopUpModal = () => {
+  const openCreditsTopUpModal = useCallback(() => {
     creditsTopUpDismissedRef.current = false;
     setShowCreditsTopUpModal(true);
-  };
+  }, []);
 
-  const closeCreditsTopUpModal = () => {
+  const closeCreditsTopUpModal = useCallback(() => {
     creditsTopUpDismissedRef.current = true;
     setShowCreditsTopUpModal(false);
-  };
+  }, []);
   const router = useRouter();
   const { workspaceStorageKey, draftStorageKey, archiveStorageKey } = useWriterStorageKeys(session);
 
@@ -334,6 +345,96 @@ export function useWriterWorkspace({
     });
   }, [update, router]);
 
+  // After email verification link: one-time auto sign-in, else open login on Writer.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const verified = params.get('emailVerified') === '1';
+    const loginToken = String(params.get('loginToken') || '').trim();
+    if (!verified && !loginToken) return;
+    if (sessionStatus === 'loading') return;
+
+    const guardKey = 'stratum_post_verify_signin';
+
+    if (sessionStatus === 'authenticated') {
+      try {
+        sessionStorage.setItem(guardKey, 'done');
+      } catch {
+        /* ignore */
+      }
+      router.replace('/?app=1', { scroll: false });
+      if (verified) {
+        toast.success('Email verified. You have 3 free checks — try your first analysis.', {
+          duration: 4500,
+          id: 'email-verified-ok',
+        });
+      }
+      return;
+    }
+
+    if (loginToken) {
+      let guard = '';
+      try {
+        guard = sessionStorage.getItem(guardKey) || '';
+      } catch {
+        /* ignore */
+      }
+      if (guard === 'done' || guard === 'pending') {
+        router.replace('/?app=1', { scroll: false });
+        return;
+      }
+      try {
+        sessionStorage.setItem(guardKey, 'pending');
+      } catch {
+        /* ignore */
+      }
+
+      let cancelled = false;
+      void (async () => {
+        const res = await signIn('credentials', {
+          loginToken,
+          redirect: false,
+        });
+        if (res?.error) {
+          try {
+            sessionStorage.removeItem(guardKey);
+          } catch {
+            /* ignore */
+          }
+          if (!cancelled) {
+            setAuthModalMessage(
+              'Email verified. Sign in to use your 3 free checks — take about 30 seconds for the first analysis.'
+            );
+            setIsAuthOpen(true);
+            router.replace('/?app=1', { scroll: false });
+          }
+          return;
+        }
+        try {
+          sessionStorage.setItem(guardKey, 'done');
+        } catch {
+          /* ignore */
+        }
+        if (!cancelled) {
+          toast.success("You're signed in. Try your first free check — about 30 seconds.", {
+            duration: 5000,
+            id: 'email-verified-ok',
+          });
+          router.replace('/?app=1', { scroll: false });
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setAuthModalMessage(
+      'Email verified. Sign in to use your 3 free checks — take about 30 seconds for the first analysis.'
+    );
+    setIsAuthOpen(true);
+    router.replace('/?app=1', { scroll: false });
+  }, [sessionStatus, router]);
+
   // After Lemon Squeezy redirect (?credits=success) refresh balance + fire purchase conversion.
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -403,6 +504,63 @@ export function useWriterWorkspace({
     scrollToScoreAfterAnalyzeRef,
     onCreditsExhausted: openCreditsTopUpModal,
   });
+
+  // Persist "already activated" when credits show spent checks (no React state).
+  useEffect(() => {
+    if (sessionStatus !== 'authenticated' || !creditsSynced) return;
+    if (credits < CREDITS_DEFAULT_NEW_USER) {
+      markFirstCheckDone();
+    }
+  }, [sessionStatus, creditsSynced, credits]);
+
+  const showFirstRunBanner =
+    themeMounted &&
+    sessionStatus === 'authenticated' &&
+    !(creditsSynced && credits < CREDITS_DEFAULT_NEW_USER) &&
+    !activeResultT1 &&
+    !activeResultT2 &&
+    shouldShowFirstRunBanner({
+      isAuthenticated: true,
+      hasLocalResult: false,
+      _epoch: firstRunEpoch,
+    });
+
+  const dismissFirstRunBanner = useCallback(() => {
+    dismissFirstRun();
+    setFirstRunEpoch((n) => n + 1);
+  }, []);
+
+  /** One-click activation: load sample Task 2 and start Analyze (uses 1 credit). */
+  const startFirstRunSample = useCallback(() => {
+    if (sessionStatus !== 'authenticated') {
+      setAuthModalMessage(FUNNEL_OFFER_LINE);
+      setIsAuthOpen(true);
+      return;
+    }
+    if (credits <= 0) {
+      openCreditsTopUpModal();
+      return;
+    }
+    dismissFirstRun();
+    setFirstRunEpoch((n) => n + 1);
+    setPromptT2(FIRST_RUN_PROMPT_T2);
+    setEssayT2(FIRST_RUN_ESSAY_T2);
+    setResultT2(null);
+    setActiveTab('Task 2');
+    window.setTimeout(() => {
+      scrollToEditor({ focus: false });
+      void handleAnalyze('task2', {
+        essayT2: FIRST_RUN_ESSAY_T2,
+        promptT2: FIRST_RUN_PROMPT_T2,
+        source: 'first_run_sample',
+      });
+    }, 120);
+  }, [
+    sessionStatus,
+    credits,
+    openCreditsTopUpModal,
+    handleAnalyze,
+  ]);
 
   const resetTask1 = () => {
     if (window.confirm('Delete all Task 1 data? Your essay, chart, and analysis will be lost.')) {
@@ -499,6 +657,9 @@ export function useWriterWorkspace({
     darkMode,
     scrollToEditor,
     goToEvaluateDraft,
+    showFirstRunBanner,
+    startFirstRunSample,
+    dismissFirstRunBanner,
     isGenLoadingT1: taskGen.isGenLoadingT1,
     generateTask1Data: taskGen.generateTask1Data,
     isGenLoadingLetter: taskGen.isGenLoadingLetter,

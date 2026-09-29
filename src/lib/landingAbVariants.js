@@ -11,7 +11,7 @@ export const LANDING_AB_VARIANTS = {
     bottomCta: 'CREATE FREE ACCOUNT',
     stickyCta: 'Sign up free',
     offerLine:
-      'Free demo → Sign in → Buy credits. Practice estimate only — not an official IELTS score.',
+      'Free demo → Sign in → 3 free checks. Practice estimate only — not an official IELTS score.',
   },
   b: {
     id: 'b',
@@ -21,7 +21,7 @@ export const LANDING_AB_VARIANTS = {
     bottomCta: 'GET BAND SCORE · FREE',
     stickyCta: 'Sign up free',
     offerLine:
-      'Free demo → Sign in → Buy credits. Full criteria, fixes, and rewrite after Google sign-in.',
+      'Free demo → Sign in → 3 free checks. Full criteria, fixes, and rewrite after Google sign-in.',
   },
 };
 

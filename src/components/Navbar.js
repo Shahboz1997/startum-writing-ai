@@ -31,8 +31,111 @@ const Navbar = ({
   }, [isMenuOpen]);
 
   const primaryItems = ['Task 1', 'Task 2'];
-  const secondaryItems = ['Home', 'Archive'];
-  const menuItems = ['Home', ...primaryItems, 'Archive'];
+  const secondaryItems = ['Home', 'Archive', 'Study plan'];
+  const menuItems = ['Home', ...primaryItems, 'Archive', 'Study plan'];
+
+  const renderNavLinkItem = (item, baseClass, opts = {}) => {
+    const { onNavigate, layoutId = 'desktop-nav-pill', asButtonClass } = opts;
+    const isActive = activeTab === item;
+    const className = asButtonClass || baseClass;
+
+    if (item === 'Archive') {
+      if (isLoggedIn) {
+        return (
+          <Link key={item} href="/history" onClick={onNavigate} className={className}>
+            {isActive && layoutId ? (
+              <motion.span
+                layoutId={layoutId}
+                className="absolute inset-0 rounded-full bg-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.3)]"
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              />
+            ) : null}
+            <span className="relative z-10">{item}</span>
+          </Link>
+        );
+      }
+      return (
+        <button
+          key={item}
+          type="button"
+          onClick={() => {
+            onNavigate?.();
+            onLoginClick?.('Sign in to view your archive.');
+          }}
+          className={className}
+        >
+          {isActive && layoutId ? (
+            <motion.span
+              layoutId={layoutId}
+              className="absolute inset-0 rounded-full bg-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.3)]"
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+            />
+          ) : null}
+          <span className="relative z-10">{item}</span>
+        </button>
+      );
+    }
+
+    if (item === 'Study plan') {
+      const planLabel = layoutId ? 'Plan' : 'Study plan';
+      if (isLoggedIn) {
+        return (
+          <Link
+            key={item}
+            href="/study-plan"
+            onClick={onNavigate}
+            className={className}
+            aria-label="Study plan"
+          >
+            {isActive && layoutId ? (
+              <motion.span
+                layoutId={layoutId}
+                className="absolute inset-0 rounded-full bg-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.3)]"
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              />
+            ) : null}
+            <span className="relative z-10">{planLabel}</span>
+          </Link>
+        );
+      }
+      return (
+        <button
+          key={item}
+          type="button"
+          onClick={() => {
+            onNavigate?.();
+            onLoginClick?.('Sign in to open your Study plan.');
+          }}
+          className={className}
+          aria-label="Study plan"
+        >
+          <span className="relative z-10">{planLabel}</span>
+        </button>
+      );
+    }
+
+    return (
+      <button
+        key={item}
+        type="button"
+        onClick={() => {
+          setActiveTab(item);
+          onNavigate?.();
+        }}
+        aria-current={isActive ? 'page' : undefined}
+        className={className}
+      >
+        {isActive && layoutId ? (
+          <motion.span
+            layoutId={layoutId}
+            className="absolute inset-0 rounded-full bg-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.3)]"
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          />
+        ) : null}
+        <span className="relative z-10">{item}</span>
+      </button>
+    );
+  };
   
   return (
     <>
@@ -104,47 +207,12 @@ const Navbar = ({
             <div className="flex p-1 rounded-full gap-0.5 bg-slate-100/90 ring-1 ring-slate-200/80 dark:bg-slate-800/80 dark:ring-white/[0.06]">
               {menuItems.map((item) => {
                 const isActive = activeTab === item;
-                const baseClass = `relative px-4 py-2 rounded-full font-bold text-[11px] uppercase tracking-wide transition-all duration-200 ${
+                const baseClass = `relative px-3 lg:px-4 py-2 rounded-full font-bold text-[11px] uppercase tracking-wide transition-all duration-200 ${
                   isActive
                     ? 'text-white'
                     : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
                 }`;
-                if (item === 'Archive') {
-                  return isLoggedIn ? (
-                    <Link key={item} href="/history" className={baseClass}>
-                      {isActive && (
-                        <motion.span layoutId="desktop-nav-pill" className="absolute inset-0 rounded-full bg-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.3)]" transition={{ type: 'spring', stiffness: 400, damping: 30 }} />
-                      )}
-                      <span className="relative z-10">{item}</span>
-                    </Link>
-                  ) : (
-                    <button
-                      key={item}
-                      type="button"
-                      onClick={() => onLoginClick?.('Sign in to view your archive.')}
-                      className={baseClass}
-                    >
-                      {isActive && (
-                        <motion.span layoutId="desktop-nav-pill" className="absolute inset-0 rounded-full bg-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.3)]" transition={{ type: 'spring', stiffness: 400, damping: 30 }} />
-                      )}
-                      <span className="relative z-10">{item}</span>
-                    </button>
-                  );
-                }
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setActiveTab(item)}
-                    aria-current={isActive ? 'page' : undefined}
-                    className={baseClass}
-                  >
-                    {isActive && (
-                      <motion.span layoutId="desktop-nav-pill" className="absolute inset-0 rounded-full bg-indigo-600 shadow-[0_2px_8px_rgba(79,70,229,0.3)]" transition={{ type: 'spring', stiffness: 400, damping: 30 }} />
-                    )}
-                    <span className="relative z-10">{item}</span>
-                  </button>
-                );
+                return renderNavLinkItem(item, baseClass);
               })}
             </div>
             </div>
@@ -206,6 +274,13 @@ const Navbar = ({
                     exit={{ opacity: 0, y: -8 }}
                     className="absolute right-0 mt-2 w-48 py-1 rounded-3xl shadow-2xl shadow-black/10 border border-white/5 backdrop-blur-md z-50 bg-white/95 dark:bg-slate-900/95"
                   >
+                    <Link
+                      href="/study-plan"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="flex items-center min-h-[44px] px-4 py-2 text-sm font-semibold tracking-tight text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600"
+                    >
+                      Study plan
+                    </Link>
                     <Link
                       href="/settings"
                       onClick={() => setIsUserMenuOpen(false)}
@@ -330,27 +405,18 @@ const Navbar = ({
                 
                 {/* 1. Навигация */}
                 <div className="grid grid-cols-2 gap-2">
-                  {secondaryItems.map((item) =>
-                    item === 'Archive' ? (
-                      isLoggedIn ? (
-                        <Link key={item} href="/history" onClick={() => setIsMenuOpen(false)} className={`flex items-center justify-center min-h-[44px] p-4 rounded-xl font-semibold tracking-tight text-center block text-slate-600 dark:text-slate-400 hover:bg-white/5 hover:text-indigo-600 ${activeTab === item ? 'bg-indigo-600 text-white shadow-2xl shadow-indigo-500/20' : 'bg-white/5 dark:bg-white/5 border border-white/5'}`}>{item}</Link>
-                      ) : (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => {
-                            setIsMenuOpen(false);
-                            onLoginClick?.('Sign in to view your archive.');
-                          }}
-                          className={`flex items-center justify-center min-h-[44px] p-4 rounded-xl font-semibold tracking-tight text-center text-slate-600 dark:text-slate-400 hover:bg-white/5 hover:text-indigo-600 ${activeTab === item ? 'bg-indigo-600 text-white shadow-2xl shadow-indigo-500/20' : 'bg-white/5 dark:bg-white/5 border border-white/5'}`}
-                        >
-                          {item}
-                        </button>
-                      )
-                    ) : (
-                      <button key={item} type="button" onClick={() => { setActiveTab(item); setIsMenuOpen(false); }} className={`flex items-center justify-center min-h-[44px] p-4 rounded-xl font-semibold tracking-tight text-center text-slate-600 dark:text-slate-400 hover:bg-white/5 hover:text-indigo-600 ${activeTab === item ? 'bg-indigo-600 text-white shadow-2xl shadow-indigo-500/20' : 'bg-white/5 dark:bg-white/5 border border-white/5'}`}>{item}</button>
-                    )
-                  )}
+                  {secondaryItems.map((item) => {
+                    const mobileClass = `relative flex items-center justify-center min-h-[44px] p-4 rounded-xl font-semibold tracking-tight text-center text-slate-600 dark:text-slate-400 hover:bg-white/5 hover:text-indigo-600 ${
+                      activeTab === item
+                        ? 'bg-indigo-600 text-white shadow-2xl shadow-indigo-500/20'
+                        : 'bg-white/5 dark:bg-white/5 border border-white/5'
+                    }`;
+                    return renderNavLinkItem(item, mobileClass, {
+                      onNavigate: () => setIsMenuOpen(false),
+                      layoutId: null,
+                      asButtonClass: mobileClass,
+                    });
+                  })}
                 </div>
 
                 {/* 2. Блок Pricing внутри бургера

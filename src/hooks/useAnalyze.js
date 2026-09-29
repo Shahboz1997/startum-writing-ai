@@ -7,8 +7,40 @@ import { interpretAnalyzeFailure } from '@/lib/writer/interpretAnalyzeFailure';
 import { AUTH_REQUIRED_CODE } from '@/lib/aiAccessShared';
 import { CREDITS_EXHAUSTED_CODE } from '@/lib/credits';
 import { getEssayWordCount } from '@/lib/writer/editorUi';
+import { trackFirstCheck, trackEvent } from '@/lib/analyticsEvents';
+import {
+  markFirstCheckDone,
+  markStudyPlanNudgeShown,
+  shouldShowStudyPlanNudge,
+} from '@/lib/firstRunOnboarding';
+import { markActivatedAt } from '@/lib/retentionEvents';
 
 const ANALYZE_TIMEOUT_MS = 120_000;
+
+function showStudyPlanNudgeToast() {
+  if (!shouldShowStudyPlanNudge()) return;
+  markStudyPlanNudgeShown();
+  trackEvent('study_plan_nudge_shown', { source: 'first_check' });
+  toast(
+    (t) => (
+      <span className="text-sm font-medium text-slate-800 dark:text-slate-100">
+        First check saved.{' '}
+        <a
+          href="/study-plan"
+          className="font-bold text-indigo-600 underline-offset-2 hover:underline dark:text-indigo-400"
+          onClick={() => {
+            trackEvent('study_plan_click', { source: 'first_check_nudge' });
+            toast.dismiss(t.id);
+          }}
+        >
+          Open Study plan
+        </a>{' '}
+        to track weak areas — or turn on reminders in Settings.
+      </span>
+    ),
+    { duration: 9000, id: 'study-plan-nudge' }
+  );
+}
 
 async function pullCreditsBalance(setCredits) {
   try {
@@ -63,7 +95,7 @@ export function useAnalyze({
   }, []);
 
   const handleAnalyze = useCallback(
-    async (mode) => {
+    async (mode, overrides = {}) => {
       if (sessionStatus !== 'authenticated' || !session?.user) {
         setAuthModalMessage('Sign in to analyze your essay.');
         setIsAuthOpen(true);
@@ -80,7 +112,13 @@ export function useAnalyze({
         return;
       }
 
-      const essayText = mode === 'task1' ? essayT1 : essayT2;
+      const essayT1Effective =
+        typeof overrides.essayT1 === 'string' ? overrides.essayT1 : essayT1;
+      const essayT2Effective =
+        typeof overrides.essayT2 === 'string' ? overrides.essayT2 : essayT2;
+      const promptT2Effective =
+        typeof overrides.promptT2 === 'string' ? overrides.promptT2 : promptT2;
+      const essayText = mode === 'task1' ? essayT1Effective : essayT2Effective;
       if (getEssayWordCount(essayText) < 10) {
         toast.error('Write at least 10 words before analyzing.', { duration: 4000 });
         return;
@@ -100,18 +138,22 @@ export function useAnalyze({
       setErrorIs401(false);
 
       const timeoutId = window.setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
+      const analyzeSource =
+        typeof overrides.source === 'string' && overrides.source
+          ? overrides.source
+          : 'writer';
 
       try {
         const payload = {
           analysisMode: mode,
-          essay1: essayT1,
-          essay2: essayT2,
+          essay1: essayT1Effective,
+          essay2: essayT2Effective,
           promptText:
             mode === 'task1'
               ? task1Kind === 'gt_letter'
                 ? promptT1Letter
                 : promptT1Academic
-              : promptT2,
+              : promptT2Effective,
           image: mode === 'task1' && task1Kind === 'academic' ? image : null,
           task1Kind: mode === 'task1' ? task1Kind : undefined,
           letterMeta: mode === 'task1' && task1Kind === 'gt_letter' ? letterMeta : undefined,
@@ -125,12 +167,26 @@ export function useAnalyze({
         const resultPayload = {
           ...analysisRest,
           savedId: savedId || null,
-          text: mode === 'task1' ? essayT1 : essayT2,
+          text: mode === 'task1' ? essayT1Effective : essayT2Effective,
         };
         if (mode === 'task1') setResultT1(resultPayload);
         else setResultT2(resultPayload);
 
-        if (savedId) {
+        const isFirstCheck = markFirstCheckDone();
+        if (isFirstCheck) {
+          markActivatedAt();
+          const band =
+            analysisRest?.overall_band ??
+            analysisRest?.overallBand ??
+            analysisRest?.score ??
+            null;
+          trackFirstCheck({
+            analysisMode: mode,
+            source: analyzeSource,
+            overallBand: band,
+          });
+          showStudyPlanNudgeToast();
+        } else if (savedId) {
           toast.success('Saved to your history.', { duration: 3500 });
         }
 

@@ -3,11 +3,11 @@
 export const LANDING_WORKSPACE_PREFILL_KEY = 'stratum_workspace_prefill';
 
 export const LANDING_FREE_OFFER_LINE =
-  'Free demo → Sign in → Buy credits. No credit card for the free checks.';
+  'Free demo → Sign in → 3 free checks. No credit card required to start.';
 
 /** Under hero CTA: guest preview + account free checks. */
 export const LANDING_HERO_OFFER_LINE =
-  '1 free practice band now · 3 full checks after sign-in · Buy USD credits when you need more. Practice estimate only — not an official IELTS score.';
+  '1 free practice band now · 3 full checks after sign-in · Top up in USD only when you need more. Practice estimate only — not an official IELTS score.';
 
 const MAX_HERO_CHARS = 4000;
 

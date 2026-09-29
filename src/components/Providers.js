@@ -7,6 +7,7 @@ import { WordListProvider } from "@/context/WordListContext";
 import UserLibrarySync from "@/components/UserLibrarySync";
 import AddToHomeScreenBanner from "@/components/AddToHomeScreenBanner";
 import GoogleAdsSignUpTracker from "@/components/GoogleAdsSignUpTracker";
+import RetentionTracker from "@/components/RetentionTracker";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -54,6 +55,7 @@ export function Providers({ children, session }) {
     >
       <AuthDbWarm />
       <GoogleAdsSignUpTracker />
+      <RetentionTracker />
       <UserLibrarySync />
       <Toaster position="top-center" />
       <WordListProvider>

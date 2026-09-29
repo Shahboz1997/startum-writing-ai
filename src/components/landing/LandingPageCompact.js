@@ -91,7 +91,7 @@ export default function LandingPageCompact({
       <LandingSection>
         <div className="mx-auto max-w-xl text-center">
           <h2 className="mb-3 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            Free demo → Sign in → Buy credits
+            Free demo → Sign in → 3 free checks
           </h2>
           <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">{abCopy.offerLine}</p>
           <button

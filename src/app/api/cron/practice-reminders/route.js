@@ -6,6 +6,7 @@ import { getPrisma } from '@/lib/prisma';
 import { getZonedParts, zonedDateKey } from '@/lib/zonedTime';
 import { sendPracticeReminderEmail } from '@/lib/reminderMail';
 import { verifyCronRequest } from '@/lib/cronAuth';
+import { isOutboundMailConfigured } from '@/lib/resendMail';
 
 function parseDaySet(s) {
   if (typeof s !== 'string' || !s.trim()) return new Set([1, 2, 3, 4, 5]);
@@ -23,10 +24,6 @@ function isReminderDue(parts, hour, minute) {
   return now >= tgt;
 }
 
-function hasEmailDelivery() {
-  return Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
-}
-
 /**
  * Practice reminder cron — single entry point (see vercel.json).
  *
@@ -37,11 +34,10 @@ export async function GET(request) {
   const auth = verifyCronRequest(request);
   if (!auth.ok) return auth.response;
 
-  const emailReady = hasEmailDelivery();
-  if (!emailReady) {
+  if (!isOutboundMailConfigured()) {
     console.warn('[cron/practice-reminders] email not configured; skip');
     return NextResponse.json(
-      { ok: false, error: 'EMAIL_USER and EMAIL_PASS required' },
+      { ok: false, error: 'RESEND_API_KEY or EMAIL_USER/EMAIL_PASS required' },
       { status: 503 }
     );
   }

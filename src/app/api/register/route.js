@@ -1,6 +1,11 @@
 import { getPrisma } from "@/lib/prisma";
 import { CREDITS_DEFAULT_NEW_USER } from "@/lib/credits";
 import { issueVerificationEmailForUser } from "@/lib/emailVerification";
+import {
+  disposableEmailMessage,
+  validateSignupEmail,
+} from "@/lib/emailValidation";
+import { isOutboundMailConfigured } from "@/lib/resendMail";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
@@ -22,21 +27,24 @@ export async function POST(request) {
     const prisma = getPrisma();
 
     const body = await request.json();
-    const rawEmail = body?.email;
     const name = typeof body?.name === "string" ? body.name.trim() : "";
     const password = body?.password;
 
-    if (!rawEmail || !password) {
+    if (!body?.email || !password) {
       return NextResponse.json(
         { error: "Email and password are required." },
         { status: 400 }
       );
     }
 
-    const email = String(rawEmail).trim().toLowerCase();
-    if (!email) {
-      return NextResponse.json({ error: "Email is required." }, { status: 400 });
+    const emailCheck = validateSignupEmail(body.email);
+    if (!emailCheck.ok) {
+      return NextResponse.json(
+        { error: disposableEmailMessage(emailCheck.reason) },
+        { status: 400 }
+      );
     }
+    const email = emailCheck.email;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required." }, { status: 400 });
@@ -67,11 +75,23 @@ export async function POST(request) {
       },
     });
 
+    const mailConfigured = isOutboundMailConfigured();
     const emailResult = await issueVerificationEmailForUser(user);
     let verifiedUser = user;
 
-    // If SMTP is unavailable, do not lock the user out of their new account.
     if (!emailResult.ok) {
+      if (mailConfigured) {
+        // Mail infra exists but delivery failed — do NOT auto-verify fake inboxes.
+        await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+        return NextResponse.json(
+          {
+            error:
+              "Could not send a confirmation email to that address. Use a real inbox and try again.",
+          },
+          { status: 502 }
+        );
+      }
+      // Local/dev without mail: allow signup so the app remains usable.
       verifiedUser = await prisma.user.update({
         where: { id: user.id },
         data: { emailVerified: new Date() },

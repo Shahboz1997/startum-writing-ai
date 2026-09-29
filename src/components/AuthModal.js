@@ -9,6 +9,8 @@ import { trackGoogleAdsRegistrationConversion } from '@/lib/googleAdsConversions
 
 const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) => {
   const [isLogin, setIsLogin] = useState(true);
+  /** 'password' | 'magic' — magic = email login link (no password). */
+  const [loginMethod, setLoginMethod] = useState('password');
   const [formData, setFormData] = useState({ email: '', password: '', name: '' });
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -16,6 +18,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
+  const [magicLoading, setMagicLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -28,6 +31,11 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
     };
   }, [isOpen]);
 
+  // After email verification, keep the form on Sign in (derived — no extra effect).
+  const forceLoginAfterVerify = /email verified/i.test(String(messageProp || ''));
+  const showLoginForm = forceLoginAfterVerify || isLogin;
+  const isMagicLogin = showLoginForm && loginMethod === 'magic';
+
   if (!isOpen) return null;
 
   const validate = () => {
@@ -38,15 +46,49 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
       setError('Please enter a valid email address');
       return false;
     }
+    if (isMagicLogin) return true;
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
       return false;
     }
-    if (!isLogin && formData.name.trim().length < 2) {
+    if (!showLoginForm && formData.name.trim().length < 2) {
       setError('Please enter your full name');
       return false;
     }
     return true;
+  };
+
+  const handleMagicLink = async () => {
+    setError('');
+    setMessage('');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const normalizedEmail = formData.email.trim().toLowerCase();
+    if (!emailRegex.test(normalizedEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
+    setMagicLoading(true);
+    try {
+      const res = await fetch(clientApiUrl('/api/auth/magic-link'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || 'Could not send sign-in link.');
+        return;
+      }
+      setMessage(
+        data.message ||
+          'If an account exists for that email, we sent a sign-in link. Check your inbox.'
+      );
+    } catch {
+      setError('Connection error');
+    } finally {
+      setMagicLoading(false);
+    }
   };
 
   const handleResendVerification = async () => {
@@ -76,6 +118,10 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isMagicLogin) {
+      await handleMagicLink();
+      return;
+    }
     if (!validate()) return;
 
     const normalizedEmail = formData.email.trim().toLowerCase();
@@ -84,7 +130,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
     setError('');
     setMessage('');
 
-    if (isLogin) {
+    if (showLoginForm) {
       // --- ВХОД ---
       try {
         const res = await signIn('credentials', {
@@ -213,9 +259,18 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
         <div className="p-4 sm:p-8">
           <div className="text-center mb-6">
             <h2 className="text-2xl font-semibold tracking-tight text-slate-800 dark:text-white">
-              {isLogin ? 'Welcome back' : 'Create account'}
+              {showLoginForm
+                ? isMagicLogin
+                  ? 'Email sign-in link'
+                  : 'Welcome back'
+                : 'Create account'}
             </h2>
             {(message || messageProp) && <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{message || messageProp}</p>}
+            {showLoginForm && isMagicLogin && !(message || messageProp) ? (
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                We will email you a one-time link — no password needed.
+              </p>
+            ) : null}
           </div>
 
           <AnimatePresence mode="wait">
@@ -238,7 +293,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
           </AnimatePresence>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
-            {!isLogin && (
+            {!showLoginForm && (
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" strokeWidth={1.5} />
                 <input
@@ -247,7 +302,7 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-4 pl-12 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 dark:text-white transition-all font-medium text-sm"
-                  required={!isLogin}
+                  required={!showLoginForm}
                 />
               </div>
             )}
@@ -265,27 +320,54 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
               />
             </div>
 
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" strokeWidth={1.5} />
-              <input
-                type="password"
-                data-testid="auth-password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-4 pl-12 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 dark:text-white transition-all font-medium text-sm"
-                required
-              />
-            </div>
+            {!isMagicLogin ? (
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" strokeWidth={1.5} />
+                <input
+                  type="password"
+                  data-testid="auth-password"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full min-h-[44px] bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-4 pl-12 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 dark:text-white transition-all font-medium text-sm"
+                  required
+                  autoComplete={showLoginForm ? 'current-password' : 'new-password'}
+                />
+              </div>
+            ) : null}
+
+            {showLoginForm ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginMethod(isMagicLogin ? 'password' : 'magic');
+                    setError('');
+                    setMessage('');
+                  }}
+                  className="min-h-[44px] font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+                >
+                  {isMagicLogin ? 'Use password instead' : 'Email me a sign-in link'}
+                </button>
+              </div>
+            ) : null}
 
             <button
               type="submit"
               data-testid="auth-submit"
-              disabled={isLoading}
+              disabled={isLoading || magicLoading}
               className="btn-stratum w-full min-h-[44px] py-4 rounded-xl hover:shadow-[0_0_25px_rgba(79,70,229,0.3)] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <div className="shimmer-layer animate-shimmer" aria-hidden />
-              <span className="btn-stratum-text">{isLoading ? 'PROCESSING...' : isLogin ? 'STRATUM SIGN IN' : 'GET STARTED · STRATUM'}</span>
+              <span className="btn-stratum-text">
+                {isLoading || magicLoading
+                  ? 'PROCESSING...'
+                  : isMagicLogin
+                    ? 'SEND SIGN-IN LINK'
+                    : showLoginForm
+                      ? 'STRATUM SIGN IN'
+                      : 'GET STARTED · STRATUM'}
+              </span>
             </button>
           </form>
 
@@ -344,17 +426,20 @@ const AuthModal = ({ isOpen, onClose, onLoginSuccess, message: messageProp }) =>
                 {resendLoading ? 'Sending…' : 'Resend confirmation email'}
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-                setMessage('');
-              }}
-              className="min-h-[44px] flex items-center justify-center w-full sm:w-auto text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
-            >
-              {isLogin ? "Don't have an account? Register" : 'Already have an account? Sign in'}
-            </button>
+            {forceLoginAfterVerify ? null : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setLoginMethod('password');
+                  setError('');
+                  setMessage('');
+                }}
+                className="min-h-[44px] flex items-center justify-center w-full sm:w-auto text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+              >
+                {showLoginForm ? "Don't have an account? Register" : 'Already have an account? Sign in'}
+              </button>
+            )}
           </div>
         </div>
       </motion.div>

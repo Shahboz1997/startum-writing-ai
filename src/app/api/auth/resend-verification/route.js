@@ -28,7 +28,7 @@ export async function POST(request) {
     }
 
     const sent = await issueVerificationEmailForUser(user);
-    if (!sent.ok && sent.reason === "no_smtp") {
+    if (!sent.ok && (sent.reason === "no_smtp" || sent.reason === "no_mail" || sent.reason === "no_resend")) {
       return NextResponse.json(
         { error: "Email service is not configured. Try again later." },
         { status: 503 }

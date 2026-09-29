@@ -50,7 +50,7 @@ export default async function DemoReportPage({ params }) {
       tasks={report.tasks}
       refLabel={report.ref || 'stratum-demo'}
       heading="Sample IELTS Writing Analysis"
-      intro="Real examiner pipeline — criteria, corrections, lexical upgrade, and draft vs rewrite. Practice estimate only — not an official IELTS score. Free demo → Sign in → Buy credits."
+      intro="Real examiner pipeline — criteria, corrections, lexical upgrade, and draft vs rewrite. Practice estimate only — not an official IELTS score. Free demo → Sign in → 3 free checks."
       landingHref={landingHref}
       badge="Evergreen demo · not a time-limited share link"
     />

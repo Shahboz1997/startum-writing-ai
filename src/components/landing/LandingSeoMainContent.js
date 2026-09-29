@@ -30,7 +30,7 @@ export default function LandingSeoMainContent() {
             {LANDING_HERO.description}
           </p>
           <p className="mx-auto mt-3 max-w-xl text-xs font-medium text-slate-500 dark:text-slate-500">
-            {LANDING_SCORE_DISCLAIMER} · Free demo → Sign in → Buy credits (USD)
+            {LANDING_SCORE_DISCLAIMER} · Free demo → Sign in → 3 free checks (top up later in USD)
           </p>
           <LandingAbOfferLine className="mx-auto mt-4 max-w-xl text-sm font-medium text-slate-500 dark:text-slate-400" />
           <nav className="mt-8 flex flex-wrap items-center justify-center gap-3" aria-label="Primary actions">

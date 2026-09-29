@@ -72,7 +72,7 @@ export default function SeoTopicLanding({
           </Link>
         </nav>
         <p className="mt-3 text-xs text-slate-500 dark:text-slate-500">
-          Path: Free demo → Sign in → Buy credits. Checkout stays in USD via Lemon Squeezy.
+          Path: Free demo → Sign in → 3 free checks. Checkout stays in USD via Lemon Squeezy.
         </p>
 
         {faq.length > 0 ? (

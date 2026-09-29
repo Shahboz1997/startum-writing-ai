@@ -108,12 +108,31 @@ export const authOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        loginToken: { label: "Login token", type: "text" },
       },
       async authorize(credentials) {
         function looksLikeBcryptHash(value) {
           const v = String(value ?? "");
           // bcrypt prefixes: $2a$, $2b$, $2y$
           return /^\$2[aby]\$\d{2}\$/.test(v);
+        }
+
+        const loginToken = String(credentials?.loginToken ?? "").trim();
+        if (loginToken) {
+          const { consumeOneTimeLoginToken } = await import(
+            "@/lib/emailVerification"
+          );
+          const user = await withPrismaRetry(() =>
+            consumeOneTimeLoginToken(loginToken)
+          );
+          if (!user) return null;
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            credits: user.credits,
+            language: user.language || "en",
+          };
         }
 
         const email = credentials?.email?.trim().toLowerCase();
@@ -157,10 +176,12 @@ export const authOptions = {
         if (!isPasswordValid) return null;
 
         if (!user.emailVerified) {
-          const smtpConfigured = Boolean(
-            process.env.EMAIL_USER?.trim() && process.env.EMAIL_PASS?.trim()
+          const mailConfigured = Boolean(
+            (process.env.RESEND_API_KEY || "").trim() ||
+              ((process.env.EMAIL_USER || "").trim() &&
+                (process.env.EMAIL_PASS || "").trim())
           );
-          if (!smtpConfigured) {
+          if (!mailConfigured) {
             try {
               await withPrismaRetry(() =>
                 getPrisma().user.update({

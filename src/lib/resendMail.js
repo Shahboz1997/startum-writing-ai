@@ -180,9 +180,14 @@ export function isResendConfigured() {
   return Boolean((process.env.RESEND_API_KEY || '').trim());
 }
 
-/** True when either Resend or Gmail SMTP can deliver deposit emails. */
-export function isDepositMailConfigured() {
+/** True when either Resend or Gmail SMTP can deliver outbound mail. */
+export function isOutboundMailConfigured() {
   return isResendConfigured() || isSmtpConfigured();
+}
+
+/** @deprecated Prefer isOutboundMailConfigured — same check. */
+export function isDepositMailConfigured() {
+  return isOutboundMailConfigured();
 }
 
 /**
